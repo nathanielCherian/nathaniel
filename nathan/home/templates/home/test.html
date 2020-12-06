@@ -1,0 +1,49 @@
+{% load static %}
+
+<html>
+
+    <head>
+        <title>nathaniel</title>
+    </head>
+
+    <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    
+    <body>
+
+        <iframe id="background" src="/orbit"></iframe>
+
+
+    </body>
+
+    <style>
+        html, body {
+        height: 100%;
+        margin: 0;
+        color: white;
+        font-size: 20pt;
+        }
+
+
+        #background {
+        width: 100%;
+        height: 100%;
+        display: block;
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: -1;
+        pointer-events: none;
+        border: none;
+        }
+
+
+
+    </style>
+
+
+    
+
+
+
+</html>
