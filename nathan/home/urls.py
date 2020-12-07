@@ -1,9 +1,12 @@
 from django.urls import path
-from .views import index, orbit, test
+from . import views
 
 urlpatterns = [
-    path('', index, name="index"),
-    path('backgrounds/orbit/', orbit, name="orbit"),
+    path('', views.index, name="index"),
+    path('portfolio/', views.portfolio, name="portfolio"),
+    path('test/', views.test, name="test"),
+
+    path('backgrounds/orbit/', views.orbit, name="orbit"),
 
 ]
 

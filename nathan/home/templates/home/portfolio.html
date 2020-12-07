@@ -1,0 +1,163 @@
+{% load static %}
+<html>
+    <head>
+        <title>portfolio | nathaniel</title>
+    </head>
+
+
+    <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    
+    <body>
+
+
+        <div class="main-content">
+
+
+            <div class="head">
+                <div class="row justify-content-center">projects</div>
+            </div>
+
+
+            <div class="gallery">
+
+                <div class="row">
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <img src="{% static 'home/portfolio/resistance.png' %}">
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <img src="{% static 'home/portfolio/palantir.png' %}">
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <img src="{% static 'home/portfolio/nighthawkcoders.png' %}">
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="row">
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <img src="{% static 'home/portfolio/dontwait.png' %}">
+                            </div>
+                        </div>
+
+                    </div>
+
+
+
+                </div>
+
+
+
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+
+
+
+
+    </body>
+
+
+
+    <style>
+
+
+        html, body {
+            height: 100%;
+            margin: 0;
+
+            background-color: #1f1f1f;
+            color: white;
+            font-family: gilroy;
+            font-size: 2em;
+        }
+
+
+        .head{
+            padding: 3%;
+        }
+
+
+        .row{
+            margin: 0;
+        }
+
+
+
+        .image-container {
+            position: relative;
+            text-align: center;
+            color: white;
+        }
+
+
+        .text-centered {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+
+        .image-container{
+            overflow: hidden;
+
+        }
+
+        .image-container img{
+            width: 100%;
+            height: auto;
+            transform-origin: 50% 50%;
+            transition: transform .25s, visibility .25s ease-in;
+        }
+
+
+        .image-container img:hover{
+            transform: scale(1.25);
+
+        }
+
+
+
+
+    </style>
+
+
+
+</html>
