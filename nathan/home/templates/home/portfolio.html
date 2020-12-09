@@ -17,7 +17,23 @@
 
 
             <div class="head">
-                <div class="row justify-content-center">projects</div>
+
+
+                <div class="row justify-content-center">
+
+                    <div class="col-1">
+                        <a class="fa fa-angle-left link" href="{% url 'index' %}"></a>
+                    </div>
+
+                    <div class="col-10" style="text-align: center;">
+                        projects
+                    </div>
+
+                    <div class="col-1">
+
+                    </div>
+
+                </div>
             </div>
 
 
@@ -29,7 +45,9 @@
 
                         <div class="row">
                             <div class="image-container">
-                                <img src="{% static 'home/portfolio/resistance.png' %}">
+                                <a href="https://resistance.sylicia.com/" target="_blank">
+                                    <img src="{% static 'home/portfolio/resistance.png' %}">
+                                </a>
                             </div>
                         </div>
 
@@ -40,7 +58,9 @@
 
                         <div class="row">
                             <div class="image-container">
-                                <img src="{% static 'home/portfolio/palantir.png' %}">
+                                <a href="https://github.com/nathanielCherian/palantir" target="_blank">
+                                    <img src="{% static 'home/portfolio/palantir.png' %}">
+                                </a>
                             </div>
                         </div>
 
@@ -51,7 +71,9 @@
 
                         <div class="row">
                             <div class="image-container">
-                                <img src="{% static 'home/portfolio/nighthawkcoders.png' %}">
+                                <a href="http://nighthawkcoders.cf/" target="_blank">
+                                    <img src="{% static 'home/portfolio/nighthawkcoders.png' %}">
+                                </a>
                             </div>
                         </div>
 
@@ -65,7 +87,9 @@
 
                         <div class="row">
                             <div class="image-container">
-                                <img src="{% static 'home/portfolio/dontwait.png' %}">
+                                <a href="http://dontwait.sylicia.com/" target="_blank">
+                                    <img src="{% static 'home/portfolio/dontwait.png' %}">
+                                </a>
                             </div>
                         </div>
 
@@ -108,15 +132,27 @@
             font-size: 2em;
         }
 
+        .row{
+            margin: 0;
+        }
 
         .head{
             padding: 3%;
         }
 
-
-        .row{
-            margin: 0;
+        .link{
+            color: white;
+            transition: 1s;
+            
         }
+
+        .link:hover{
+            color: rgb(107, 0, 0);
+            text-decoration: none;
+        }
+
+
+
 
 
 

@@ -1,0 +1,137 @@
+{% load static %}
+<html>
+
+    <head>
+        <title>me | nathaniel</title>
+
+        <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    </head>
+
+    <body>
+
+
+        <div class="row">
+            <div class="col-1">
+                <a class="fa fa-angle-left link" href="{% url 'index' %}"></a>
+            </div>
+        </div>
+
+
+        <div class="row justify-content-center" style="padding-top: 15%;">
+            <div class="col-6">
+                <h1 class="ltr-g">I am Nathaniel Cherian</h1>
+            </div>
+        </div>
+
+
+
+
+
+    </body>
+
+
+
+    <script>
+
+        window.addEventListener('scroll', () => {
+            const state = window.pageYOffset / (document.body.offsetHeight - window.innerHeight)
+            document.body.style.setProperty('--scroll', Math.min(state, 0.9999));
+        }, false);
+
+
+    </script>
+
+
+    <style>
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background-color: #1f1f1f;
+            color: white;
+            font-family: gilroy;
+            font-size: 2em;
+        }
+
+
+        body{
+            min-height: 500vh;
+        }
+
+        .row{
+            margin: 0;
+        }
+
+
+
+        @keyframes nameAnim{
+            to{
+                /*transform: rotate(360deg);*/
+                background-position: 0 100%;
+            }
+        }
+
+
+
+        h1{
+            position: fixed;
+            animation: nameAnim 1s linear infinite;
+            animation-play-state: paused;
+            animation-delay: calc(var(--scroll) * -1s);
+        }
+
+
+
+
+        .ltr-g{
+            color: white;
+            overflow: hidden;
+            background: linear-gradient(to top,#1f1f1f,#1f1f1f 50%, white 50%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 100% 200%;
+            background-position: 0 0;
+            
+        }
+
+
+
+
+        @keyframes backgroundAnim{
+            to{
+                background-color: white;
+            }
+        }
+
+        body{
+            animation: backgroundAnim 1s linear infinite;
+            animation-play-state: paused;
+            animation-delay: calc(var(--scroll) * -1s);
+        }
+
+
+
+        .link{
+            color: white;
+            transition: 1s;
+            
+        }
+
+        .link:hover{
+            color: rgb(107, 0, 0);
+            text-decoration: none;
+        }
+
+
+
+
+
+
+    </style>
+
+
+</html>

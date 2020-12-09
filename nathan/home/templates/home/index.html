@@ -71,12 +71,12 @@
 
                 <div class="row">
                     <div class="col-5" style="text-align: center;">
-                        <a class="toTR">portfolio</a>
+                        <a href="{% url 'portfolio' %}" class="toTR">portfolio</a>
                     </div>
 
 
                     <div class="col-7" style="text-align: end;">
-                        <a href="#" class="far-right">about me</a>
+                        <a href="{% url 'about_me' %}" class="toTR">about me</a>
                     </div>
 
                 </div>
@@ -92,14 +92,16 @@
         <script>
 
 
-            document.getElementsByClassName("toTR")[0].addEventListener("click", (event) => {
-                window.location = "{% url 'portfolio' %}";
-            });
+
+
+
+
 
 
             window.addEventListener("load", (event) => {
                 const loader = document.getElementById("loader");
-                setTimeout(loadIn, 50)
+                loadIn();
+                //setTimeout(loadIn, 10)
 
 
             });

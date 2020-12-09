@@ -10,6 +10,8 @@ def index(request):
 def portfolio(request):
     return render(request, "home/portfolio.html")
 
+def about_me(request):
+    return render(request, "home/about_me.html")
 
 def test(request):
     return render(request, "home/it.html")
