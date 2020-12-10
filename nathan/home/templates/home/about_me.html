@@ -26,6 +26,13 @@
             </div>
         </div>
 
+        <div class="row justify-content-center" style="padding-top: 20%;">
+            <div class="col-1">
+                <h2 class="fa fa-arrow-down arrow-down"></h2>
+            </div>
+        </div>
+
+
 
 
 
@@ -68,9 +75,18 @@
 
 
         @keyframes nameAnim{
-            to{
+            50%{
                 /*transform: rotate(360deg);*/
                 background-position: 0 100%;
+                transform: translate(0,0);
+
+            }
+
+            100%{
+                background-position: 0 100%;
+
+                transform: translate(0,-100%);
+
             }
         }
 
@@ -126,6 +142,24 @@
             text-decoration: none;
         }
 
+        @keyframes arrowDownAnim{
+
+            25%{
+                opacity: 0;
+            }
+
+            100%{
+                opacity: 0;
+            }
+        }
+
+        .arrow-down{
+            position: fixed;
+
+            animation: arrowDownAnim 1s linear infinite;
+            animation-play-state: paused;
+            animation-delay: calc(var(--scroll) * -1s);
+        }
 
 
 
