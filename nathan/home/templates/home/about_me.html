@@ -26,10 +26,27 @@
             </div>
         </div>
 
-        <div class="row justify-content-center" style="padding-top: 20%;">
+
+
+
+
+        <div class="row justify-content-center" style="padding-top: 15%;">
             <div class="col-1">
                 <h2 class="fa fa-arrow-down arrow-down"></h2>
             </div>
+        </div>
+
+
+        <div class="row justify-content-center">
+            <h3 class=" col-4 contact">
+                Contact me here
+            </h3>
+        </div>
+
+        <div class="row justify-content-center">
+            <h3 class=" col-4 resume">
+                Request a resume
+            </h3>
         </div>
 
 
@@ -65,7 +82,7 @@
 
 
         body{
-            min-height: 500vh;
+            min-height: 1000vh;
         }
 
         .row{
@@ -75,18 +92,23 @@
 
 
         @keyframes nameAnim{
-            50%{
+            25%{
                 /*transform: rotate(360deg);*/
                 background-position: 0 100%;
                 transform: translate(0,0);
 
             }
 
+            50%{
+                background-position: 0 100%;
+                transform: translate(0,-100%);
+            }
+
+
+
             100%{
                 background-position: 0 100%;
-
                 transform: translate(0,-100%);
-
             }
         }
 
@@ -99,6 +121,74 @@
             animation-delay: calc(var(--scroll) * -1s);
         }
 
+
+
+
+        @keyframes contactAnim{
+            25%{
+                color: white;
+                opacity: 0;
+            }
+
+            50%{
+                color: white;
+                opacity: 0;
+            }
+
+            60%{
+                color: black;
+                opacity: 1;
+            }
+
+            100%{
+                color: black;
+                opacity: 1;
+            }
+        }
+
+        .contact{
+            text-align: center;
+            position: fixed;
+            opacity: 0;
+            animation: contactAnim 1s linear infinite;
+            animation-play-state: paused;
+            animation-delay: calc(var(--scroll) * -1s);
+        }
+
+
+
+        @keyframes resumeAnim{
+            25%{
+                color: white;
+                opacity: 0;
+            }
+
+            50%{
+                color: white;
+                opacity: 0;
+            }
+
+            80%{
+                color: black;
+                opacity: 1;
+            }
+
+            100%{
+                color: black;
+                opacity: 1;
+            }
+        }
+
+        .resume{
+            text-align: center;
+            position: fixed;
+            padding-top: 5%;
+            opacity: 0;
+
+            animation: resumeAnim 1s linear infinite;
+            animation-play-state: paused;
+            animation-delay: calc(var(--scroll) * -1s);
+        }
 
 
 
@@ -118,7 +208,11 @@
 
 
         @keyframes backgroundAnim{
-            to{
+            50%{
+                background-color: white;
+            }
+
+            100%{
                 background-color: white;
             }
         }
