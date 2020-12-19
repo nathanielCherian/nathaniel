@@ -1,0 +1,402 @@
+{% load static %}
+<html>
+
+    <head>
+        <title>Kid Cudi</title>
+
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/three.min.js"></script>
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/OrbitControls.js"></script>
+        <script src="http://spite.github.io/THREE.MeshLine/src/THREE.MeshLine.js"></script>
+
+
+
+    </head>
+
+
+    <body>
+
+
+        <canvas id="c"></canvas>
+
+
+
+        <script type="module">
+
+            import {OBJLoader2} from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/loaders/OBJLoader2.js';
+            import {MTLLoader} from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/loaders/MTLLoader.js';
+            import {MtlObjBridge} from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/loaders/obj2/bridge/MtlObjBridge.js';
+
+
+            function main() {
+                const canvas = document.querySelector('#c');
+                const renderer = new THREE.WebGLRenderer({canvas});
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x232045)
+
+
+                const fov = 45;
+                const aspect = 2;  // the canvas default
+                const near = 0.1;
+                const far = 300;
+                const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+
+                const cameraScene = new THREE.Object3D();
+                scene.add(cameraScene)
+                cameraScene.add(camera);
+                camera.position.set(37, 70, 124);
+                //camera.lookAt(50,20,0)
+
+
+
+
+                
+
+                const controls = new THREE.OrbitControls(camera, canvas);
+                controls.rotateSpeed = 0.25;
+                controls.dampingFactor = .2;
+                controls.target.set(30,20,0);
+                controls.enableDamping = true;
+                controls.update()
+
+
+                const light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1.5);
+                scene.add( light );
+
+
+                const moonSpace = new THREE.Object3D();
+                scene.add(moonSpace);
+                moonSpace.position.y = 35;
+                moonSpace.position.x = 10;
+
+
+                { //moon 
+                    const radius = 6;
+                    const widthSegments = 10;
+                    const heightSegments = 10;
+                    const sphereGeometry = new THREE.SphereBufferGeometry(
+                        radius, widthSegments, heightSegments);
+                    const sphereMat = new THREE.MeshBasicMaterial({color:0xffffff});
+                    const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMat)
+                    sphereMesh.position.set(0,0,0)
+                    moonSpace.add(sphereMesh);
+                }
+
+
+
+
+                {
+                    const mtlLoader = new MTLLoader();
+                    mtlLoader.load('/static/sketches/models/kid_cudi_motm2/person/person.mtl', (mtlParseResult) => {
+                    const objLoader = new OBJLoader2();
+                    const materials =  MtlObjBridge.addMaterialsFromMtlLoader(mtlParseResult);
+                    objLoader.addMaterials(materials);
+                    objLoader.load('/static/sketches/models/kid_cudi_motm2/person/person.obj', (root) => {
+
+                        const personSpace = new THREE.Object3D();
+                        scene.add(personSpace)
+
+                        personSpace.scale.set(3,3,3);
+                        personSpace.position.y = 30;
+                        personSpace.position.x = 20;
+                        personSpace.position.z = 3;
+
+                        personSpace.rotation.y = -Math.PI/2;
+                        personSpace.rotation.x = Math.PI/4;
+
+
+
+                        personSpace.add(root);
+
+
+                    });
+                    });
+
+                 }
+
+
+
+
+                {
+                    const mtlLoader = new MTLLoader();
+                    mtlLoader.load('/static/sketches/models/kid_cudi_motm2/sskull/skull.mtl', (mtlParseResult) => {
+                    const objLoader = new OBJLoader2();
+                    const materials =  MtlObjBridge.addMaterialsFromMtlLoader(mtlParseResult);
+                    objLoader.addMaterials(materials);
+                    objLoader.load('/static/sketches/models/kid_cudi_motm2/sskull/skull.obj', (root) => {
+
+                        root.scale.set(10,10,10);
+                        scene.add(root);
+
+                        //console.log(root.children[0].geometry.attributes.position.array)
+
+
+                        const startPoints = []
+
+                        const l = root.children[0].geometry.attributes.position.array.length/3;
+                        for(var i=0;i<40;i++){
+                            const r = THREE.MathUtils.randInt(0,l)*3;
+                            
+
+                            const x = root.children[0].geometry.attributes.position.array[r]*10;
+                            const y = root.children[0].geometry.attributes.position.array[r+1]*10;
+                            const z = root.children[0].geometry.attributes.position.array[r+2]*10;
+
+                            startPoints.push(new THREE.Vector3(x,y,z));
+                        }
+
+                        createLines(startPoints);
+                        //drawDotSkull(root.children[0].geometry.attributes.position.array)
+
+
+
+
+
+                    });
+                    });
+
+                 }
+
+
+
+                 function drawDotSkull(vertices){
+
+                    const l = vertices.length/3;
+
+                    for(var i=0;i<l;i++){
+
+                        const x = vertices[(i*3)]*10;
+                        const y = vertices[(i*3)+1]*10;
+                        const z = vertices[(i*3)+2]*10;
+
+                        const pointGeo = new THREE.BoxGeometry(.5,.5,.5);
+                        const pointMat = new THREE.MeshBasicMaterial({color:0xf4fc03});
+                        const pointMesh = new THREE.Mesh(pointGeo, pointMat);
+                        pointMesh.position.set(x,y,z);
+                        scene.add(pointMesh)
+                    }
+
+                 }
+
+
+
+
+                 const dotColors = [
+                    0x3bdeea, //light blue
+                    0xe0edf1, //whiteish blue
+                    0xefd429, //yellow
+                    0xd52cd6, //purple
+                    0xbf5d51, //reddish orange
+                    0x2d6383, //dark blue
+                ]
+
+                const dotRanges = {
+                    x:[-20,80],
+                    y:[-40,40],
+                    z:[-80,40],
+                }
+
+
+                const dotSpace = new THREE.Object3D();
+                dotSpace.position.x += 10;
+                moonSpace.add(dotSpace);
+
+                function addDot(){
+                    
+                    var color = dotColors[Math.floor(Math.random() * dotColors.length)];
+                    const radius = THREE.MathUtils.randFloat(.25, 1);
+                    const widthSegments = 5;
+                    const heightSegments = 5;
+                    const sphereGeometry = new THREE.SphereBufferGeometry(
+                        radius, widthSegments, heightSegments);
+                    const sphereMat = new THREE.MeshBasicMaterial({color:color});
+                    const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMat)
+                    sphereMesh.position.set(THREE.MathUtils.randFloat(...dotRanges['x']),THREE.MathUtils.randFloat(...dotRanges['y']),THREE.MathUtils.randFloat(...dotRanges['z']))
+                    dotSpace.add(sphereMesh);
+
+                }
+
+                {
+                    for(var i=0;i<125;i++){
+                        addDot();
+                    }
+                }
+
+
+
+
+
+
+
+
+                function createLines(startPoints){
+
+                    startPoints.forEach((point) => {
+                        createLine(point)
+                        //addTestPoint(point.x, point.y, point.z);
+                    });
+
+                }
+
+
+                const lineColors = [
+                    0xb71c5e, //rich pink
+                    0xdb3435, // orange
+                    0xf7b474, //yellow
+                    0x1632a5, //dark blue
+                    0xce143b, //red
+                    0x6534c4, //purple
+                    0x3fdae0, //light blue
+                    0x64b991, //greenish
+                ]
+
+
+
+                function getLineCurve(origin){
+
+                    const points = [origin];
+
+                    const reps = THREE.MathUtils.randInt(2,5)
+                    for(var i=0;i<reps;i++){
+                        const x = THREE.MathUtils.randFloat(0,20) + points[points.length - 1].x;
+                        const y = THREE.MathUtils.randFloat(-2,15) + points[points.length - 1].y;
+                        const z = THREE.MathUtils.randFloat(-10,10) + points[points.length - 1].z;
+
+                        points.push(new THREE.Vector3(x,y,z));
+                    }
+
+                    const curve = new THREE.CatmullRomCurve3(points);
+                    return curve;
+
+                }
+
+
+
+                function createLine(point){
+                    var color = lineColors[Math.floor(Math.random() * lineColors.length)];
+
+
+                    const curve = getLineCurve(point);
+                    const points = curve.getPoints(30);
+                    //const points = [point.x, point.y, point.z, point.x + 10, point.y, point.z];
+                    const line = new MeshLine();
+                    line.setPoints(points, smallToLargeTaper);
+                    const material = new MeshLineMaterial({color:color});
+                    const mesh = new THREE.Mesh(line, material);
+
+                    scene.add(mesh)
+                }
+
+
+
+                function randomTaper(){
+
+                    const r = Math.random();
+                    if(r < 0.2){
+                        return middleSinTaper
+                    }else{
+                        return smallToLargeTaper
+                    }
+
+                }
+
+
+                function middleSinTaper(p){
+                    if(p<.4 || p > .6){
+                        return p;
+                    }else{
+                        return 2*Math.sin((p-.4)*5*Math.PI) + 1;
+                    }
+                }
+
+                function smallToLargeTaper(p){
+                    return p;
+                }
+
+
+
+
+                function addTestPoint(x, y, z){
+                    const pointGeo = new THREE.BoxGeometry(3,3,3);
+                    const pointMat = new THREE.MeshBasicMaterial({color:0xf4fc03});
+                    const pointMesh = new THREE.Mesh(pointGeo, pointMat);
+                    pointMesh.position.set(x,y,z);
+                    scene.add(pointMesh)
+                }
+
+
+
+
+
+
+
+                function render(time){
+                    time *= 0.001;
+
+                    if(resizeRendererToDisplaYSize(renderer)){
+                        const canvas = renderer.domElement;
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                    }
+
+
+
+                   
+                    controls.update()
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(render);
+                }
+
+
+
+
+
+                controls.update()
+
+
+
+                function resizeRendererToDisplaYSize(renderer) {
+                    const canvas = renderer.domElement;
+                    const pixelRatio = window.devicePixelRatio;
+                    const width = canvas.clientWidth * pixelRatio | 0;
+                    const height = canvas.clientHeight * pixelRatio | 0;
+                    const needResize = canvas.width !== width || canvas.height !== height;
+                    if (needResize){
+                        renderer.setSize(width, height, false);
+                    }
+                    return needResize;
+                }
+
+                requestAnimationFrame(render);
+
+            }
+
+            main()
+
+
+
+        </script>
+
+
+
+        <style>
+
+            html, body{
+                margin: 0;
+                height: 100%;
+            }
+
+            #c{
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+
+        </style>
+
+    </body>
+
+
+
+
+</html>
