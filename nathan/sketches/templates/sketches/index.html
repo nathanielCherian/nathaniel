@@ -1,0 +1,193 @@
+{% load static %}
+<html>
+    <head>
+        <title>sketches | nathaniel</title>
+    </head>
+
+
+    <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    
+    <body>
+
+
+        <div class="main-content">
+
+
+            <div class="head">
+
+
+                <div class="row justify-content-center">
+
+                    <div class="col-1">
+                        <a class="fa fa-angle-left link" href="{% url 'index' %}"></a>
+                    </div>
+
+                    <div class="col-10" style="text-align: center;">
+                        sketches
+                    </div>
+
+                    <div class="col-1">
+
+                    </div>
+
+                </div>
+            </div>
+
+
+            <div class="gallery">
+
+                <div class="row">
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <a href="{% url 'kid_cudi_motm2' %}" target="_blank">
+                                    <img src="{% static 'sketches/cudi.png' %}">
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <a href="{% url 'chaos' %}" target="_blank">
+                                    <img src="{% static 'sketches/lorenz.png' %}">
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="col-4">
+
+                        <div class="row">
+                            <div class="image-container">
+                                <a href="{% url 'starry-night' %}" target="_blank">
+                                    <img src="{% static 'sketches/starrynight.png' %}">
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+
+
+
+
+    </body>
+
+
+
+    <style>
+
+
+        html, body {
+            height: 100%;
+            margin: 0;
+
+            background-color: #1f1f1f;
+            color: white;
+            font-family: gilroy;
+            font-size: 2em;
+        }
+
+        .row{
+            margin: 0;
+        }
+
+        .head{
+            padding: 3%;
+        }
+
+        .link{
+            color: white;
+            transition: 1s;
+            
+        }
+
+        .link:hover{
+            color: rgb(107, 0, 0);
+            text-decoration: none;
+        }
+
+
+
+
+
+
+        .image-container {
+            position: relative;
+            text-align: center;
+            color: white;
+        }
+
+
+        .text-centered {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+
+        .image-container{
+            overflow: hidden;
+
+        }
+
+        .image-container img{
+            width: 100%;
+            height: auto;
+            transform-origin: 50% 50%;
+            transition: transform .25s, visibility .25s ease-in;
+        }
+
+
+        .image-container img:hover{
+            transform: scale(1.25);
+
+        }
+
+
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0.2;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+
+        body{
+            animation: 1s ease-out 0s 1 fadeIn;
+        }
+
+
+
+    </style>
+
+
+
+</html>

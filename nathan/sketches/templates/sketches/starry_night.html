@@ -1,0 +1,873 @@
+<html>
+
+    <head>
+        <title>Starry Night</title>
+
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/three.min.js"></script>
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/OrbitControls.js"></script>
+        <script src="http://spite.github.io/THREE.MeshLine/src/THREE.MeshLine.js"></script>
+
+    </head>
+
+
+    <body>
+
+
+        <canvas id="c"></canvas>
+
+
+
+
+        <script>
+
+
+            function main() {
+                const canvas = document.querySelector('#c');
+                const renderer = new THREE.WebGLRenderer({canvas});
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x000412)
+
+
+                const fov = 45;
+                const aspect = 2;  // the canvas default
+                const near = 0.1;
+                const far = 300;
+                const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+
+                const cameraScene = new THREE.Object3D();
+                scene.add(cameraScene)
+                cameraScene.add(camera);
+                camera.position.set(20, 0, 100);
+                camera.lookAt(0,0,0)
+
+
+
+                const controls = new THREE.OrbitControls(camera, canvas);
+                controls.target.set(0,5,0);
+                //controls.enableDamping = true;
+                controls.update()
+
+                const color = 0xFFFFFF;
+                const intensity = 1;
+                const light = new THREE.PointLight(color, intensity);
+                light.position.set(0, 100, 0);
+                scene.add(light);
+
+
+                const radius = 1;
+                const widthSegments = 6;
+                const heightSegments = 6;
+                const sphereGeometry = new THREE.SphereBufferGeometry(
+                    radius, widthSegments, heightSegments);
+                const sphereMat = new THREE.MeshBasicMaterial({color:0xffffff});
+                const spmesh = new THREE.Mesh(sphereGeometry, sphereMat)
+                spmesh.position.set(0,0,0)
+                scene.add(spmesh);
+
+
+
+
+
+                const LENGTH = 10;
+                const HEIGHT = 10;
+                function getPointOnCurve(i){
+
+                    const x = i*LENGTH;
+                    const y = Math.sin(i*.5)*HEIGHT;
+                    const z = 0;
+
+                    return [x, y, z];
+
+                }
+
+
+
+                //Light blue strokes used for wind
+                colorPalette1 = [
+                    {
+                        color:0x758dae,
+                        rate:0.1
+                    },
+                    {
+                        color:0x446380,
+                        rate:0.2
+                    },
+                    {
+                        color:0x1b3565,
+                        rate:0.3
+                    },
+                    {
+                        color:"#1c2757",
+                        rate:0.3
+                    },
+                    {
+                        color:"#6c615d",
+                        rate:0.35
+                    },
+                    {
+                        color:"#a1ada2",
+                        rate:0.45
+                    }
+
+                ]
+
+                backgroundPalleteDBlue = [
+                    {
+                        color:"#374698",
+                        rate:.25
+                    },
+                    {
+                        color:"#23338b",
+                        rate:.50
+                    },
+                    {
+                        color:"#687c9e",
+                        rate:.75
+                    },
+                    {
+                        color:"#424e79",
+                        rate:.90
+                    },
+                    {
+                        color:"#202b4f",
+                        rate:1
+                    }
+                ]
+
+                
+                mountainPalleteWhite = [
+                    {
+                        color:"#869c94",
+                        rate:.25
+                    },
+                    {
+                        color:"#bac2ba",
+                        rate:.50
+                    },
+                    {
+                        color:"#86977f",
+                        rate:.75
+                    },
+                    {
+                        color:"#47607b",
+                        rate:.90
+                    },
+                    {
+                        color:"#1d2c53",
+                        rate:1
+                    }
+                ]
+
+
+                //White+yellow lantern 
+                lanternPalleteWhite = [
+                    {
+                        color:"#acb0b7",
+                        rate:.25
+                    },
+                    {
+                        color:"#bfbba8",
+                        rate:.50
+                    },
+                    {
+                        color:"#babbb1",
+                        rate:.75
+                    },
+                    {
+                        color:"#ceccb8",
+                        rate:.95
+                    },
+                    {
+                        color:"#afaa59",
+                        rate:1
+                    }
+                ]
+
+                //Yellowish moon light
+                moonLightYellow = [
+                    {
+                        color:"#90ad91",
+                        rate:.25
+                    },
+                    {
+                        color:"#abad65",
+                        rate:.50
+                    },
+                    {
+                        color:"#bcbc72",
+                        rate:.75
+                    },
+                    {
+                        color:"#babb75",
+                        rate:.90
+                    },
+                    {
+                        color:"#c0ae27",
+                        rate:1
+                    }
+                ]
+
+
+                //Tree colors
+                treePalleteBrown = [
+                    {
+                        color:"#1e221d",
+                        rate:.25
+                    },
+                    {
+                        color:"#281811",
+                        rate:.50
+                    },
+                    {
+                        color:"#2f2f2f",
+                        rate:.75
+                    },
+                    {
+                        color:"#12180a",
+                        rate:.90
+                    },
+                    {
+                        color:"#141317",
+                        rate:1
+                    }
+                ]
+
+
+
+                function getBiasedColor(colorPalette){
+
+                    const rand = Math.random();
+
+
+                    for(const c of colorPalette){
+                        if(rand <= c.rate){
+                            return c.color;
+                        }
+                    }
+
+                    return 0x738cab
+                }
+
+
+                function brushTaper(p){
+                    return p *1.5;
+                }
+
+
+
+
+                class Stroke{
+                    constructor(){
+                        this.lines = [];
+                    }
+
+                    addLine(){
+                        return;
+                    }
+
+                    updateLines(){
+                        return;
+                    }
+
+                    getLines(){
+                        return this.lines.length;
+                    }
+                }
+
+
+                const SPEED_MULTIPLIER = 4;
+
+                class CurvedStroke extends Stroke{
+
+                    constructor(curve, clf, colorPalette, minLines=5){
+                        super();
+                        this.curve = curve;
+                        this.clf = clf;
+                        this.colorPalette = colorPalette;
+
+                        this.minLines = minLines;
+                    }
+
+                    addLine(){
+                        this.lines.push(this.clf(this.curve, this.colorPalette))
+                    }
+
+
+
+                    updateLines(){
+
+                        for(var i=this.lines.length-1; i>=0;i--){
+
+                            const lineObject = this.lines[i];
+                            const points = lineObject.line.points;
+
+                            var done = false;
+
+                            if(lineObject.pos <= lineObject.maxPos){
+
+
+                                const cp = lineObject.curve.getPoint(lineObject.pos);
+                                lineObject.pos += lineObject.speed;
+
+
+                                points.push(cp.x*SCALE, cp.y*SCALE, 0);
+
+                                }else{
+                                    done = true;
+                                }
+
+
+                                if(points.length >= 3){
+                                    if(points.length >= 3*lineObject.lineLength || done){
+                                        points.splice(0,3);
+                                    }
+
+                                    //lineObject.line.points = points;
+                                    lineObject.line.setPoints(points, lineObject.taper)
+
+                                }else{
+                                    scene.remove(lineObject.mesh);
+                                    this.lines.splice(i,1)
+                                }
+
+
+                        }
+
+
+                    }
+
+
+
+
+
+                }
+
+
+                const strokes = {}
+
+                function addCurvedStroke(name, curve, clf, colorPalette, params={}){
+                    
+                    const stroke = new CurvedStroke(curve, clf, colorPalette, params.minLines);
+                    strokes[name] = stroke;
+
+                }
+
+
+
+                //Left to Right light blue
+                {
+
+                    const curve = new THREE.SplineCurve([
+                        new THREE.Vector2(-5,2),
+                        new THREE.Vector2(-3.84,1.2),
+                        new THREE.Vector2(-1.11,2.43),
+                        new THREE.Vector2(0.55,2.03),
+                        new THREE.Vector2(-0.03,.63),
+
+                    ]);
+
+
+                    const params = {
+                        minLines:10
+                    }
+
+                    addCurvedStroke("top-left", curve, createLine, colorPalette1, params)
+
+                    strokes["top-left"].addLine()
+                    strokes["top-left"].addLine()
+                    strokes["top-left"].addLine()
+
+
+                }
+
+                //right to left light blue
+                {
+
+                    const curve = new THREE.SplineCurve([
+                        new THREE.Vector2(1.46, -.12),
+                        new THREE.Vector2(2,-0.25 ),
+                        new THREE.Vector2(2.53, .29),
+                        new THREE.Vector2(1.89, .8),
+                        new THREE.Vector2(.22, .16),
+                        new THREE.Vector2(-0.73, 1.54),
+
+                    ]);
+
+
+
+                    addCurvedStroke("top-right", curve, createLine, colorPalette1);
+
+                    strokes["top-right"].addLine();
+                    strokes["top-right"].addLine();
+                    strokes["top-right"].addLine();
+
+
+                }
+
+
+                //Dark blue top
+                {
+                    const curve = new THREE.SplineCurve([
+                        new THREE.Vector2(-4.8, 3.76),
+                        new THREE.Vector2(-3.66, 2.58),
+                        new THREE.Vector2(-1.96, 3.14),
+                        new THREE.Vector2(-.48, 3.54),
+                        new THREE.Vector2(1, 3.2),
+                        new THREE.Vector2(2.25, 2.14),
+                        new THREE.Vector2(4.46, 1.28),
+
+                    ]);
+
+
+
+                    addCurvedStroke("top-back", curve, createLine, backgroundPalleteDBlue);
+                }
+
+
+                
+                //White Moutain Wind
+                {
+                    const curve = new THREE.SplineCurve([
+                        new THREE.Vector2(-4.86, -1.27),
+                        new THREE.Vector2(-1.94, -1.71),
+                        new THREE.Vector2(-.19,-1.06 ),
+                        new THREE.Vector2(1.85, -.9),
+                        new THREE.Vector2(4.83, .32),
+
+                    ]);
+
+
+
+                    addCurvedStroke("mountain", curve, createLine, mountainPalleteWhite);
+                }
+                
+
+
+                function circleCurveGen(info){
+
+                    const RADIUS = THREE.MathUtils.randFloat(info.rmin,info.rmax)
+
+                    const curve = new THREE.EllipseCurve(
+                        info.x,info.y,
+                        RADIUS,RADIUS,
+                        0, 1.9*Math.PI,
+                        false,
+                        0
+                    )
+
+                    return curve
+
+                }
+
+
+
+                class CircleStroke extends Stroke{
+
+                    constructor(clf, colorPalette, circleInfo, minLines=5){
+                        super();
+                        this.clf = clf;
+                        this.colorPalette = colorPalette;
+                        this.info = circleInfo;
+
+                        this.minLines = minLines;
+                    }
+
+                 
+                    circleCurveGen(){
+
+                        const RADIUS = THREE.MathUtils.randFloat(this.info.rmin,this.info.rmax)
+
+                        const curve = new THREE.EllipseCurve(
+                            this.info.x,this.info.y,
+                            RADIUS,RADIUS,
+                            0, 1.9*Math.PI,
+                            false,
+                            0
+                        )
+
+                        return curve
+
+                    }
+
+
+                    addLine(){
+                        this.lines.push(this.clf(this.circleCurveGen(), this.colorPalette))
+                    }
+
+
+
+                    updateLines(){
+
+                        for(var i=this.lines.length-1; i>=0;i--){
+
+                            const lineObject = this.lines[i];
+                            const points = lineObject.line.points;
+
+                            var done = false;
+
+                            if(lineObject.pos <= lineObject.maxPos){
+
+
+                                const cp = lineObject.curve.getPoint(lineObject.pos);
+                                lineObject.pos += lineObject.speed;
+
+
+                                points.push(cp.x*SCALE, cp.y*SCALE, 0);
+
+                                }else{
+                                    done = true;
+                                }
+
+
+                                if(points.length >= 3){
+                                    if(points.length >= 3*lineObject.lineLength || done){
+                                        points.splice(0,3);
+                                    }
+
+                                    lineObject.line.points = points;
+
+                                    //lineObject.line.setPoints(points, lineObject.taper)
+
+                                }else{
+                                    scene.remove(lineObject.mesh);
+                                    this.lines.splice(i,1)
+                                }
+
+
+                        }
+
+
+                    }
+
+
+                }
+
+
+
+                //Moon
+                {
+
+                    const info = {
+                        x:-1.45,
+                        y:-.22,
+                        rmin:.01,
+                        rmax:.7,
+                    }
+
+                    const c = new CircleStroke(createCircleLine, lanternPalleteWhite, info);
+                    strokes["white-lantern"] = c;
+                }
+
+
+                //Middle white lantern
+                {
+
+                    const info = {
+                        x:4.19,
+                        y:2.63,
+                        rmin:.01,
+                        rmax:1,
+                    }
+
+                    const c = new CircleStroke(createCircleLine, moonLightYellow, info, 10);
+                    strokes["moon-light"] = c;
+                }
+
+
+
+                //top lantern yellow
+                {
+
+                    const info = {
+                        x:-2.62,
+                        y:2.59,
+                        rmin:.01,
+                        rmax:.3,
+                    }
+
+                    const c = new CircleStroke(createCircleLine, moonLightYellow, info);
+                    strokes["small-lantern"] = c;
+
+                }
+
+                //small-lantern-yellow-left
+                {
+                    const info = {
+                        x:-3.66,
+                        y:.18,
+                        rmin:.01,
+                        rmax:.2,
+                    }
+
+                    const c = new CircleStroke(createCircleLine, moonLightYellow, info, 2);
+                    strokes["small-lantern-yellow-left"] = c;
+                }
+
+
+                //small-lantern-white-left
+                {
+                    const info = {
+                        x:-4.53,
+                        y:.38,
+                        rmin:.01,
+                        rmax:.1,
+                    }
+
+                    const c = new CircleStroke(createCircleLine, lanternPalleteWhite, info, 2);
+                    strokes["small-lantern-white-left"] = c;
+                }
+
+
+
+                class TreeStroke extends CircleStroke{
+
+                    constructor(clf, colorPalette, minLines=5){
+                        super(clf, colorPalette, {}, minLines);
+                    }
+
+
+
+                    curvePoints = {
+                        0:[
+                            new THREE.Vector2(-3.42, -2.32),
+                            new THREE.Vector2(-3.16, -1.63)
+                        ],
+                        1:[
+                            new THREE.Vector2(-2.82, -3.11),
+                            new THREE.Vector2(-3.16, -1.63)
+                        ],
+                        2:[
+                            new THREE.Vector2(-3.64, -3.15),
+                            new THREE.Vector2(-3.65, -1.65),
+                            new THREE.Vector2(-3.39, -.15),
+                        ],
+
+                    }
+
+                    treeCurveGen(){
+
+                        
+                        const curve = new THREE.SplineCurve([
+                            new THREE.Vector2(THREE.MathUtils.randFloat(-3.6,-.6), -3.24),
+                            new THREE.Vector2(THREE.MathUtils.randFloat(-3.4,-1.6), -1.5),
+                            new THREE.Vector2(THREE.MathUtils.randFloat(-3.5,-2.7), .14),
+                            new THREE.Vector2(THREE.MathUtils.randFloat(-3.22,-2.8), 1.4),
+                            new THREE.Vector2(-3.12, 2.49),
+
+                        ]);
+
+                        return curve
+
+                    }
+
+
+                    addLine(){
+                        this.lines.push(this.clf(this.treeCurveGen(), this.colorPalette))
+                    }
+
+                    
+                }
+
+
+                {
+                    const c = new TreeStroke(createTreeLine, treePalleteBrown);
+                    strokes["tree"] = c;
+                }
+
+
+
+
+                function createCircleLine(curve, colorPalette){
+
+                    const points = []
+                    const line = new MeshLine();
+                    line.setPoints(points, brushTaper);
+
+
+                    const material = new MeshLineMaterial({color:new THREE.Color(getBiasedColor(colorPalette))});
+                    const mesh = new THREE.Mesh(line, material);
+                    scene.add(mesh)
+
+
+                    const SPEED = THREE.MathUtils.randFloat(0.001, .002)
+
+                    return {
+                        mesh: mesh,
+                        line: line,
+                        curve:curve,
+                        yDis:0,
+                        maxPos:THREE.MathUtils.randFloat(.75,1),
+                        pos:0,
+                        lineLength:THREE.MathUtils.randInt(100,300),
+                        speed:SPEED*SPEED_MULTIPLIER,
+                        taper:brushTaper,
+                    }
+                    
+                }
+
+
+                function createTreeLine(curve, colorPalette){
+
+                    const points = []
+                    const line = new MeshLine();
+                    line.setPoints(points, brushTaper);
+
+
+                    const material = new MeshLineMaterial({color:new THREE.Color(getBiasedColor(colorPalette))});
+                    const mesh = new THREE.Mesh(line, material);
+                    mesh.position.z = THREE.MathUtils.randFloat(1, 4);
+
+                    scene.add(mesh)
+
+
+
+                    const SPEED = THREE.MathUtils.randFloat(0.001, .002)
+
+                    return {
+                        mesh: mesh,
+                        line: line,
+                        curve:curve,
+                        yDis:0,
+                        maxPos:THREE.MathUtils.randFloat(.75,1),
+                        pos:0,
+                        lineLength:THREE.MathUtils.randInt(100,300),
+                        speed:SPEED*SPEED_MULTIPLIER,
+                        taper:brushTaper,
+                    }
+                }
+
+
+                function createLine(curve, colorPalette){
+
+
+                    const points = []
+                    const line = new MeshLine();
+                    line.setPoints(points, brushTaper);
+
+
+                    const material = new MeshLineMaterial({color:new THREE.Color(getBiasedColor(colorPalette))});
+                    const mesh = new THREE.Mesh(line, material);
+
+                    const yDIS = THREE.MathUtils.randFloat(-5,5);
+                    mesh.position.y = yDIS;
+                    mesh.position.z = THREE.MathUtils.randFloat(-3,3);
+
+                    scene.add(mesh)
+
+
+
+                    const SPEED = THREE.MathUtils.randFloat(0.001, .002)
+
+                    return {
+                        mesh: mesh,
+                        line: line,
+                        curve:curve,
+                        yDis:yDIS,
+                        maxPos:THREE.MathUtils.randFloat(.75,1),
+                        pos:0,
+                        lineLength:THREE.MathUtils.randInt(100,300),
+                        speed:SPEED*SPEED_MULTIPLIER,
+                        taper:brushTaper,
+                    }
+
+                }
+
+
+
+
+
+
+
+
+
+                const SCALE = 10;
+
+                function render(time){
+                    time *= 0.001;
+
+                    if(resizeRendererToDisplaYSize(renderer)){
+                        const canvas = renderer.domElement;
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                    }
+
+
+
+
+                    if(Math.floor(time*1000)%2==0){
+                        for(const key in strokes){
+                            const stroke = strokes[key];
+
+                            if(Math.random() <= 0.025 || stroke.getLines() < stroke.minLines){
+                                stroke.addLine();
+                            }
+
+
+                            stroke.updateLines()
+
+                        }
+
+                    }
+
+
+
+                   
+
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(render);
+                }
+
+
+
+
+
+                controls.update()
+
+
+
+                function resizeRendererToDisplaYSize(renderer) {
+                    const canvas = renderer.domElement;
+                    const pixelRatio = window.devicePixelRatio;
+                    const width = canvas.clientWidth * pixelRatio | 0;
+                    const height = canvas.clientHeight * pixelRatio | 0;
+                    const needResize = canvas.width !== width || canvas.height !== height;
+                    if (needResize){
+                        renderer.setSize(width, height, false);
+                    }
+                    return needResize;
+                }
+
+                requestAnimationFrame(render);
+
+            }
+
+            main()
+
+
+
+        </script>
+
+
+
+        <style>
+
+            html, body{
+                margin: 0;
+                height: 100%;
+            }
+
+            #c{
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+
+        </style>
+
+    </body>
+
+
+
+
+</html>

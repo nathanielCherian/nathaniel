@@ -1,0 +1,241 @@
+<html>
+
+    <head>
+        <title>Line</title>
+    </head>
+
+    <script src="http://spite.github.io/THREE.MeshLine/demo/js/three.min.js"></script>
+    <script src="http://spite.github.io/THREE.MeshLine/demo/js/OrbitControls.js"></script>
+    <script src="http://spite.github.io/THREE.MeshLine/src/THREE.MeshLine.js"></script>
+
+    <body>
+
+        <canvas id="c"></canvas>
+
+
+
+        <script type="module">
+
+            function main() {
+                const canvas = document.querySelector('#c');
+                const renderer = new THREE.WebGLRenderer({canvas});
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x363636)
+
+
+
+                const fov = 45;
+                const aspect = 2;  // the canvas default
+                const near = 0.1;
+                const far = 300;
+                const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+
+                const cameraScene = new THREE.Object3D();
+                scene.add(cameraScene)
+                cameraScene.add(camera);
+
+                camera.position.set(100, 0, 100);
+
+                const controls = new THREE.OrbitControls(camera, canvas);
+                controls.target.set(0,5,0);
+                //controls.enableDamping = true;
+                controls.update()
+
+                const color = 0xFFFFFF;
+                const intensity = 1;
+                const light = new THREE.PointLight(color, intensity);
+                light.position.set(0, 100, 0);
+                scene.add(light);
+
+
+                const radius = 1;
+                const widthSegments = 6;
+                const heightSegments = 6;
+                const sphereGeometry = new THREE.SphereBufferGeometry(
+                    radius, widthSegments, heightSegments);
+                const sphereMat = new THREE.MeshPhongMaterial({color:0x121212});
+                const spmesh = new THREE.Mesh(sphereGeometry, sphereMat)
+                spmesh.position.set(10,5,30)
+                //scene.add(spmesh);
+
+
+
+                const runners = [
+                    {
+                        x:.1,
+                        y:1,
+                        z:1,
+                        color:0xeb3455
+                    },
+
+                    {
+                        x:.11,
+                        y:1,
+                        z:1,
+                        color:0x349feb
+                    },
+
+                    {
+                    x:.1,
+                    y:.99,
+                    z:1,
+                    color:0x34eb43
+                }, 
+                ]
+
+
+
+
+                runners.forEach((runner) => {
+                    const points = [];
+                    points.push(runner.x, runner.y, runner.z);
+
+                    const line = new MeshLine();
+                    line.setPoints(points, customTaper);
+
+                    const material = new MeshLineMaterial({color:new THREE.Color(runner.color)});
+                    const mesh = new THREE.Mesh(line, material);
+                    scene.add(mesh)
+
+                    runner.line = line;
+
+                });
+
+
+
+
+                function customTaper(p){
+                    return Math.max(0.1, p)
+                }
+
+
+                
+                /*
+                const points = [];
+                points.push(0,0,0,1,1,1)
+
+
+
+                const line = new MeshLine();
+                line.setPoints(points, p => 1);
+
+
+                const material = new MeshLineMaterial({color:new THREE.Color(0x42cbf5)});
+                const mesh = new THREE.Mesh(line, material);
+                mesh.position.y = 2;
+                scene.add(mesh);
+                console.log(mesh)
+                */
+
+
+                const ROH = 28
+                const SIGMA = 10
+                const BETA = 8/3
+
+                const t = 0.01
+
+                function render(time){
+                    time *= 0.001;
+
+                    if(resizeRendererToDisplaYSize(renderer)){
+                        const canvas = renderer.domElement;
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                    }
+
+
+
+                    
+                    runners.forEach((runner) => {
+
+                        const x = runner.x;
+                        const y = runner.y;
+                        const z = runner.z;
+
+
+                        const points = runner.line.points;
+                        points.push(x,y,z);
+                        runner.line.setPoints(points, customTaper);
+
+
+                        const dx = SIGMA*(y-x);
+                        const dy = (x * (ROH - z)) - y;
+                        const dz = (x*y) - (BETA*z)
+
+                        runner.x += dx*t;
+                        runner.y += dy*t;
+                        runner.z += dz*t;
+
+                    });
+                    
+
+
+
+
+                    {
+                        cameraScene.rotation.y = -time*0.1;
+                        camera.lookAt(10,4,25)
+
+                    }
+
+
+                    /*
+                    points.push(1, 1+Math.sin(time), 1+time)
+                    line.setPoints(points, p => 1)
+                    */
+
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(render);
+                }
+
+
+
+
+
+                controls.update()
+
+
+
+                function resizeRendererToDisplaYSize(renderer) {
+                    const canvas = renderer.domElement;
+                    const pixelRatio = window.devicePixelRatio;
+                    const width = canvas.clientWidth * pixelRatio | 0;
+                    const height = canvas.clientHeight * pixelRatio | 0;
+                    const needResize = canvas.width !== width || canvas.height !== height;
+                    if (needResize){
+                        renderer.setSize(width, height, false);
+                    }
+                    return needResize;
+                }
+
+                requestAnimationFrame(render);
+
+            }
+
+            main()
+
+
+
+        </script>
+
+
+    </body>
+
+
+    <style>
+
+        html, body{
+            margin: 0;
+            height: 100%;
+        }
+
+        #c{
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+    </style>
+
+</html>
