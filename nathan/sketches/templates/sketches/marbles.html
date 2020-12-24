@@ -1,0 +1,500 @@
+<html>
+
+    <head>
+        <title>Marbles</title>
+
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/three.min.js"></script>
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/OrbitControls.js"></script>
+    </head>
+
+    <body>
+
+
+        <canvas id="c"></canvas>
+
+
+        <div class="console">
+            <span class="helper"></span>
+            <button id="add-marble">Add A Marble!</button>
+        </div>
+
+
+        <script type="module">
+
+
+            function main() {
+                const canvas = document.querySelector('#c');
+                const renderer = new THREE.WebGLRenderer({canvas});
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x76caf5)
+
+
+                const fov = 45;
+                const aspect = 2;  // the canvas default
+                const near = 0.1;
+                const far = 300;
+                const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+
+                const cameraScene = new THREE.Object3D();
+                scene.add(cameraScene)
+                cameraScene.add(camera);
+                camera.position.set(10, 10, 10);
+                camera.lookAt(0,0,0)
+
+
+                const audioLoader = new THREE.AudioLoader();
+                const listener = new THREE.AudioListener();
+                camera.add( listener );
+
+
+
+                const controls = new THREE.OrbitControls(camera, canvas);
+                controls.rotateSpeed = 0.25;
+                controls.dampingFactor = .2;
+                controls.target.set(0,0,0);
+                controls.enableDamping = true;
+                controls.update()
+
+
+                const light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1.5);
+                scene.add( light );
+
+
+                const geometry = new THREE.PlaneGeometry( 80, 80, 32 );
+                const material = new THREE.MeshBasicMaterial( {color: 0x898c91, side: THREE.DoubleSide} );
+                const plane = new THREE.Mesh( geometry, material );
+                plane.rotation.x = Math.PI/2
+                scene.add( plane );
+
+
+                const walls = []
+                function addWall(x, y, l, r=0){
+
+                    const boxGeo = new THREE.BoxGeometry(l,3,1)
+                    const mat = new THREE.MeshPhongMaterial({color:0x402f00});
+                    const mesh = new THREE.Mesh(boxGeo, mat);
+
+                    mesh.position.x = x;
+                    mesh.position.y = 1.5;
+                    mesh.position.z = y;
+
+                    mesh.rotation.y = r;
+
+                    scene.add(mesh);
+
+                    boxGeo.computeBoundingBox()
+
+                    const m = new THREE.Matrix4();
+                    m.makeRotationAxis(new THREE.Vector3(0,1,0), r);
+
+                    const box = boxGeo.boundingBox;
+                    box.applyMatrix4(m);
+                    box.translate(new THREE.Vector3(x, 1.5, y));
+                    walls.push([box, r]);
+
+
+                                        
+                    
+                }
+
+
+
+
+                const loader = new THREE.TextureLoader();
+                class Marble{
+                    constructor(x=0,y=0,r=1){
+
+                        this.radius = r;
+
+                        this._createMarble(x,y,r);
+                        this._createBoundingSphere(x,y,r);
+                        this._createPhysics(r);
+                    }
+
+
+                    //Constructor functions
+                    _createMarble(x,y,r){
+                        const marbleGeo = new THREE.SphereGeometry(r,20,20);
+                        const marbleMat = new THREE.MeshBasicMaterial({ map: loader.load('/static/sketches/marbles/marble.png')});  // greenish blue
+                        const marbleMesh = new THREE.Mesh(marbleGeo, marbleMat);
+
+
+                        
+                        audioLoader.load( '/static/sketches/marbles/marble_hit1.mp3', function ( buffer ) {
+
+                            const audio = new THREE.PositionalAudio( listener );
+                            audio.setBuffer( buffer );
+                            audio.setVolume(15);
+                            marbleMesh.add( audio );
+
+                        });
+
+                        
+
+
+                        const marbleSpace = new THREE.Object3D();
+                        marbleSpace.position.x = x;
+                        marbleSpace.position.y = r;
+                        marbleSpace.position.z = y;
+                        scene.add(marbleSpace);
+                        this.marble = marbleSpace;
+
+                        
+
+                        marbleSpace.add(marbleMesh);
+                        this.marbleMesh = marbleMesh;
+                    }
+
+
+                    _createBoundingSphere(x,y,r){
+                        this.boudingSphere = new THREE.Sphere(new THREE.Vector3(x,r,y), r);
+                    }
+
+
+                    _createPhysics(r){
+                        this.mass = r*r*r;
+                        this.velocity = new THREE.Vector2(0,0)
+                    }
+
+                    //Iteration functions
+
+
+                    //call whenever position is changed
+                    updateBoundingSphere(){
+                        this.boudingSphere.center = this.marble.position;
+                    }
+
+
+                    TICK_SPEED = 0.001;
+                    updatePosition(){
+                        
+                        const cpos = this.marble.position;
+
+                        this.marble.position.x = cpos.x+(this.velocity.x*this.TICK_SPEED)
+                        this.marble.position.z = cpos.z+(this.velocity.y*this.TICK_SPEED)
+
+                        this.updateBoundingSphere();
+                    }
+
+                    updateRotation(){
+                        const rotX = -this.velocity.x/this.radius;
+                        const rotY = -this.velocity.y/this.radius;
+
+                        const rotSpeed = -this.velocity.length();
+                        this.marbleMesh.rotation.z += rotSpeed*this.TICK_SPEED;
+                        this.marbleMesh.rotation.x += rotY*this.TICK_SPEED;
+
+
+                    }
+
+
+                    //Collision code
+                    checkCollisions(marbles){
+
+
+                        marbles.forEach((marble) => {
+                            if(marble.marbleMesh != this.marbleMesh){
+                                //console.log(marble.boudingSphere);
+                                if(this.boudingSphere.intersectsSphere(marble.boudingSphere)){
+                                    console.log("INTERSECTED")
+                                    // Execute code once 
+
+                                    const v0x = this.velocity.x;
+                                    const v0y = this.velocity.y;
+
+                                    this.calculateFinalVelocities(marble);
+
+                                    this.playMarbleImpulseSound(v0x, v0y);
+
+
+                                }
+                            }
+                        });
+                        
+                        this.checkWallCollisions()
+
+                    }
+
+                    
+                    intersectsMarble(sphere){
+
+                        if(this.boudingSphere.intersectsSphere(sphere)){
+                            return true
+                        }
+
+                        return false;
+
+                    }
+
+
+                    checkWallCollisions(){
+                        walls.forEach((wall) => {
+                            const box = wall[0];
+
+                            if(this.boudingSphere.intersectsBox(box)){
+
+                                const angle = wall[1];
+
+                                const v = this.velocity.clone()
+
+                                const rotateCenter = new THREE.Vector2(0,0);
+                                v.rotateAround(rotateCenter, angle);
+
+                                v.y *= -1;
+
+                                v.rotateAround(rotateCenter, -angle);
+
+                                this.velocity = v;
+                                this.updatePosition();
+                            }
+                        });
+                    }
+
+                    calculateFinalVelocities(marble2){
+
+                        const v1 = this.velocity.clone();
+                        const v2 = marble2.velocity.clone();
+                        const rho = this.getRho(marble2);
+
+
+                        //console.log(rho)
+                        //console.log(v1, v2)
+
+                        const rotateCenter = new THREE.Vector2(0,0);
+
+                        v1.rotateAround(rotateCenter, rho);
+                        v2.rotateAround(rotateCenter, rho);
+
+                        //console.log(v1, v2)
+
+                        {
+
+                            const v1i = v1.x;
+                            const v2i = v2.x;
+                            const m1 = this.mass;
+                            const m2 = marble2.mass;
+
+
+                            {
+                                const expr1 = v1i*(m1-m2);
+                                const expr2 = 2*m2*v2i;
+                                const expr3 = m1 + m2;
+
+
+                                v1.x = (expr1+expr2)/expr3;
+                            }
+
+
+                            {
+                                const expr1 = v2i*(m2-m1);
+                                const expr2 = 2*m1*v1i;
+                                const expr3 = m1 + m2;
+
+                                v2.x = (expr1+expr2)/expr3;
+                            }
+
+
+                            console.log("final vX: ", v1.x, v2.x)
+
+                        }
+
+    
+
+
+
+                        v1.rotateAround(rotateCenter, -rho);
+                        v2.rotateAround(rotateCenter, -rho);
+
+                        this.velocity = v1;
+                        marble2.velocity = v2;
+
+                        this.updatePosition();
+                        marble2.updatePosition();
+                    }
+
+
+                    playMarbleImpulseSound(v0x, v0y){
+
+                        const ix = this.mass * (this.velocity.x-v0x);
+                        const iy = this.mass * (this.velocity.y-v0y);
+
+                        const vol = Math.sqrt(ix*ix + iy*iy);
+                        console.log("volume: ", vol)
+
+                        const audio = this.marbleMesh.children[0];
+                        if(audio){
+                            //console.log(audio)
+                            audio.setVolume(vol);
+                            audio.play();
+                        }
+
+                    }
+
+
+
+                    getRho(marble2){
+
+                        const marble1Center = this.boudingSphere.center;
+                        const marble2Center = marble2.boudingSphere.center;
+
+
+                        const z = marble1Center.z - marble2Center.z;
+                        const x = marble1Center.x - marble2Center.x;
+
+
+                        const rho = Math.atan(z, x);
+
+                        return rho;
+                        
+                    }
+
+
+                }
+
+
+                addWall(0,20, 40);
+                addWall(-20,0, 40, Math.PI/2);
+                addWall(20,0, 40, Math.PI/2);
+                addWall(0,-20, 40);
+
+                //addWall(0,-10,20);
+
+
+                const marbles = [];
+
+                function createMarble(x, y, vx, vy,r=1){
+                    const marble = new Marble(x,y,r);
+                    marble.velocity = new THREE.Vector2(vx, vy);
+                    marble.mass = 1;
+                    marbles.push(marble);
+                }
+
+
+                function safeCreateMarble(x, y, vx, vy){
+
+                    const sphere = new THREE.Sphere(new THREE.Vector3(x,1,y), 1);
+
+                    marbles.forEach((marble) => {
+                       if(marble.intersectsMarble(sphere)){
+                           console.log("failed")
+                           return false
+                       } 
+                    });
+
+                    createMarble(x,y,vx,vy);
+                }
+
+                
+                for(var i=0;i<5;i++){
+                    safeCreateMarble(THREE.MathUtils.randFloat(-20,20),THREE.MathUtils.randFloat(-20,20),THREE.MathUtils.randFloat(-200,200),THREE.MathUtils.randFloat(-200,200))
+                }
+                
+                createMarble(0,0,-200,100,1)
+
+                document.getElementById("add-marble").addEventListener("click", function() {
+                    safeCreateMarble(THREE.MathUtils.randFloat(-19,19),THREE.MathUtils.randFloat(-19,19),-200,100)
+                });
+
+
+
+                function render(time){
+                    time *= 0.001;
+
+                    if(resizeRendererToDisplaYSize(renderer)){
+                        const canvas = renderer.domElement;
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                    }
+
+
+                    marbles.forEach((marble) => {
+                        marble.updatePosition();
+                        marble.updateRotation();
+                        marble.checkCollisions(marbles);
+                    });
+                    
+
+
+                   
+                    controls.update()
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(render);
+                }
+
+
+
+
+
+                controls.update()
+
+
+
+                function resizeRendererToDisplaYSize(renderer) {
+                    const canvas = renderer.domElement;
+                    const pixelRatio = window.devicePixelRatio;
+                    const width = canvas.clientWidth * pixelRatio | 0;
+                    const height = canvas.clientHeight * pixelRatio | 0;
+                    const needResize = canvas.width !== width || canvas.height !== height;
+                    if (needResize){
+                        renderer.setSize(width, height, false);
+                    }
+                    return needResize;
+                }
+
+                requestAnimationFrame(render);
+
+            }
+
+            main()
+
+
+
+        </script>
+
+
+
+        <style>
+
+            html, body{
+                margin: 0;
+                height: 100%;
+            }
+
+            #c{
+                width: 100%;
+                height: 100%;
+                display: block;
+                position: absolute;
+            }
+
+
+            .console{
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 400px;
+                height: 200px;
+
+                text-align: center;
+            }
+
+            .console .helper{
+                display: inline-block;
+                height: 100%;
+                vertical-align: middle;
+            }
+
+            #add-marble{
+                width: 60%;
+                height: 70%;
+                font-size: 2em;
+            }
+
+
+        </style>
+
+
+    </body>
+
+</html>

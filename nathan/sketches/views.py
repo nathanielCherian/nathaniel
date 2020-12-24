@@ -13,3 +13,6 @@ def chaos(request):
 
 def starry_night(request):
     return render(request, "sketches/starry_night.html")
+
+def marbles(request):
+    return render(request, "sketches/marbles.html")
