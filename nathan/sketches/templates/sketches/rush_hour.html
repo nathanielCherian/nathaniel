@@ -1,0 +1,101 @@
+{% load static %}
+<html>
+
+    <head>
+        <title>Rush Hour</title>
+
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/three.min.js"></script>
+        <script src="http://spite.github.io/THREE.MeshLine/demo/js/OrbitControls.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.js"></script>
+        
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Bangers" />
+    
+        <link rel="stylesheet" type="text/css" href="{% static 'sketches/rush_hour/style.css'%}" />
+
+
+    </head>
+
+    <body>
+
+
+        <div class="top-bar">
+            <div class="row justify-content-center">
+                <div class="col-1 restart">
+                    <div class="fa fa-refresh" id="reset"></div>
+                </div>
+
+                <div class="col-10"></div>
+
+                <div class="col-1">
+                    <div class="fa-question-circle fa" id="question"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="popup">
+            <span class="helper"></span>
+            <div >
+                <p>Press a car to select it then move it back and forth with the arrow keys</p>
+                <p>Win the game by freeing the red car!</p>
+                <br>
+                <p class="attr">Models taken with permission from Google Poly</p>
+                <p class="attr">Insipired by the board game "Rush Hour Traffic" by ThinkFun</p>
+                <p class="attr">Cards by Anita C.</p>
+                <p class="attr2">By Nathaniel Cherian</p>
+
+                <p class="close-button"><i>close...</i></p>
+            </div>
+        </div>
+
+
+
+        <div class="home-screen">
+
+            <div class="row justify-content-center title">
+                <div class="col-6">
+                    <h1>Rush Hour Traffic</h1>
+                </div>
+            </div>
+
+            <div class="row justify-content-center title">
+                <div class="col-6">
+                    <h1 class="fa fa-play play"></h1>
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="level-complete">
+            
+            <div class="row justify-content-center">
+                <div class="col-12">
+                    <h1>Level Complete!</h1>
+                </div>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="fa fa-refresh" id="restart"></div>
+            </div>
+
+            <div class="row justify-content-center title">
+                <div class="col-6">
+                    <h1 class="fa fa-play next-level"></h1>
+                </div>
+            </div>
+
+        </div>
+
+        <canvas id="c"></canvas>
+
+
+        <script type="module" src="{% static 'sketches/rush_hour/script.js'%}"></script>
+
+
+
+
+    </body>
+
+</html>
