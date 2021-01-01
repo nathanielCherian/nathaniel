@@ -16,3 +16,6 @@ def starry_night(request):
 
 def marbles(request):
     return render(request, "sketches/marbles.html")
+
+def rush_hour(request):
+    return render(request, "sketches/rush_hour.html")
