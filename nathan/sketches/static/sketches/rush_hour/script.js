@@ -82,11 +82,11 @@
 
                 {
                     const mtlLoader = new MTLLoader();
-                    mtlLoader.load('/static/sketches/rush_hour/models/city/City.mtl', (mtlParseResult) => {
+                    mtlLoader.load('/static/sketches/rush_hour/models/city/city.mtl', (mtlParseResult) => {
                     const objLoader = new OBJLoader2();
                     const materials =  MtlObjBridge.addMaterialsFromMtlLoader(mtlParseResult);
                     objLoader.addMaterials(materials);
-                    objLoader.load('/static/sketches/rush_hour/models/city/City.obj', (root) => {
+                    objLoader.load('/static/sketches/rush_hour/models/city/city.obj', (root) => {
 
                         root.scale.set(1,1,1)
                         scene.add(root);
