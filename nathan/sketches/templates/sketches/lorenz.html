@@ -13,9 +13,10 @@
 
         <canvas id="c"></canvas>
 
-
-
         <script type="module">
+
+            import { GUI } from 'https://cdn.jsdelivr.net/npm/three@0.122.0/examples/jsm/libs/dat.gui.module.js';
+
 
             function main() {
                 const canvas = document.querySelector('#c');
@@ -61,8 +62,7 @@
                 //scene.add(spmesh);
 
 
-
-                const runners = [
+                var runners = [
                     {
                         x:.1,
                         y:1,
@@ -78,32 +78,88 @@
                     },
 
                     {
-                    x:.1,
-                    y:.99,
-                    z:1,
-                    color:0x34eb43
-                }, 
+                        x:.1,
+                        y:.99,
+                        z:1,
+                        color:0x34eb43
+                    }, 
                 ]
 
 
+                var variables = {
+                    red:.1,
+                    blue:.11,
+                    green:.1,
+                }
 
-
-                runners.forEach((runner) => {
-                    const points = [];
-                    points.push(runner.x, runner.y, runner.z);
-
-                    const line = new MeshLine();
-                    line.setPoints(points, customTaper);
-
-                    const material = new MeshLineMaterial({color:new THREE.Color(runner.color)});
-                    const mesh = new THREE.Mesh(line, material);
-                    scene.add(mesh)
-
-                    runner.line = line;
-
+                var gui = new GUI({
+                    height : 5 * 32 - 1
                 });
+                gui.closed = true;
+                
+                gui.add(variables, 'red').name("Red").onFinishChange(function(){
+                    initilatize();
+                })
+
+                gui.add(variables, 'blue').name("Blue").onFinishChange(function(){
+                    initilatize();
+                })
+
+                gui.add(variables, 'green').name("Green").onFinishChange(function(){
+                    initilatize();
+                })
 
 
+                const inScene = [];
+                function initilatize(){
+
+                    runners = [
+                        {
+                            x:variables.red,
+                            y:1,
+                            z:1,
+                            color:0xeb3455
+                        },
+
+                        {
+                            x:variables.blue,
+                            y:1,
+                            z:1,
+                            color:0x349feb
+                        },
+
+                        {
+                            x:variables.green,
+                            y:.99,
+                            z:1,
+                            color:0x34eb43
+                        }, 
+                    ]
+
+                    inScene.forEach((mesh) => {
+                        scene.remove(mesh);
+                    });
+
+                    runners.forEach((runner) => {
+                        const points = [];
+                        points.push(runner.x, runner.y, runner.z);
+
+                        const line = new MeshLine();
+                        line.setPoints(points, customTaper);
+
+                        const material = new MeshLineMaterial({color:new THREE.Color(runner.color)});
+                        const mesh = new THREE.Mesh(line, material);
+                        inScene.push(mesh);
+                        scene.add(mesh)
+
+
+                        runner.line = line;
+
+                    });
+                }
+
+
+                initilatize();
 
 
                 function customTaper(p){
