@@ -1,7 +1,7 @@
 
-            import {OBJLoader2} from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/loaders/OBJLoader2.js';
-            import {MTLLoader} from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/loaders/MTLLoader.js';
-            import {MtlObjBridge} from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/loaders/obj2/bridge/MtlObjBridge.js';
+            import {OBJLoader2} from 'https://cdn.jsdelivr.net/npm/three@0.122.0/examples/jsm/loaders/OBJLoader2.js';
+            import {MTLLoader} from 'https://cdn.jsdelivr.net/npm/three@0.122.0/examples/jsm/loaders/MTLLoader.js';
+            import {MtlObjBridge} from 'https://cdn.jsdelivr.net/npm/three@0.122.0/examples/jsm/loaders/obj2/bridge/MtlObjBridge.js';
 
             var current_level = 0;
 
