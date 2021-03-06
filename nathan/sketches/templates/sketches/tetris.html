@@ -1,0 +1,714 @@
+{% load static %}
+<html>
+
+    <head>
+        <title>Tetris</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.js"></script>
+
+        <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
+
+        <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+
+    </head>
+
+    <body>
+
+
+        <div class="top-bar">
+            <div class="row justify-content-end">
+                <div class="col-1">
+                    <div class="fa-question-circle fa" id="question"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="popup">
+            <span class="helper"></span>
+            <div >
+                <p>Tetris.</p>
+                <p>Use 'W' to rotate pieces, 'A' to move left and 'D' to move right</p>
+                <p class="close-button"><i>close...</i></p>
+            </div>
+        </div>
+
+        <canvas id="c"></canvas>
+
+
+        <script type="module">
+
+            import {BufferGeometryUtils} from 'https://cdn.jsdelivr.net/npm/three@0.122.0/examples/jsm/utils/BufferGeometryUtils.js';
+
+
+            function main() {
+                const canvas = document.querySelector('#c');
+                const renderer = new THREE.WebGLRenderer({canvas});
+
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x232045)
+
+
+                const fov = 45;
+                const aspect = 2;  // the canvas default
+                const near = 0.1;
+                const far = 300;
+                const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+
+                const cameraScene = new THREE.Object3D();
+                scene.add(cameraScene)
+                cameraScene.add(camera);
+                camera.position.set(10, 10, 10);
+                camera.lookAt(0,0,0)
+
+
+
+
+                const controls = new THREE.OrbitControls(camera, canvas);
+                controls.rotateSpeed = 0.25;
+                controls.dampingFactor = .2;
+                controls.target.set(0,0,0);
+                controls.enableDamping = true;
+                controls.update()
+
+
+                const light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1.5);
+                scene.add( light );
+
+
+
+                var grid = [];
+                for(var i=0;i<20;i++){
+                    grid.push([]);
+                    for(var y=0;y<10;y++){
+                        grid[i].push(0);
+                    }
+                }
+
+                grid.push([]);
+                for(var y=0;y<10;y++){
+                    grid[grid.length-1].push(1);
+                }
+
+                //grid[19][0] = 1;
+                console.log(grid);
+
+
+
+
+
+
+                const smallArea = new THREE.Object3D();
+                smallArea.scale.set(.2,.2,.2);
+                scene.add(smallArea);
+
+                
+                {
+                    const floorGeo = new THREE.BoxGeometry(11,1,1);
+                    const mat = new THREE.MeshBasicMaterial({color:0x303030});
+                    const floorMesh = new THREE.Mesh(floorGeo, mat);
+                    floorMesh.position.y = -1;
+                    floorMesh.position.x = 5;
+                    smallArea.add(floorMesh)
+
+                    const wallGeo = new THREE.BoxGeometry(1,21,1);
+                    {
+                        const wallMesh = new THREE.Mesh(wallGeo, mat);
+                        wallMesh.position.x = 11
+                        wallMesh.position.y = 9
+
+                        smallArea.add(wallMesh)
+                    }
+
+                    {
+                        const wallMesh = new THREE.Mesh(wallGeo, mat);
+                        wallMesh.position.x = -1
+                        wallMesh.position.y = 9
+
+                        smallArea.add(wallMesh)
+                    }
+
+
+                }
+
+
+                const I_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                        new THREE.Vector3(3,0,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(2,-2,0),
+                        new THREE.Vector3(2,-1,0),
+                        new THREE.Vector3(2,0,0),
+                        new THREE.Vector3(2,1,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,-1,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(2,-1,0),
+                        new THREE.Vector3(3,-1,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(1,-2,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                }
+                
+
+                const Z_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                        new THREE.Vector3(2,1,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(2,-1,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(0,-1,0),
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                }
+                
+                
+            
+                const S_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(2,1,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                        new THREE.Vector3(2,-1,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,-1,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                    ],
+                }
+                
+                
+
+                const J_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(2,1,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                        new THREE.Vector3(2,-1,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(0,-1,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                }
+                
+                
+
+                const L_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                        new THREE.Vector3(2,1,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(2,-1,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,-1,0),
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                    ],
+                }
+                
+                
+            
+
+                const O_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(0,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                    ],
+                }
+                
+                
+            
+                
+                const T_BLOCK = {
+                    0:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    1:[
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    2:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                        new THREE.Vector3(2,0,0),
+                    ],
+                    3:[
+                        new THREE.Vector3(0,0,0),
+                        new THREE.Vector3(1,1,0),
+                        new THREE.Vector3(1,0,0),
+                        new THREE.Vector3(1,-1,0),
+                    ],
+                }
+                
+
+
+
+                const loader = new THREE.TextureLoader();
+
+                class Block{
+                    constructor(block_data){
+                        this.block_data = block_data;
+                        this.xPos = 0;
+                        this.state = 0;
+                    }
+
+                    createMesh(color){
+                        const blockSpace = new THREE.Object3D();
+                        for(var i=0;i<4;i++){
+                            const boxGeo = new THREE.BoxGeometry(1,1,1);
+                            const mat = new THREE.MeshBasicMaterial({
+                                color:color,
+                                map: loader.load('/static/sketches/tetris/bevel.png'),
+                            });
+                            const boxMesh = new THREE.Mesh(boxGeo, mat);
+
+                            const pos_data = this.getBlockData();
+                            boxMesh.position.set(pos_data[i].x + this.xPos, pos_data[i].y, pos_data[i].z);
+                            blockSpace.add(boxMesh);
+                        }
+                        blockSpace.position.y = 20;
+                        smallArea.add(blockSpace);
+                        this.mesh = blockSpace;
+                    }
+
+                    meshFall(){
+                        this.mesh.position.y -= .1;
+                    }
+
+                    getBlockData(){
+                        return this.block_data[this.state]
+                    }
+
+                    getSBlockData(s){
+                        return this.block_data[s];
+                    }
+
+                    getYPos(){
+                        return this.mesh.position.y;
+                    }
+                    
+                    moveRight(){
+
+                        this.xPos += 1;
+                        this.mesh.position.x += 1;
+                    }
+
+                    moveLeft(){
+
+                        this.xPos -= 1;
+                        this.mesh.position.x -= 1;
+                    }
+
+
+                    rotateClockwise(){
+
+                        var state = this.state + 1;
+                        state = Math.abs(state%4);
+
+                        var okay = true;
+
+
+                        for(const cube of block.getSBlockData(state)){
+                            const y = Math.max(Math.floor(20-this.getYPos()-cube.y), 0)
+                            if(cube.x+block.xPos > 10 || cube.x+block.xPos < 0 || grid[y][cube.x+block.xPos] == 1){
+                                okay = false;
+                                break;
+                            }
+                        }
+
+                        if(okay){
+                            this.state = state;
+                            const bdata = this.getBlockData();
+                            for(var i=0;i<this.mesh.children.length;i++){
+                                this.mesh.children[i].position.x = bdata[i].x;
+                                this.mesh.children[i].position.y = bdata[i].y;
+                            }
+                        }
+
+                        
+                    }
+
+                }
+
+
+
+                function getBlock(block_data, color){
+
+                    const b = new Block(block_data);
+                    b.createMesh(color);
+                    return b
+                }
+
+
+
+
+                var block;
+                setBlock();
+                
+                function setBlock(){
+                    block = getBlock(...randomBlock());
+                }
+
+
+                function randomBlock(){
+                    //return [J_BLOCK, 0x34ebe8];
+                    const block_types = [[I_BLOCK, 0x34ebe8], [Z_BLOCK, 0xeb0e0e], [L_BLOCK, 0xde780b], [O_BLOCK, 0xe8e110], [T_BLOCK, 0xc20eeb], [S_BLOCK, 0x0eeb49], [J_BLOCK, 0x1d0bde]]
+                    return block_types[Math.floor(Math.random() * block_types.length)];
+                }
+
+
+                function updateGrid(block_data, ypos){
+                    console.log("RESET:", ypos)
+                    //ypos whole num (ceil)
+                    if(ypos == 20){
+                        console.log("GAME OVER")
+                        return
+                    }
+
+                    for(const cube of block_data){
+                        grid[19-ypos-cube.y][cube.x + block.xPos] = 1;
+                    }
+
+                }
+
+
+
+                window.addEventListener("keypress", (event) => {
+
+
+                    if(block == null){
+                        return
+                    }
+
+                    const ypos = block.getYPos();
+
+
+                    if(event.key == "d"){
+                        var okay = true
+                        for(const cube of block.getBlockData()){
+                            const y = Math.max(Math.floor(20-ypos-cube.y), 0)
+                            if(cube.x+block.xPos+1 > 10 || grid[y][cube.x+block.xPos+1] == 1){
+                                okay = false;
+                                break;
+                            }
+                        }
+
+                        if(okay){
+                            block.moveRight();
+                        }
+
+                    }else if(event.key == "a"){
+
+                        var okay = true
+                        for(const cube of block.getBlockData()){
+                            const y = Math.max(Math.floor(20-ypos-cube.y), 0)
+                            if(cube.x+block.xPos-1 < 0 || grid[y][cube.x+block.xPos-1] == 1){
+                                okay = false;
+                                break;
+                            }
+                        }
+
+                        if(okay){
+                            block.moveLeft();
+                        }
+                               
+                    }else if(event.key == "w"){
+                        block.rotateClockwise();
+                    }   
+                    
+                    /*else if(event.key == "g"){
+                        setBlock();
+                    }else if(event.key == "p"){
+                        console.log(grid)
+                    }  */
+
+                });
+
+
+                function render(time){
+                    time *= 0.001;
+
+                    if(resizeRendererToDisplaYSize(renderer)){
+                        const canvas = renderer.domElement;
+                        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                        camera.updateProjectionMatrix();
+                    }
+
+
+
+                    if(block != null){
+                        const ypos = block.getYPos();
+                        var fall = true;
+                        for(const cube of block.getBlockData()){
+
+                            const y = Math.max(Math.floor(20-ypos-cube.y), 0)
+                            if(grid[y][cube.x+block.xPos] == 1){
+                                //console.log("break: ", (y), cube.x+block.xPos)
+                                fall = false;
+                                break;
+                            }
+                        }
+
+                        if(fall){
+                            block.meshFall();
+                        }else{
+                            updateGrid(block.getBlockData(), Math.ceil(ypos));
+                            block = null;
+                        }
+
+
+                    }else{
+                        setBlock()
+                    }
+
+
+                   
+                    controls.update()
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(render);
+                }
+
+
+
+
+
+                controls.update()
+
+
+
+                function resizeRendererToDisplaYSize(renderer) {
+                    const canvas = renderer.domElement;
+                    const pixelRatio = window.devicePixelRatio;
+                    const width = canvas.clientWidth * pixelRatio | 0;
+                    const height = canvas.clientHeight * pixelRatio | 0;
+                    const needResize = canvas.width !== width || canvas.height !== height;
+                    if (needResize){
+                        renderer.setSize(width, height, false);
+                    }
+                    return needResize;
+                }
+
+                requestAnimationFrame(render);
+
+            }
+
+            main()
+
+
+
+        </script>
+
+
+
+        <style>
+
+            html, body{
+                margin: 0;
+                height: 100%;
+                font-family: gilroy;
+            }
+
+            #c{
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+
+            .row{
+                margin: 0;
+            }
+
+            .top-bar{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                z-index: 101;
+                color: white;
+                font-size: 2em;
+                text-shadow: 2px 2px #000000;
+                padding: 2%;
+                text-align: end;
+            }
+
+            .popup{
+                background:rgba(0, 0, 0, 0.925);
+                color: white;
+                cursor:pointer;
+                display:none;
+                height:100%;
+                position:fixed;
+                text-align:center;
+                top:0;
+                width:100%;
+                z-index:10000;
+            }
+
+            .popup p{
+                font-size: 2em;
+            }
+            .popup i{
+                font-size: .75em;
+            }
+
+            .popup .attr{
+                font-size: 1.5em;
+            }
+            .popup .attr{
+                font-size: 1.8em;
+            }
+
+            .popup .helper{
+                display:inline-block;
+                height:100%;
+                vertical-align:middle;
+            }
+
+            .popup > div {
+                display: inline-block;
+                height: auto;
+                max-width: 100%;
+                min-height: 100px;
+                vertical-align: middle;
+                width: 60%;
+                position: relative;
+                border-radius: 8px;
+                padding: 15px 5%;
+            } 
+
+
+
+            .close-button:hover{
+                text-decoration: underline;
+            }
+
+
+        </style>
+
+
+        <script>
+
+            $(window).on('load', function () {
+                $("#question").click(function(){
+                    $(".popup").show();
+                });
+
+                $(".popup").click(function(){
+                    $(".popup").hide();
+                });
+
+                $(".close-button").click(function(){
+                    $(".popup").hide();
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    if (e.keyCode == 27){
+                        $(".popup").hide();
+                    }
+
+                });
+
+            });
+        </script>
+
+    </body>
+
+</html>

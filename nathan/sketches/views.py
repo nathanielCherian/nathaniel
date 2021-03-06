@@ -19,3 +19,6 @@ def marbles(request):
 
 def rush_hour(request):
     return render(request, "sketches/rush_hour.html")
+    
+def tetris(request):
+    return render(request, "sketches/tetris.html")
