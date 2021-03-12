@@ -128,7 +128,6 @@
             }
 
 
-
         </script>
 
 
@@ -407,6 +406,7 @@
 
         $("#about-me").click((event) => {
             $(".cover-box").animate({left:'-100vw'}, 1000, function () {
+                localStorage.setItem("needsCoverScreen", true)
                 location.replace("{% url 'about_me' %}")
             });
         })
