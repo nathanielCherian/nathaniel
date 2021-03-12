@@ -6,10 +6,13 @@
         <title>nathaniel</title>
     </head>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+
     <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
+    
     <body>
 
 
@@ -29,6 +32,8 @@
 
         </div>
 
+
+        <div class="cover-box"></div>
 
 
         <iframe id="background" src="/backgrounds/orbit"></iframe>
@@ -76,7 +81,8 @@
 
 
                     <div class="col-7" style="text-align: end;">
-                        <a href="{% url 'about_me' %}" class="toTR">about me</a>
+                        <!--<a href="{% url 'about_me' %}" class="toTR">about me</a>-->
+                        <a id="about-me" class="toTR">about me</a>
                     </div>
 
                 </div>
@@ -397,7 +403,32 @@
     </style>
 
 
+    <script>
+
+        $("#about-me").click((event) => {
+            $(".cover-box").animate({left:'-100vw'}, 1000, function () {
+                location.replace("{% url 'about_me' %}")
+            });
+        })
+
+
+    </script>
+
     
+    <style>
+        .cover-box{
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            transform-origin: 50% 50%;
+            transform: translate(100vw, 0);
+            top: 0;
+            right: 0;
+            z-index: 1000;
+            background-color: #e37dff;
+        }
+    </style>
+
 
 
 </html>

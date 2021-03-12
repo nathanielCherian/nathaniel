@@ -1,0 +1,260 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/TweenMax.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/ScrollMagic.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.6/plugins/animation.gsap.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/plugins/debug.addIndicators.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.0.2/TimelineMax.min.js"></script>
+
+
+    <title>me | nathaniel</title>
+</head>
+<body>
+    
+    <div class="cover-box"></div>
+
+
+
+    <div id="slide-container">
+
+        <section class="panel panel-1">
+            <div class="row justify-content-center h-100 row-cols-1">
+                <div class="col">
+                    <div class="title">
+                        <h1 class="title-text">I am Nathaniel Cherian</h1>
+                        <span id="ardown" class="fa fa-arrow-down title-ardown"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel panel-2">
+            <div class="row justify-content-center h-100">
+                <div class="col h-100">
+                    <h1 class="center-text">I like to ...</h1>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel panel-3">
+            <div class="row justify-content-center h-100">
+                <div class="col h-100">
+                    <h1 class="center-text">And Make cool stuff!</h1>
+                </div>
+            </div>
+        </section>
+
+
+    </div>
+
+
+
+
+</body>
+
+
+
+<script>
+    $(function () { // wait for document ready
+		// init
+		var controller = new ScrollMagic.Controller();
+
+		// define movement of panels
+		var wipeAnimation = new TimelineMax()
+            .fromTo("#ardown", 1, {opacity:1, transform: "rotate(0deg) translateY(0px) translateX(0px)"}, {opacity:0, transform:"rotate(-520deg) translateY(-300px) translateX(-200px)", ease: Linear.easeNone}, "first")
+            .fromTo("section.panel-2", 1, {x: "-100%"}, {x: "0%", ease: Linear.easeNone}, "first")  // in from left
+			.fromTo("section.panel-3", 1, {y: "-100%", x:"-100%"}, {y: "0%", x:"0%", ease: Linear.easeNone})  // in from left
+
+		// create scene to pin and link animation
+		new ScrollMagic.Scene({
+				triggerElement: "#slide-container",
+				triggerHook: "onLeave",
+				duration: "300%"
+			})
+			.setPin("#slide-container")
+			.setTween(wipeAnimation)
+			.addIndicators() // add indicators (requires plugin)
+			.addTo(controller);
+	});
+</script>
+
+
+<script>
+
+    $( window ).bind('load', function() {
+        $(".cover-box").animate({left:'100vw'}, 1000);
+    });
+
+
+
+    $(document).ready(function(){
+
+        const top = localStorage.getItem("sidebar-scroll");
+        if(top !== null){
+            const scrollVal = top*($(this).height()-$(window).height());
+            $('html, body').animate({scrollTop:scrollVal}, 1000);            
+        }
+
+    });
+
+    
+    $(window).on('beforeunload', function(){
+        localStorage.setItem("sidebar-scroll", getScrollPos())
+        $(window).scrollTop(0);
+    });
+
+
+
+    /*
+    $(window).scroll(function(){
+        var scrollPos = getScrollPos();
+
+
+        if(scrollPos >= .1) animate($(".title-name"), .1, scrollPos, .2);
+
+
+        console.log(scrollPos);
+    });
+
+
+    function animate(element, startTime, scrollTime, endTime){
+        const total = (endTime - startTime) * 100
+        const current = (scrollTime - startTime) * 100;
+        if(current > total) return;
+        console.log({total, current})
+        element.css('opacity', 1- (current/total));
+    }*/
+
+
+    const getScrollPos=()=>{
+        return $(window).scrollTop() / ($(document).height() - $(window).height());
+    }
+
+</script>
+
+
+<style>
+    @media only screen and (max-width: 768px) {
+        /* Mobile Devices */
+
+        html, body{
+            font-size: 2vh;
+        }
+
+
+    }
+
+
+    @media only screen and (min-width: 768px) {
+        /* Desktop Devices */
+        html, body{
+            font-size: 2vw;
+        }
+    }
+</style>
+
+
+
+<style>
+
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        font-family: gilroy;
+        color: white;
+        height: 100%;
+    }
+
+    .row{
+        margin: 0;
+    }
+    
+    .cover-box{
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        transform-origin: 50% 50%;
+        top: 0;
+        right: 0;
+        z-index: 1000;
+        background-color: #e37dff;
+    }
+
+
+    #slide-container{
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .panel{
+        width: 100%;
+        height: 100%;
+        position: absolute;
+    }
+
+    .panel-1{
+        background-color: #1f1f1f;
+    }
+
+    .panel-2{
+        background-color: aqua;
+    }
+
+    .panel-3{
+        background-color: aquamarine;
+    }
+
+    /*
+    .content{
+        margin: 0;
+        padding: 0;
+        background-color: #1f1f1f;
+        height: 100vh;
+        position: fixed;
+    }
+    */
+
+    .title{
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%,-70%);
+        text-align: center;
+    }
+
+    .title-text{
+        font-size: 2em;
+    }
+
+    .title-ardown{
+        padding: 5%;
+        font-size: 1.5em;
+    }
+
+    .center-text{
+        position: absolute;
+        top: 40%; left: 50%;
+        transform: translate(-50%,-70%);
+        text-align: center;
+        font-size: 2em;
+    }
+
+
+
+</style>
+
+</html>
