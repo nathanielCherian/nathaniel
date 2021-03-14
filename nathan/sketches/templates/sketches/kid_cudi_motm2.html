@@ -4,6 +4,13 @@
     <head>
         <title>Kid Cudi</title>
 
+        <script src="https://code.jquery.com/jquery-3.6.0.slim.js"></script>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+        <link rel="stylesheet" href="{% static 'sketches/snippets/moreinfo.css' %}">
+        <script src="{% static 'sketches/snippets/moreinfo.js' %}"></script>
+
         <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
         <script src="{% static 'three/THREE.MeshLine.js' %}"></script>
@@ -14,6 +21,23 @@
 
 
     <body>
+
+
+        <div class="top-bar">
+            <div class="row justify-content-end">
+                <div class="col-1">
+                    <div class="fa-question-circle fa" id="question"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="popup">
+            <span class="helper"></span>
+            <div >
+                <p>Man on the Moon.</p>
+                <p class="close-button"><i>close...</i></p>
+            </div>
+        </div>
 
 
         <canvas id="c"></canvas>
