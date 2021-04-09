@@ -1,0 +1,13 @@
+.navbar{
+    display: flex;
+    background-color: green;
+    justify-content: flex-end;
+}
+
+.navitem{
+    padding: 1%;
+}
+
+.homebutton{
+    font-size: 5vmin;
+}

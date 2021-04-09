@@ -1,9 +1,11 @@
 import * as React from "react"
+import * as IndexStyles from './index.module.css';
+import Navbar from '../components/Navbar';
 
 const Index = () => {
   return (
-    <div>
-      <h1>Blog of Nathaniel Cherian</h1>
+    <div className={IndexStyles.container}>
+      <Navbar/>
     </div>
   )
 }
