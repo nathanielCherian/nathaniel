@@ -2,8 +2,8 @@ import * as React from "react"
 
 const Index = () => {
   return (
-    <div>
-      <h1>Blog of Nathaniel Cherian</h1>
+    <div className="background">
+      <h1>Nathaniel Cherian Blog</h1>
     </div>
   )
 }
