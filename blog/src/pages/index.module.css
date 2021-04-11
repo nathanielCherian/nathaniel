@@ -1,5 +1,27 @@
 .container{
     display: flex;
     flex-direction: column;
-    background-color: red;
+    width: 100%;
+}
+
+.title{
+    text-align: center;
+}
+
+.lead{
+    text-align: center;
+    font-size: 3vmin;
+}
+
+.pages_container__wrapper{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.pages_container{
+    width: 60%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
