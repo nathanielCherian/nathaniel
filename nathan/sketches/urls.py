@@ -9,7 +9,7 @@ urlpatterns = [
     path('marbles/', views.marbles, name="marbles"),
     path('rush-hour/', views.rush_hour, name="rush-hour"),
     path('tetris/', views.tetris, name="tetris"),
-
+    path('kuramoto/', views.kuramoto, name="kuramoto"),
 
 ]
 

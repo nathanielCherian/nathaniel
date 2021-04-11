@@ -22,3 +22,6 @@ def rush_hour(request):
     
 def tetris(request):
     return render(request, "sketches/tetris.html")
+
+def kuramoto(request):
+    return render(request, "sketches/kuramoto.html")
