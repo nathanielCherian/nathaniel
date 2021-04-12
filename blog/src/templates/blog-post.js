@@ -2,6 +2,7 @@ import React from 'react';
 import { Helmet } from "react-helmet"
 import { graphql } from "gatsby"
 import * as BlogPostStyles from './blogpost.module.css';
+import SEO from '../components/seo/SEO';
 import PageShell from '../components/PageShell'
 
 
@@ -11,6 +12,7 @@ const Template = ({data}) => {
 
     return (
         <PageShell>
+            <SEO title= {post.frontmatter.title} description={post.frontmatter.summary}/>
 
             <div className={BlogPostStyles.article_container__wrapper} >
                 <article className={BlogPostStyles.article_container}>

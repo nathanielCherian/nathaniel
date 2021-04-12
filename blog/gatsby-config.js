@@ -1,7 +1,15 @@
 module.exports = {
   siteMetadata: {
-    title: "Nathaniel Cherian Blog",
-    author:"Nathaniel Cherian"
+    title: "Blog | Nathaniel Cherian",
+    titleTemplate: "%s · Blog | Nathaniel Cherian",
+    description:
+      "This is the blog of Nathaniel Cherian.",
+    url: "https://blog.nathanielc.com", // No trailing slash allowed!
+    image: "/images/icon.png", // Path to your image you placed in the 'static' folder
+    ogImage: "/images/icon_og.png", // Path to your image you placed in the 'static' folder
+    
+    twitterImage: "/images/icon_twitter.png", // Path to your image you placed in the 'static' folder
+    twitterUsername: "@nathanielCheria",
   },
 
   plugins: [

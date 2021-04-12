@@ -1,6 +1,7 @@
 import * as React from "react"
 import { graphql } from "gatsby";
 import * as IndexStyles from './index.module.css';
+import SEO from '../components/seo/SEO'
 import PageShell from "../components/PageShell";
 import PageCard from '../components/PageCard';
 
@@ -26,6 +27,7 @@ const Index = ({data}) => {
 
   return (
     <PageShell>
+      <SEO title= {"Home"} description={"This is the blog of Nathaniel Cherian"}/>
 
       <div className={IndexStyles.title}>
           <h1>👋 Hi, this is Nathaniels Blog</h1>
