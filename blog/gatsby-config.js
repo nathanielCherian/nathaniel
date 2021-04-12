@@ -1,11 +1,14 @@
 module.exports = {
   siteMetadata: {
-    title: "blog",
+    title: "Nathaniel Cherian Blog",
+    author:"Nathaniel Cherian"
   },
+
   plugins: [
     "gatsby-plugin-styled-components",
     "gatsby-plugin-image",
     "gatsby-plugin-react-helmet",
+    "gatsby-plugin-catch-links",
     "gatsby-plugin-sitemap",
     {
       resolve: "gatsby-plugin-manifest",
@@ -37,6 +40,12 @@ module.exports = {
       options: {
         name: "fonts",
         path: `./src/fonts/`
+      }
+    },
+    {
+      resolve: "gatsby-transformer-remark",
+      options: {
+        plugins: []
       }
     }
   ],

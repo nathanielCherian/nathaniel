@@ -1,14 +1,11 @@
 import * as React from "react"
 import * as IndexStyles from './index.module.css';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import PageShell from "../components/PageShell";
 import PageCard from '../components/PageCard';
 
 const Index = () => {
   return (
-    <div className={IndexStyles.container}>
-
-      <Navbar/>
+    <PageShell>
 
       <div className={IndexStyles.title}>
           <h1>👋 Hi, this is Nathaniels Blog</h1>
@@ -22,8 +19,7 @@ const Index = () => {
         </div>
       </div>
 
-      <Footer />
-    </div>
+    </PageShell>
   )
 }
 
