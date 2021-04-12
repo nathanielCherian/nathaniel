@@ -19,7 +19,7 @@ const Index = ({data}) => {
     const path = post.node.frontmatter.path;
 
     postsRaw.push(
-      <PageCard title={title} summary={summary} date={date} link={path}/>
+      <PageCard title={title} summary={summary} date={date} link={path} key={path}/>
     )
 
   })

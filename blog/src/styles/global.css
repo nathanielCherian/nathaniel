@@ -1,8 +1,18 @@
+:root{
+    --bgColor: white;
+    --textColor: black;
+    --borderColor: rgba(0, 0, 0, 0.54);
+}
+
 html, body, #___gatsby, #gatsby-focus-wrapper {
     /*
     Gatsby full height
     */
     height: 100%;
+
+    background-color: var(--bgColor);
+    color: var(--textColor);
+    transition: background-color 500ms, color 700ms;
 }
 
 body {
