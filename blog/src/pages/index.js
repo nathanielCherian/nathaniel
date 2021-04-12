@@ -1,11 +1,13 @@
 import * as React from "react"
 import * as IndexStyles from './index.module.css';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import PageCard from '../components/PageCard';
 
 const Index = () => {
   return (
     <div className={IndexStyles.container}>
+
       <Navbar/>
 
       <div className={IndexStyles.title}>
@@ -15,12 +17,12 @@ const Index = () => {
 
       <div className={IndexStyles.pages_container__wrapper}>
         <div className={IndexStyles.pages_container}>
-          <PageCard />
-          <PageCard />
+          <PageCard title="This is a title" date="4-10-21" summary="This is the summary" link="/"/>
+          <PageCard title="This is a title" date="4-10-21" summary="This is the summary" link="/"/>
         </div>
       </div>
 
-
+      <Footer />
     </div>
   )
 }

@@ -1,6 +1,5 @@
 .navbar{
     display: flex;
-    background-color: rgb(148, 148, 148);
     justify-content: flex-start;
 }
 
