@@ -43,8 +43,5 @@ exports.sourceNodes = ({ actions, schema }) => {
         summary: String
       }
   
-      type MarkdownRemark implements Node {
-        frontmatter: MarkdownRemarkFrontmatter
-      }
     `)
   }

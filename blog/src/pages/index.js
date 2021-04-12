@@ -1,9 +1,29 @@
 import * as React from "react"
+import { graphql } from "gatsby";
 import * as IndexStyles from './index.module.css';
 import PageShell from "../components/PageShell";
 import PageCard from '../components/PageCard';
 
-const Index = () => {
+const Index = ({data}) => {
+
+  const {edges:posts} = data.allMarkdownRemark;
+  console.log(posts);
+
+  var postsRaw = [];
+
+  posts.map((post) => {
+    
+    const title = post.node.frontmatter.title;
+    const summary = post.node.frontmatter.summary;
+    const date = post.node.frontmatter.date;
+    const path = post.node.frontmatter.path;
+
+    postsRaw.push(
+      <PageCard title={title} summary={summary} date={date} link={path}/>
+    )
+
+  })
+
   return (
     <PageShell>
 
@@ -14,8 +34,7 @@ const Index = () => {
 
       <div className={IndexStyles.pages_container__wrapper}>
         <div className={IndexStyles.pages_container}>
-          <PageCard title="This is a title" date="4-10-21" summary="This is the summary" link="/"/>
-          <PageCard title="This is a title" date="4-10-21" summary="This is the summary" link="/"/>
+          {postsRaw}
         </div>
       </div>
 
@@ -25,3 +44,21 @@ const Index = () => {
 
 
 export default Index;
+
+export const pageQuery = graphql`
+  query IndexQuery {
+    allMarkdownRemark {
+      edges {
+        node {
+          id
+          frontmatter {
+            summary
+            title
+            path
+            date(formatString: "MM-DD-YYYY")
+          }
+        }
+      }
+    }
+  }
+`
