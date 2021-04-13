@@ -6,6 +6,7 @@ import ToggleButton from './ToggleButton';
 const Navbar = () => {
 
     const colorPref = (localStorage.getItem('isDarkMode') || "false") === "true";
+    
     console.log("colorPref ", colorPref, typeof colorPref)
     const [selected, setSelected] = useState( colorPref );
 
@@ -20,7 +21,7 @@ const Navbar = () => {
     }
 
     const changeColor = () => {
-        localStorage.setItem('isDarkMode', !selected);
+            localStorage.setItem('isDarkMode', !selected);
         setSelected(!selected);
     }
 
@@ -35,6 +36,7 @@ const Navbar = () => {
             </div>
         </div>
     )
+    
 }
 
 export default Navbar;
