@@ -46,3 +46,8 @@ a:hover{
 .underline:hover{
     text-decoration: underline;
 }
+
+
+.centered{
+    text-align: center;
+}
