@@ -1,5 +1,4 @@
 import React from 'react';
-import { Helmet } from "react-helmet"
 import { graphql } from "gatsby"
 import * as BlogPostStyles from './blogpost.module.css';
 import SEO from '../components/seo/SEO';
@@ -33,19 +32,6 @@ const Template = ({data}) => {
         </PageShell>
     )
 
-
-    return (
-        <div>
-            <Helmet title={`Your Blog Name - ${post.frontmatter.title}`} />
-            <div className="blog-post">
-                <h1>{post.frontmatter.title}</h1>
-                <div
-                className="blog-post-content"
-                dangerouslySetInnerHTML={{ __html: post.html }}
-                />
-            </div>
-        </div>
-    )
 }
 
 export default Template;

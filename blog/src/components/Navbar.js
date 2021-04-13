@@ -38,7 +38,7 @@ const Navbar = () => {
     return (
         <div className={NavbarStyles.navbar}>
             <div className={NavbarStyles.navitem}>
-                <span className={NavbarStyles.homebutton}><Link to="/">🏠 Home</Link></span>
+                <span className={NavbarStyles.homebutton}><Link to="/"><span role="img" aria-label="home">🏠</span> Home</Link></span>
             </div>
             <div className={NavbarStyles.navitem + " " + NavbarStyles.right}>
                 <ToggleButton selected={selected} toggleSelected={() => changeColor()}/>
@@ -46,10 +46,7 @@ const Navbar = () => {
         </div>
     )
 
-    
-
-    return <></>;
-    
+        
 }
 
 export default Navbar;

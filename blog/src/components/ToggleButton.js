@@ -7,7 +7,7 @@ const ToggleButton = ({selected, toggleSelected}) => {
         <div className={ToggleButtonStyles.toggle_container} onClick={toggleSelected}>
 
             <div className={`${ToggleButtonStyles.dialog_button} ${selected ? "" : ToggleButtonStyles.disabled} `}>
-                {selected ? <span>🌙</span> : <span>☀️</span>}
+                {selected ? <span role="img" aria-label="dark-mode">🌙</span> : <span role="img" aria-label="light-mode">☀️</span>}
             </div>
         </div>
     )

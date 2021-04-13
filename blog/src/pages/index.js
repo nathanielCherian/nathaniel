@@ -23,15 +23,17 @@ const Index = ({data}) => {
       <PageCard title={title} summary={summary} date={date} link={path} key={path}/>
     )
 
-  })
+  });
+
+  postsRaw.reverse();
 
   return (
     <PageShell>
       <SEO title= {"Home"} description={"This is the blog of Nathaniel Cherian"}/>
 
       <div className={IndexStyles.title}>
-          <h1>👋 Hi, this is Nathaniels Blog</h1>
-          <p className={IndexStyles.lead}>I'll be posting some interesting stuff here ✨</p>
+          <h1><span role="img" aria-label="hello">👋</span> Hi, this is Nathaniels Blog</h1>
+          <p className={IndexStyles.lead}>I'll be posting some interesting stuff here <span role="img" aria-label="interesting">✨</span></p>
       </div>
 
       <div className={IndexStyles.pages_container__wrapper}>
