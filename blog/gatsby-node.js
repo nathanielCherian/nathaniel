@@ -41,7 +41,6 @@ exports.sourceNodes = ({ actions, schema }) => {
     createTypes(`
       type MarkdownRemarkFrontmatter {
         summary: String
-      }
-  
+      }  
     `)
   }
