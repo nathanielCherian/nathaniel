@@ -20,12 +20,13 @@ const Template = ({data}) => {
                         <h1 className={BlogPostStyles.title}>{post.frontmatter.title}</h1>
                     </header>
 
-                    <section className={BlogPostStyles.text_section}>
-                        <p className={BlogPostStyles.attribution}> By <em>Nathaniel Cherian</em> | <em>{post.frontmatter.date}</em></p>
-                        <div className={BlogPostStyles.content} dangerouslySetInnerHTML={{__html: post.html}}/>
-                    </section>
-
-
+                    <div className={BlogPostStyles.text_section__wrapper}>
+                        <section className={BlogPostStyles.text_section}>
+                            <p className={BlogPostStyles.attribution}> By <em>Nathaniel Cherian</em> | <em>{post.frontmatter.date}</em></p>
+                            <div className={BlogPostStyles.content} dangerouslySetInnerHTML={{__html: post.html}}/>
+                        </section>
+                    </div>
+                    
                 </article>
             </div>
 
