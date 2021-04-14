@@ -1,15 +1,33 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuramoto Model</title>
+    <title>Simulation of Spontaneous Synchronization with the Kuramoto Model</title>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-</head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"></head>
+    <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
+
+
+    <meta name="description" content="Simulating the Kuramoto model with metronome oscillators using THREE.js">
+
+    <meta property="og:url" content="https://nathanielc.com/sketches/kuramoto">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Simulation of Spontaneous Synchronization with the Kuramoto Model">
+    <meta property="og:description" content="Simulating the Kuramoto model with metronome oscillators using THREE.js">
+    <meta property="og:image" content="https://nathanielc.com{% static 'meta/kuramoto.png' %}">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta property="twitter:domain" content="nathanielc.com">
+    <meta property="twitter:url" content="https://nathanielc.com/sketches/kuramoto">
+    <meta name="twitter:title" content="Simulation of Spontaneous Synchronization with the Kuramoto Model">
+    <meta name="twitter:description" content="Simulating the Kuramoto model with metronome oscillators using THREE.js">
+    <meta name="twitter:image" content="https://nathanielc.com{% static 'meta/kuramoto.png' %}">
+
 
 <body>
 
@@ -19,19 +37,21 @@
             <span id="play-pause" class="fa fa-play"></span>
             <span id="pp-text">play</span>
         </div>
-
     </div>
 
     <div class="params">
         <label for="k-value">K value (coupling factor): <bold id="k-val__text">0.1</bold></label>
-        <input id="k-value" type="range" min=".001" max="10" step=".001" value=".1">
-    
-        <!--
-            <button id="add-osc">Add Pendulum</button>
-            <button id="remove-osc">Remove Pendulum</button>
-        -->
+        <input id="k-value" type="range" style="width: 200px;" min=".001" max="10" step=".001" value=".1">
+    </div>
 
-            <h1 id="click-play">Click play to start <br> drag circles to alter a pendulums phase.</h1>
+    <div id="start-text">
+        <h1>Click <span id="play-text">play</span> to start</h1>
+        <h1>drag circles to alter a pendulums phase.</h1>
+    </div>
+
+
+    <div class="tag">
+        <p>Created by <a href="https://nathanielc.com/">Nathaniel C.</a> Read the <a href="https://blog.nathanielc.com/kuramoto-model">blog post!</a></p>
     </div>
 
     <canvas id="c"></canvas>    
@@ -59,10 +79,17 @@
                 document.getElementById("pp-text").innerHTML = "pause";
             }
 
-            document.getElementById("click-play").innerHTML = "";
+            document.getElementById("start-text").style.display = "none";
 
     }, false);
 
+    document.getElementById("play-text").addEventListener('click', function(){
+            PAUSED = false;
+            document.getElementById("play-pause").className = "fa fa-pause";
+            document.getElementById("pp-text").innerHTML = "pause";
+            document.getElementById("start-text").style.display = "none";
+
+    }, false);
 
     var K_VALUE = .1;
     var K_BY_N = K_VALUE / oscilators.length;
@@ -89,7 +116,7 @@
             const near = 0.1;
             const far = 400;
             const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-            camera.position.set(10, 0, 20);
+            camera.position.set(10, 5, 20);
 
 
             const controls = new THREE.OrbitControls(camera, canvas);
@@ -99,8 +126,6 @@
 
             //controls.enableDamping = true;
             controls.update()
-
-
 
 
             let MET_COLOR = 0x454545,
@@ -223,12 +248,13 @@
             
             //CREATE ROOM
             const r = oscilators.length*PENDULUM_LENGTH*6;
+            /*
             const roomGeo = new THREE.CylinderGeometry(r,r,r*2,20,1,false,0);
             const roomMat = new THREE.MeshPhongMaterial({color:'red', side:THREE.DoubleSide});
             const roomMesh = new THREE.Mesh(roomGeo, roomMat);
             roomMesh.rotation.y = Math.PI/2;
             roomMesh.position.set(r/6,0,0)
-            scene.add(roomMesh);
+            scene.add(roomMesh);*/
             controls.maxDistance = r*.95;
             controls.minDistance = r/6;
 
@@ -451,9 +477,11 @@
                         //
                         RUNNING = true;
                         oscilator.isFocused = false;
+                        document.getElementById("control-canvas").style.cursor = "default";
                     }else if(oscilator.isFocused || intersects(oscilator)){
                         dragOscilator(oscilator)
                         console.log("grabbed")
+                        document.getElementById("control-canvas").style.cursor = "grab";
                         oscilator.isFocused = true;
                         RUNNING = false;
                     }
@@ -483,6 +511,9 @@
     html, body{
         margin: 0;
         height: 100%;
+        width: 100%;
+
+        font-family: gilroy;
     }
 
     #c{
@@ -494,8 +525,10 @@
     .controls{
         position: fixed;
         bottom: 0;
-        left: 0;
+        right: 0;
         z-index: 100;
+        background-color: rgba(255, 255, 255, 0.336);
+        border-radius: 30px 0px 0px 0px;
     }
 
     .pp-container{
@@ -510,6 +543,12 @@
 
     #play-pause{
         font-size: 5vmin;
+        cursor: pointer;
+    }
+
+    #play-text{
+        text-decoration: underline;
+        cursor: pointer;
     }
 
     #pp-text{
@@ -518,7 +557,9 @@
 
     .params{
         position: fixed;
-        padding: 3%;
+        background-color: rgba(255, 255, 255, 0.596);
+        border-radius: 0px 0px 30px 0px;
+        padding: 1%;
         display: flex;
         flex-direction: column;
         top: 0;
@@ -526,8 +567,24 @@
         z-index: 100;
     }
 
-    #click-play{
+
+
+    #start-text{
+        position: fixed;
         text-align: center;
+        top: 70%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 100;
+    }
+
+    .tag{
+        position: fixed;
+        font-weight: bold;
+        bottom: 0;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 100;
     }
 
 </style>
