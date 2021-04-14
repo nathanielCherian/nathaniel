@@ -15,7 +15,7 @@ ogImage: "/blog/kuramoto/card.jpg"
     <figcaption> An enchanted forest and the Fireflies of Malaysia <small><a href="https://timesofindia.indiatimes.com/blogs/incessant-musings/an-enchanted-forest-and-the-fireflies-of-malaysia/">(Times of India)</a></small></figcaption>
 </figure>
 
-<b>The Kuramoto model is truly a wonder of nature</b> Multiple independent objects can synchronize themselves with nothing more than a simple means of communication. Whether it be pendulums oscillating on a mobile table or fireflies blinking in the trees, this phenomenon can be seen in nature all around us.
+<b>The Kuramoto model is truly a wonder of nature</b> Multiple independent objects can synchronize themselves with nothing more than a simple means of communication. Whether it be pendulums oscillating on a mobile table or fireflies blinking in the trees, this phenomenon can be seen in nature all around us. Check out the simulation <a href="https://nathanielc.com/sketches/kuramoto/">here</a>
 
 
 ### How does it work?
