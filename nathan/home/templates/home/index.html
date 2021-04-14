@@ -18,8 +18,7 @@
 
     <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" />    
     <body>
 
 
@@ -60,9 +59,10 @@
 
                     <div class="col-7" style="text-align: right;">
 
-                        <a href="https://github.com/nathanielCherian" class="fa fa-github item" target="_blank"></a>
-                        <a href="https://twitter.com/nathanielCheria" class="fa fa-twitter" target="_blank"></a>
-                        <a href="https://www.linkedin.com/in/nathaniel-cherian-75041a1ab/" class="fa fa-linkedin" target="_blank"></a>
+                        <a href="https://github.com/nathanielCherian" class="fab fa-github item" aria-label="github" target="_blank"></a>
+                        <a href="https://twitter.com/nathanielCheria" class="fab fa-twitter" aria-label="twitter" target="_blank"></a>
+                        <a href="https://www.linkedin.com/in/nathaniel-cherian-75041a1ab/" class="fab fa-linkedin" aria-label="linkedin" target="_blank"></a>
+                        <a href="https://blog.nathanielc.com/" class="fas fa-blog" aria-label="blog" target="_blank"></a>
 
                     </div>
 
@@ -343,29 +343,31 @@
 
         
 
-        .fa{
+        .fab, .fas{
             padding-left: 0.5em;
             transition: 0.5s;
         }
 
-        .fa:hover{
+        .fab:hover, .fas:hover{
             text-decoration: none;
         }
         
         .fa-github:hover{
-            color: 000333;
+            color: #000333;
         }
 
 
         .fa-twitter:hover{
-            color: 1da1f2;
+            color: #1da1f2;
         }
 
         .fa-linkedin:hover{
-            color: 0077b5;
+            color: #0077b5;
         }
         
-
+        .fa-blog:hover{
+            color: #cc1f12;
+        }
 
 
 
