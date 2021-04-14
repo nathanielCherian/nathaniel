@@ -41,6 +41,9 @@ exports.sourceNodes = ({ actions, schema }) => {
     createTypes(`
       type MarkdownRemarkFrontmatter {
         summary: String
+        image:String
+        ogImage:String
+        twitterImage:String
       }  
     `)
   }

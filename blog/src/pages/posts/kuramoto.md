@@ -3,6 +3,10 @@ path: "/kuramoto-model"
 date: 2021-04-10T18:03:48.000Z
 title: "Spontaneous Synchronization with the Kuramoto Model"
 summary: "Simulating the Kuramoto model with metronome oscillators using THREE.js"
+image: "/blog/kuramoto/card.jpg"
+twitterImage: "/blog/kuramoto/card.jpg"
+ogImage: "/blog/kuramoto/card.jpg"
+
 ---
 
 

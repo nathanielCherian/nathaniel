@@ -11,7 +11,7 @@ const Template = ({data}) => {
 
     return (
         <PageShell>
-            <SEO title= {post.frontmatter.title} description={post.frontmatter.summary}/>
+            <SEO title= {post.frontmatter.title} description={post.frontmatter.summary} image={post.frontmatter.image} twitterImage={post.frontmatter.twitterImage} ogImage={post.frontmatter.ogImage}/>
 
             <div className={BlogPostStyles.article_container__wrapper} >
                 <article className={BlogPostStyles.article_container}>
@@ -46,6 +46,9 @@ export const pageQuery = graphql`
             path
             title
             summary
+            image
+            ogImage
+            twitterImage
         }
         }
     }
