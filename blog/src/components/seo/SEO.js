@@ -14,6 +14,7 @@ const SEO = ({ title, description, image, ogImage, twitterImage, article=false }
       titleTemplate,
       defaultDescription,
       siteUrl,
+      domain,
       defaultImage,
       defaultOGImage,
       defaultTwitterImage,
@@ -43,6 +44,7 @@ const SEO = ({ title, description, image, ogImage, twitterImage, article=false }
       )}
       {seo.image && <meta property="og:image" content={seo.ogImage} />}
 
+      <meta name="twitter:domain" content="blog.nathanielc.com" />
       <meta name="twitter:card" content="summary_large_image" />
       {twitterUsername && (
         <meta name="twitter:creator" content={twitterUsername} />

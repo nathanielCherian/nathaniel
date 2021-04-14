@@ -8,7 +8,6 @@ module.exports = {
     siteUrl: "https://blog.nathanielc.com", // No trailing slash allowed!
     image: "/images/icon.png", // Path to your image you placed in the 'static' folder
     ogImage: "/images/icon_og.png", // Path to your image you placed in the 'static' folder
-    
     twitterImage: "/images/icon_twitter.png", // Path to your image you placed in the 'static' folder
     twitterUsername: "@nathanielCheria",
   },
