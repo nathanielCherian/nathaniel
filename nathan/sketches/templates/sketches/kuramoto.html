@@ -71,7 +71,7 @@
     </div>
 
 
-    <div class="tag">
+    <div class="tag" id="tag">
         <p>Created by <a href="https://nathanielc.com/">Nathaniel C.</a> <span class="desktop">Read the <a href="https://blog.nathanielc.com/kuramoto-model">blog post!</a></span></p>
     </div>
 
@@ -782,9 +782,12 @@
     document.getElementById("toggle-controls").addEventListener('click', function(){
         if(document.getElementById("controls").style["z-index"] == -1){
             document.getElementById("controls").style["z-index"] = 100;
+            document.getElementById("tag").style.display = "none";
             return;
         }
         document.getElementById("controls").style["z-index"] = -1;
+        document.getElementById("tag").style.display = "block";
+
     });
 
 </script>
