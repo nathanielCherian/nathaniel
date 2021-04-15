@@ -72,7 +72,7 @@
 
 
     <div class="tag">
-        <p>Created by <a href="https://nathanielc.com/">Nathaniel C.</a> Read the <a href="https://blog.nathanielc.com/kuramoto-model">blog post!</a></p>
+        <p>Created by <a href="https://nathanielc.com/">Nathaniel C.</a> <span class="desktop">Read the <a href="https://blog.nathanielc.com/kuramoto-model">blog post!</a></span></p>
     </div>
 
     <canvas id="c"></canvas>    
@@ -767,10 +767,13 @@
             cursor: pointer;
         }
 
-
-
         .tag{
-            display: none;
+            position: fixed;
+            font-weight: bold;
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;            
         }
     }
 </style>
