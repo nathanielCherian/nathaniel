@@ -62,6 +62,28 @@ module.exports = {
         // GitHub Flavored Markdown mode (default: true)
         gfm: true,
       }
-    }
+    },
+
+    {
+      resolve: `gatsby-plugin-google-gtag`,
+      options: {
+        // You can add multiple tracking ids and a pageview event will be fired for all of them.
+        trackingIds: [
+          'G-72HVMVR7Q3', // Google Analytics / GA
+        ],
+        // This object gets passed directly to the gtag config command
+        // This config will be shared across all trackingIds
+        gtagConfig: {
+          anonymize_ip: false,
+          cookie_expires: 0,
+        },
+        // This object is used for configuration specific to this plugin
+        pluginConfig: {
+          // Puts tracking script in the head instead of the body
+          head: true,
+          // Setting this parameter is also optional
+        },
+      },
+    },
   ],
 };
