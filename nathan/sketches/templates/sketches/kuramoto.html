@@ -37,6 +37,10 @@
         <div class="fa-question-circle fa" id="question"></div>
     </div>
 
+    <div class="phone" id="toggle-controls">
+        <p>Toggle Controls</p>
+    </div>
+
     <div class="popup" id="popup">
         <span class="helper"></span>
         <div >
@@ -47,7 +51,7 @@
         </div>
     </div>
 
-    <div class="controls">
+    <div class="controls" id="controls">
         <canvas id="control-canvas" width="400" height="400"></canvas>
         <div class="pp-container">
             <span id="play-pause" class="fa fa-play"></span>
@@ -62,7 +66,8 @@
 
     <div id="start-text">
         <h1>Click <span id="play-text">play</span> to start</h1>
-        <h1>drag circles to alter a pendulums phase.</h1>
+        <h1 class="desktop">drag circles to alter a pendulums phase.</h1>
+        <h2 class="phone-text phone">Press "toggle controls" to alter the phase.</h2>
     </div>
 
 
@@ -381,7 +386,7 @@
             var ctx = c.getContext("2d");
 
             const circles = [];
-            const LENGTH = 150;
+            const LENGTH =  c.offsetWidth/2.5;//150;
             const CENTER_X = c.width/2;
             const CENTER_Y = c.height/2;
 
@@ -401,11 +406,14 @@
                 oscilator.y = -99999;
             })
 
-            console.log(oscilators)
 
             document.addEventListener('mousemove', move, false);
             document.addEventListener('mousedown', setFocus, false);
             document.addEventListener('mouseup', setFocus, false);
+
+            document.addEventListener('touchmove', moveTouch, false);
+            document.addEventListener('touchend', setFocus, false);
+            document.addEventListener('touchstart', setFocus, false);
 
             var mousePosition = {
                 x:-1111111,
@@ -442,15 +450,19 @@
 
 
 
+            function moveTouch(e){
+                e = e.touches[0];
+                setMousePosition(e);
+            }
 
             function move(e){
                 setMousePosition(e);
             }
 
             function setFocus(e){
-                if(e.type === "mousedown"){
+                if(e.type === "mousedown" || e.type === "touchstart"){
                     isMouseDown = true;
-                    console.log("touched")
+                    //console.log("touched")
                 }else{
                     isMouseDown = false;
                 }
@@ -459,8 +471,8 @@
             function setMousePosition(e) {
                 var rect = c.getBoundingClientRect();
                 mousePosition = {
-                    x: Math.round(e.x - rect.left),
-                    y: Math.round(e.y - rect.top)
+                    x: Math.round(e.clientX - rect.left),
+                    y: Math.round(e.clientY - rect.top)
                 }
             }
 
@@ -569,10 +581,6 @@
 </script>
 
 
-
-
-
-
 <style>
 
     html, body{
@@ -593,7 +601,7 @@
         position: fixed;
         bottom: 0;
         right: 0;
-        z-index: 100;
+        z-index: 110;
         background-color: rgba(255, 255, 255, 0.336);
         border-radius: 30px 0px 0px 0px;
     }
@@ -713,5 +721,94 @@
     }
 
 </style>
+
+
+<style>
+    /* MOBILE SCREENS */
+    @media only screen and (max-width: 768px) {
+
+        .desktop{
+            display: none;
+        }
+
+        .more-info{
+            font-size: 8vmin;
+        }
+
+        #toggle-controls{
+            position: fixed;
+            top:0;
+            left: 0;
+            z-index: 100;
+            margin: 2%;
+            margin-left: 4%;
+        }
+
+        .controls{
+            z-index: -1;
+        }
+
+        .params{
+            display: none;
+        }
+
+        #start-text{
+            position: fixed;
+            text-align: center;
+            width: 100%;
+            top: 70%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+        }
+
+        #play-pause, #pp-text{
+            font-size: 10vmin;
+            cursor: pointer;
+        }
+
+
+
+        .tag{
+            display: none;
+        }
+    }
+</style>
+
+<script>
+    document.getElementById("toggle-controls").addEventListener('click', function(){
+        if(document.getElementById("controls").style["z-index"] == -1){
+            document.getElementById("controls").style["z-index"] = 100;
+            return;
+        }
+        document.getElementById("controls").style["z-index"] = -1;
+    });
+
+</script>
+
+
+<style>
+    /* DESKTOP SCREENS */
+    @media only screen and (min-width: 768px) {
+
+        .params{
+            position: fixed;
+            background-color: rgba(255, 255, 255, 0.596);
+            border-radius: 0px 0px 30px 0px;
+            padding: 1%;
+            display: flex;
+            flex-direction: column;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .phone{
+            display: none;
+        }
+    }
+</style>
+
+
 
 </html>
