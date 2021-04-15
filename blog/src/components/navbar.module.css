@@ -12,5 +12,5 @@
 }
 
 .homebutton{
-    font-size: 3vmin;
+    font-size: calc(1rem + 2.0vmin);
 }
