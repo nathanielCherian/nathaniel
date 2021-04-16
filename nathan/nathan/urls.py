@@ -28,6 +28,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
     path('sketches/', include('sketches.urls')),
+    path('tracker/', include('tracker.urls')),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}),
 
 
