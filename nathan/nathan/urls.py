@@ -18,7 +18,11 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
+from django.views.generic.base import RedirectView
+from django.contrib.staticfiles.storage import staticfiles_storage
 from .sitemaps import StaticViewSitemap
+
+favicon_view = RedirectView.as_view(url='/static/favicon.ico', permanent=True)
 
 sitemaps = {
     'static': StaticViewSitemap
@@ -29,6 +33,6 @@ urlpatterns = [
     path('', include('home.urls')),
     path('sketches/', include('sketches.urls')),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}),
-
+    path('favicon.ico', RedirectView.as_view(url=staticfiles_storage.url("favicon.ico")))
 
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

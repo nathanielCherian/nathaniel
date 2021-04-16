@@ -2,10 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulation of Spontaneous Synchronization with the Kuramoto Model</title>
+    {% include 'snippets/meta.html' %}
 
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"></head>
@@ -17,6 +14,11 @@
     <script type="module" src="{% static 'sketches/kuramoto/script.js' %}"></script>
     <script src="{% static 'sketches/scripts/popup_vanilla.js' %}"></script>
 
+    <!--
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation of Spontaneous Synchronization with the Kuramoto Model</title>
     
     <meta name="description" content="Simulating the Kuramoto model with metronome oscillators using THREE.js">
 
@@ -32,9 +34,7 @@
     <meta name="twitter:title" content="Simulation of Spontaneous Synchronization with the Kuramoto Model">
     <meta name="twitter:description" content="Simulating the Kuramoto model with metronome oscillators using THREE.js">
     <meta name="twitter:image" content="https://nathanielc.com{% static 'meta/kuramoto.png' %}">
-
-
-    {% include 'snippets/tracker.html' %}
+    -->
 
 <body>
 

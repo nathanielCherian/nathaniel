@@ -1,0 +1,44 @@
+{% load static %}
+
+{% if title %}
+    <title>{{ title }} | nathaniel cherian</title>
+    <meta property="og:title" content="{{ title }} | nathaniel cherian">
+    <meta name="twitter:title" content="{{ title }} | nathaniel cherian">
+{% else %}
+    <title>nathaniel cherian</title>
+    <meta property="og:title" content="nathaniel cherian">
+    <meta name="twitter:title" content="nathaniel cherian">
+{% endif %}
+
+{% if image %}
+    <meta name="image" content="https://nathanielc.com{% static image %}">
+    <meta property="og:image" content="https://nathanielc.com{% static image %}">
+    <meta name="twitter:image" content="https://nathanielc.com{% static image %}">
+{% else %}
+    <meta name="image" content="https://nathanielc.com{% static 'meta/icon.png' %}">
+    <meta property="og:image" content="https://nathanielc.com{% static 'meta/icon_og.png' %}">
+    <meta name="twitter:image" content="https://nathanielc.com{% static 'meta/icon_twitter.png' %}">
+{% endif %}
+
+<link rel="icon" href="favicon.ico">
+<meta name="description" content="{{ description|default:'I am Nathaniel Cherian and this is my website. I like to learn stuff' }}">
+
+<!-- Facebook Meta Tags -->
+<meta property="og:url" content="{{ domain|default:'https://nathanielc.com' }}{{ request.path }}">
+<meta property="og:type" content="website">
+<meta property="og:description" content="{{ description|default:'I am Nathaniel Cherian and this is my website. I like to learn stuff' }}">
+
+<!-- Twitter Meta Tags -->
+<meta name="twitter:card" content="summary_large_image">
+<meta property="twitter:domain" content="nathanielc.com">
+<meta property="twitter:url" content="{{ domain|default:'https://nathanielc.com' }}{{ request.path }}">
+<meta name="twitter:description" content="{{ description|default:'I am Nathaniel Cherian and this is my website. I like to learn stuff' }}">
+
+<link rel="canonical" href="{{ domain|default:'https://nathanielc.com' }}{{ request.path }}">
+<meta name="robots" content="all">
+
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+{% include 'snippets/tracker.html' %}

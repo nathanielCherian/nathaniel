@@ -5,15 +5,27 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 
 def index(request):
-    return render(request, "home/index.html")
+    meta = {
+        "title":"home"
+    }
+    return render(request, "home/index.html", context=meta)
 
 def portfolio(request):
-    return render(request, "home/portfolio.html")
+    meta = {
+        "title":"portfolio"
+    }
+    return render(request, "home/portfolio.html", context=meta)
 
 def about_me(request):
-    return render(request, "home/aboutme.html")
+    meta = {
+        "title":"about me"
+    }
+    return render(request, "home/aboutme.html", context=meta)
 
 def test(request):
+    meta = {
+        
+    }
     return render(request, "home/it.html")
 
 @xframe_options_sameorigin

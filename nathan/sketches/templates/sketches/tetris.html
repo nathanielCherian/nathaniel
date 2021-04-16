@@ -1,8 +1,8 @@
 {% load static %}
-<html>
-
+<!DOCTYPE html>
+<html lang="en">
     <head>
-        <title>Tetris</title>
+        {% include 'snippets/meta.html' %}
 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
@@ -13,8 +13,6 @@
         <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
 
         <link rel='stylesheet' href="{% static 'fonts/font.css' %}">
-
-        {% include 'snippets/tracker.html' %}
 
     </head>
 

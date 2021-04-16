@@ -3,25 +3,51 @@ from django.shortcuts import render
 # Create your views here.
 
 def index(request):
-    return render(request, "sketches/index.html")
+    meta = {
+        "title":"sketches"
+    }
+    return render(request, "sketches/index.html", context=meta)
 
 def kid_cudi_motm2(request):
-    return render(request, "sketches/kid_cudi_motm2.html")
+    meta = {
+        "title":"kid cudi MOTM2"
+    }
+    return render(request, "sketches/kid_cudi_motm2.html", context=meta)
 
 def chaos(request):
-    return render(request, "sketches/lorenz.html")
+    meta = {
+        "title":"The Lorenz Attractor"
+    }
+    return render(request, "sketches/lorenz.html", context=meta)
 
 def starry_night(request):
-    return render(request, "sketches/starry_night.html")
+    meta = {
+        "title":"The Starry Night in 3D"
+    }
+    return render(request, "sketches/starry_night.html", context=meta)
 
 def marbles(request):
-    return render(request, "sketches/marbles.html")
+    meta = {
+        "title":"Marble Physics"
+    }
+    return render(request, "sketches/marbles.html", context=meta)
 
 def rush_hour(request):
-    return render(request, "sketches/rush_hour.html")
+    meta = {
+        "title":"Rush Hour Traffic"
+    }
+    return render(request, "sketches/rush_hour.html", context=meta)
     
 def tetris(request):
-    return render(request, "sketches/tetris.html")
+    meta = {
+        "title":"3D Tetris"
+    }
+    return render(request, "sketches/tetris.html", context=meta)
 
 def kuramoto(request):
-    return render(request, "sketches/kuramoto.html")
+    meta ={
+        "title":"Simulation of Spontaneous Synchronization with the Kuramoto Model",
+        "description":"Simulating the Kuramoto model with metronome oscillators using THREE.js",
+        "image":"meta/kuramoto.png"
+    }
+    return render(request, "sketches/kuramoto.html", context=meta)

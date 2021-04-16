@@ -1,8 +1,9 @@
 {% load static %}
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
     <head>
-        <title>Rush Hour</title>
+        {% include 'snippets/meta.html' %}
 
         <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
@@ -14,8 +15,6 @@
         <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Bangers" />
     
         <link rel="stylesheet" type="text/css" href="{% static 'sketches/rush_hour/style.css'%}" />
-
-        {% include 'snippets/tracker.html' %}
 
     </head>
 
