@@ -13,31 +13,42 @@
             <h1> <span class="word" style="--dir: -1">nathaniel</span> <span class="word" style="--dir: 1">cherian</span> </h1>
         </div>
 
-        <div class="socials">
-            <a href="https://github.com/nathanielCherian" class="fab fa-github item" aria-label="github" target="_blank"></a>
-            <a href="https://twitter.com/nathanielCheria" class="fab fa-twitter" aria-label="twitter" target="_blank"></a>
-            <a href="https://www.linkedin.com/in/nathaniel-cherian-75041a1ab/" class="fab fa-linkedin" aria-label="linkedin" target="_blank"></a>
-            <a href="https://blog.nathanielc.com/" class="fas fa-blog" aria-label="blog" target="_blank"></a>
+        <div class="items">
+
+            <div class="socials">
+                <a href="https://github.com/nathanielCherian" class="fab fa-github item" aria-label="github" target="_blank"></a>
+                <a href="https://twitter.com/nathanielCheria" class="fab fa-twitter" aria-label="twitter" target="_blank"></a>
+                <a href="https://www.linkedin.com/in/nathaniel-cherian-75041a1ab/" class="fab fa-linkedin" aria-label="linkedin" target="_blank"></a>
+                <a href="https://blog.nathanielc.com/" class="fas fa-blog" aria-label="blog" target="_blank"></a>
+            </div>
+    
+            <div class="pages__wrapper">
+                <div class="pages">
+    
+                    <div class="sec sec-1" style="--tval: -50px">
+                        <a href="{% url 'portfolio' %}" class="page-link">portfolio</a>
+                    </div>
+    
+                    <div class="sec sec-2" style="--tval: 50px">
+                        <a href="{% url 'sketch-index' %}" class="page-link">sketches</a>
+                    </div>
+    
+                    <div class="sec sec-2" style="--tval: -50px">
+                        <a href="{% url 'about_me' %}" class="page-link">about me</a>
+                    </div>
+    
+                </div>
+            </div>
+
         </div>
 
-        <div class="pages">
 
-            <div class="sec sec-1" style="align-items: flex-start;">
-                <a href="#" class="page-link">portfolio</a>
-            </div>
-
-            <div class="sec sec-2" style="align-items: flex-end;">
-                <a href="#" class="page-link">sketches</a>
-            </div>
-
-            <div class="sec sec-2" style="align-items: center;">
-                <a href="#" class="page-link">about me</a>
-            </div>
-
-        </div>
-
+        <footer class="footer">
+            <p><small>© 2021 Nathaniel Cherian</small></p>
+        </footer>
 
     </div>
+
     <iframe id="background" src="/backgrounds/orbit"></iframe>
 </body>
 
@@ -67,15 +78,16 @@
         z-index: 10;
     }
 
+
     .title{
         position: absolute;
-        top: 100px;
-        left: 100px;
+        top: 8%;
+        left: 8%;
     }
 
     .word{
         display: block;
-        transition: transform 750ms;
+        transition: transform 1.5s;
     }
 
     .word:hover{
@@ -91,9 +103,10 @@
 
     .socials{
         position: absolute;
-        top: 100px;
-        right: 50px;
-        width: 500px;
+        top: 8%;
+        right: 4%;
+        width: 30%;
+        max-width: 650px;
         display: flex;
         justify-content: space-around;
     }
@@ -111,13 +124,19 @@
     .fa-linkedin:hover{color: #0077b5;}
     .fa-blog:hover{color: #cc1f12;}
 
-
-    .pages{
+    .pages__wrapper{
         position: absolute;
-        bottom: 100px;
+        bottom: 10%;
         left: 0px;
         width: 100%;
-        height: 300px;
+        height: 30%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .pages{
+        width: 100%;
+        height: 100%;
         display: flex;
         flex-direction: row;
         justify-content: space-around;
@@ -129,12 +148,30 @@
         display: flex;
     }
 
+    /*
+    .sec-1{align-items: flex-end;}
+    .sec-2{align-items: flex-start;}
+    .sec-3{align-items: center;}
+    */
+
     .page-link{
         font-size: 4rem;
         text-decoration: none;
         color: inherit;
+        transition: color 500ms, transform 500ms;
     }
 
+    .page-link:hover{
+        color: purple;
+    }
+
+    .footer{
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        text-align: center;
+    }
 
     #background{
         position: fixed;
@@ -148,8 +185,111 @@
 
 </style>
 
+<style>
+    @media screen and (min-width: 932px) {
+        .socials{
+            min-width: 400px;
+        }
+
+        .sec{
+            transform: translateY(var(--tval));
+        }
+
+        .page-link:hover{
+            transform: translate(0px, -10px);
+        }
+    }
+
+</style>
 
 
+<style>
+    
+    @media screen and (max-width: 932px) {
+
+        .content{
+            display: flex;
+            flex-direction: column;
+        }
+
+        .title{
+            position: relative;
+            top: 0;
+            left: 0;
+
+            margin-top: 5%;
+            text-align: center;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .word:hover{
+            transform: translate(0, 0);
+        }
+
+        .items{
+            flex-grow: 1;
+            display: flex;
+            flex-direction: row-reverse;
+        }
+
+        .socials{
+            position: relative; 
+            top: 0;
+            right: 0;
+            padding-right: 50px;
+            width: auto !important;
+            max-width: none !important;
+            min-width: none !important;
+            
+
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .socials a{
+            font-size: 3rem;
+        }
+
+
+        .pages__wrapper{
+            position: relative;
+            bottom: 0;
+            left: 0;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .pages{
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: flex-start;
+        }
+
+        .sec{
+            margin-left: 50px;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+        
+
+
+        .page-link{
+            font-size: 3rem;
+            text-decoration: none;
+            color: inherit;
+        }
+
+    }
+
+</style>
 
 
 
