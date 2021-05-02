@@ -19,24 +19,50 @@
     <article class="project-icons">
 
         <div class="project">
-            <h2>Project</h2>
+            <div class="image-container">
+                <a href="https://resistance.sylicia.com/" target="_blank">
+                    <img src="{% static 'home/portfolio/resistance.png' %}" alt="the resistance">
+                </a>
+            </div>
         </div>
 
         <div class="project">
-            <h2>Project</h2>
+            <div class="image-container">
+                <a href="https://github.com/nathanielCherian/palantir" target="_blank">
+                    <img src="{% static 'home/portfolio/palantir.png' %}" alt="palantir">
+                </a>
+            </div>
         </div>
 
         <div class="project">
-            <h2>Project</h2>
+            <div class="image-container">
+                <a href="http://nighthawkcoders.cf/" target="_blank">
+                    <img src="{% static 'home/portfolio/nighthawkcoders.png' %}" alt="nighthawk coding society">
+                </a>
+            </div>
         </div>
 
         <div class="project">
-            <h2>Project</h2>
+            <div class="image-container">
+                <a href="http://dontwait.sylicia.com/" target="_blank">
+                    <img src="{% static 'home/portfolio/dontwait.png' %}" alt="dontwait">
+                </a>
+            </div>
         </div>
 
         <div class="project">
-            <h2>Project</h2>
+            <div class="image-container">
+                <a href="https://www.youtube.com/watch?v=R9XeJoNL2kU" target="_blank">
+                    <img src="{% static 'home/portfolio/3dworld.png' %}" alt="3d-world in java">
+                </a>
+            </div>
         </div>
+
+        <div class="project">
+            <div class="image-container">
+            </div>
+        </div>
+
     </article>
 
 
@@ -79,10 +105,37 @@ body{
     display: flex;
     flex-direction: row;
     justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 0px;
 }
 
 .project{
-    flex-basis: 33.333333%
+    flex-basis: 30%;
+    margin-top: 20px;
+}
+
+.image-container {
+    position: relative;
+    text-align: center;
+    color: white;
+}
+
+.image-container{
+    overflow: hidden;
+
+}
+
+.image-container img{
+    width: 100%;
+    height: auto;
+    transform-origin: 50% 50%;
+    transition: transform .25s, visibility .25s ease-in;
+}
+
+
+.image-container img:hover{
+    transform: scale(1.25);
+
 }
 
 
