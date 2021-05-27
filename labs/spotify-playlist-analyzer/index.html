@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Playlist Collage Generator</title>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+    <div class="content"></div>
+    <canvas id="c" width="1000" height="1000"></canvas>
+
+    <!-- <button onclick="downloadImage()">Download Image.</button> -->
+</body>
+
+
+<script>
+
+    var canvas = document.getElementById('c'),
+    context = canvas.getContext('2d');
+    const SIZE = 1000;
+
+    async function main(){
+        const response = await fetch("playlist.json");
+        const data = await response.json(); 
+        console.log(data);
+
+        const items = data["items"];
+        const songs = {};
+
+        for(const item of items){
+            name = item["track"]["album"]["name"];
+            if(songs[name]){
+                songs[name]["count"] += 1;
+                continue;
+            }
+
+            image = item["track"]["album"]["images"][0]["url"];
+            songs[name] = {
+                name, image, count:1
+            }
+
+            //$(".content").append(`<img src="${image}" />`);
+        }
+
+        console.log(songs);
+
+        {
+            const totalItems = Object.keys(songs).length;
+            console.log(totalItems)
+            const itemsPerRow = Math.floor(Math.sqrt(totalItems));
+            const multiplierX = SIZE / itemsPerRow //Math.floor(SIZE / itemsPerRow);
+            var row = -1;
+            for(var i=0; i<totalItems; i++){
+                if(i % itemsPerRow == 0){
+                    row++;
+                }
+                const key = Object.keys(songs)[i];
+                const url = songs[key].image;
+                //console.log(key, row)
+                addImage(url, multiplierX*(i%itemsPerRow), multiplierX*row, multiplierX);
+            }
+        }
+    }
+    
+    function addImage(url, x, y, size){
+        const base_image = new Image();
+        base_image.crossOrigin="anonymous";
+        base_image.src = url;
+        //console.log(base_image)
+        base_image.onload = function(){
+            context.drawImage(base_image, x, y, size, size);
+        }
+ 
+    }
+
+    main();
+
+    //addImage("https://i.scdn.co/image/ab67616d0000b273397d02cfe1aab2923f9d1697", 300, 300, 300);
+
+    function downloadImage(){
+        console.log("DOWNLOAD")
+        var canvas = document.getElementById("c");
+        var img = canvas.toDataURL("image/png");
+        img.crossOrigin="anonymous";
+        document.write('<img src="'+img+'"/>');
+    }
+
+</script>
+
+
+
+
+
+
+
+
+<script type="text">
+    let OAUTH_TOKEN = "BQAfgmeOhB8MLjNXVPXCP8B7kfCqvqQOd-uIr2MMay6z7gnTp1peI_tVhCUTGDaUPHHTxRh-yOzxTlrLRXU";
+    let PLAYLIST_API = "https://api.spotify.com/v1/playlists/";
+    let PARAMS = "/tracks?market=ES&fields=items(added_by.id%2Ctrack(name%2Chref%2Calbum(name%2Chref%2Cimages)))&limit=5&offset=5";
+    const playlistID = "1H8x3NpOD4nBV20ExakdwW";
+
+
+    async function main(){
+        const res = await fetch(PLAYLIST_API + playlistID + PARAMS, {
+            headers:{
+                'Authorization': "Bearer "+OAUTH_TOKEN
+            }
+        });
+        const data = await res.json();
+
+        console.log(data);
+
+        const items = data["items"];
+        const songs = [];
+
+        for(const item of items){
+            name = item["track"]["album"]["name"];
+            image = item["track"]["album"]["images"][0]["url"];
+            songs.push({name, image});
+            $(".content").append(`<img src="${image}" />`);
+        }
+
+        console.log(songs);
+    }
+
+    main();
+</script>
+
+<style>
+    #c{
+        border: 2px solid black;
+    }
+</style>
+
+</html>
