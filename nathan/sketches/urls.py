@@ -11,5 +11,7 @@ urlpatterns = [
     path('tetris/', views.tetris, name="tetris"),
     path('kuramoto/', views.kuramoto, name="kuramoto"),
 
+
+    path('spotify/', views.spotify, name="spotify"),
 ]
 

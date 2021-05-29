@@ -51,3 +51,11 @@ def kuramoto(request):
         "image":"meta/kuramoto.png"
     }
     return render(request, "sketches/kuramoto.html", context=meta)
+
+
+
+def spotify(request):
+    meta = {
+        "title":"Spotify Collage Generator"
+    }
+    return render(request, "sketches/spotify.html", context=meta)
