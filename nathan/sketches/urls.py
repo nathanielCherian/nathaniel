@@ -10,6 +10,7 @@ urlpatterns = [
     path('rush-hour/', views.rush_hour, name="rush-hour"),
     path('tetris/', views.tetris, name="tetris"),
     path('kuramoto/', views.kuramoto, name="kuramoto"),
+    path('hungarian/', views.hungarian_beads, name="hungarian"),
 
 
     path('spotify/', views.spotify, name="spotify"),

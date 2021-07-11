@@ -53,9 +53,14 @@ def kuramoto(request):
     return render(request, "sketches/kuramoto.html", context=meta)
 
 
-
 def spotify(request):
     meta = {
         "title":"Spotify Collage Generator"
     }
     return render(request, "sketches/spotify.html", context=meta)
+
+def hungarian_beads(request):
+    meta = {
+        "title":"Hungarian Beads Online"
+    }
+    return render(request, "sketches/hungarian.html", context=meta)
