@@ -16,13 +16,15 @@ def kid_cudi_motm2(request):
 
 def chaos(request):
     meta = {
-        "title":"The Lorenz Attractor"
+        "title":"The Lorenz Attractor",
+        "image":"sketches/lorenz.png"
     }
     return render(request, "sketches/lorenz.html", context=meta)
 
 def starry_night(request):
     meta = {
-        "title":"The Starry Night in 3D"
+        "title":"The Starry Night in 3D",
+        "image":"sketches/starrynight.png"
     }
     return render(request, "sketches/starry_night.html", context=meta)
 
@@ -34,7 +36,8 @@ def marbles(request):
 
 def rush_hour(request):
     meta = {
-        "title":"Rush Hour Traffic"
+        "title":"Rush Hour Traffic",
+        "image":"sketches/rush_hour.png"
     }
     return render(request, "sketches/rush_hour.html", context=meta)
     
@@ -61,13 +64,15 @@ def spotify(request):
 
 def hungarian_beads(request):
     meta = {
-        "title":"Hungarian Beads Online"
+        "title":"Hungarian Beads Online",
+        "image":"sketches/hungarian.png"
     }
     return render(request, "sketches/hungarian.html", context=meta)
 
 def ascii(request):
     meta = {
         "title":"ascii webcam",
-        "description":"View the world in ascii, now in color!"
+        "description":"View the world in ascii, now in color!",
+        "image":"sketches/ascii.png"
     }
     return render(request, "sketches/ascii.html", context=meta)
