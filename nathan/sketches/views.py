@@ -64,3 +64,10 @@ def hungarian_beads(request):
         "title":"Hungarian Beads Online"
     }
     return render(request, "sketches/hungarian.html", context=meta)
+
+def ascii(request):
+    meta = {
+        "title":"ascii webcam",
+        "description":"View the world in ascii, now in color!"
+    }
+    return render(request, "sketches/ascii.html", context=meta)
