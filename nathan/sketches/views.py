@@ -76,3 +76,10 @@ def ascii(request):
         "image":"sketches/ascii.png"
     }
     return render(request, "sketches/ascii.html", context=meta)
+
+def modular(request):
+    meta = {
+        "title":"modular arithmetic",
+       # "description":"View the world in ascii, now in color!",
+    }
+    return render(request, "sketches/modular.html", context=meta)

@@ -12,6 +12,7 @@ urlpatterns = [
     path('kuramoto/', views.kuramoto, name="kuramoto"),
     path('hungarian/', views.hungarian_beads, name="hungarian"),
     path('ascii/', views.ascii, name="ascii"),
+    path('modular/', views.modular, name="modular"),
 
 
     path('spotify/', views.spotify, name="spotify"),

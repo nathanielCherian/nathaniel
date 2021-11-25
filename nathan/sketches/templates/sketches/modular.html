@@ -1,0 +1,204 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'snippets/meta.html'%}
+</head>
+<body>
+
+    <h1 class="title">Modular Arithmetic</h1>
+
+    <div class="container">
+        <canvas id="c" width="500" height="500"></canvas>
+    </div>
+
+    <div class="container vertical">
+        <input type="range" class="slider" id="M-slider" min="2" max="50" step="1" value="2" oninput="updateDrawing()"/>
+        <label for="M-slider">M Value: <span id="M-value"></span> </label>
+        <input type="range" class="slider" id="N-slider" min="20" max="200" step="5" value="100" oninput="updateDrawing()"/>
+        <label for="N-slider">N Value: <span id="N-value"></span> </label>
+        <button onclick="replay()" class="btn">Replay</button>
+        <button onclick="toggleAnim()" id="toggle-anim" class="btn">disable animation</button>
+    </div>
+
+
+    <script>
+        const WIDTH = 500;
+        const HEIGHT = 500;
+
+        const c = document.getElementById("c");
+        const ctx = c.getContext("2d");
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = "red";
+
+        const M_slider = document.getElementById("M-slider");
+        const N_slider = document.getElementById("N-slider");
+        const M_value = document.getElementById("M-value");
+        const N_value = document.getElementById("N-value");
+
+        const toggleAnimBtn = document.getElementById("toggle-anim");
+
+
+        const drawCircle = (radius) => {
+            ctx.beginPath();
+            ctx.arc(WIDTH/2, HEIGHT/2, radius, 0, 2*Math.PI);
+            ctx.stroke();
+
+            const getPos = (i, n) => {
+                const rad = (i/n) * 2*Math.PI;
+                const y = Math.sin(rad)*radius + HEIGHT/2;
+                const x = Math.cos(rad)*radius + WIDTH/2;
+                return {y, x};
+            }
+            return {
+                radius, getPos
+            }
+        }
+
+
+
+        const drawLine = (pos1, pos2) => {
+            ctx.beginPath();
+            ctx.moveTo(pos1.x, pos1.y);
+            ctx.lineTo(pos2.x, pos2.y);
+            ctx.stroke();
+        }
+
+        const drawLinesSimple = (lines) => {
+            for(const line of lines) {
+                drawLine(line.pos1, line.pos2);
+            }
+        } 
+
+
+        const animateLineDrawing = (lines) => {
+            var time = 0;
+            const render = () => {
+                ctx.clearRect(0, 0, WIDTH, HEIGHT);
+                drawCircle(200);
+
+                for(const line of lines) {
+                    const pos1 = line.pos1;
+                    const pos2 = line.getMidPos2(time/100);
+                    drawLine(pos1, pos2);
+                }
+
+                if (time < 100) {
+                    window.requestAnimationFrame(render);
+                    time++;
+                }
+            }
+
+            window.requestAnimationFrame(render);
+        }
+
+        const getLines = (circle, N, M) => {
+            const lines = [];
+            for (let i=0; i<N; i++) {
+                const pos1 = circle.getPos(i, N);
+                const pos2 = circle.getPos(i*M, N);
+                const dx = pos2.x - pos1.x;
+                const dy = pos2.y - pos1.y;
+                const length = Math.sqrt(dx**2 + dy**2);
+                const angle = Math.atan2(dy, dx);
+                //console.log(angle)
+                const getMidPos2 = (c) => {
+                    const l = length*c;
+                    const x = Math.cos(angle)*l + pos1.x;
+                    const y = Math.sin(angle)*l + pos1.y;
+                    return {x, y};
+                }
+
+                lines.push({
+                    pos1, 
+                    pos2,
+                    getMidPos2  
+                });
+            }
+            return lines;
+        }
+
+        var animOn = true;
+        function toggleAnim() {
+            if(animOn) {
+                animOn = false;
+                toggleAnimBtn.innerHTML = "enable animation";
+            } else {
+                animOn = true;
+                toggleAnimBtn.innerHTML = "disable animation"; 
+            }
+        }
+
+        const getParams = () => {
+            let N = N_slider.value;
+            N_value.innerHTML = N;
+            let M = M_slider.value;
+            M_value.innerHTML = M;
+            return {N, M};
+        }
+
+        function replay() {
+            let {N, M} = getParams();
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            const circle = drawCircle(200);
+            const lines = getLines(circle, N, M);
+            animateLineDrawing(lines);
+        }
+
+        function updateDrawing() {
+            let {N, M} = getParams();
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            const circle = drawCircle(200);
+            const lines = getLines(circle, N, M);
+            if(animOn) {
+                animateLineDrawing(lines);
+            } else {
+                drawLinesSimple(lines);
+            }
+        }
+
+        updateDrawing();
+
+
+    </script>
+
+
+    <style>
+        html, body{
+            color: black;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font-family: none;
+        }
+
+        .title {
+            text-align: center;
+        }
+
+        .container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .vertical {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .btn {
+            margin: 10px;
+        }
+        
+        .slider {
+            width: 300px;
+        }
+
+        #c {
+            border: 1px solid black;
+        }
+    </style>
+
+</body>
+</html>
