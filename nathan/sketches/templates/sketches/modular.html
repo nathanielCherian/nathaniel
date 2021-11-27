@@ -6,7 +6,7 @@
 </head>
 <body>
 
-    <h1 class="title">Modular Arithmetic</h1>
+    <h1 class="title">Modular Multiplication</h1>
 
     <div class="container">
         <canvas id="c" width="500" height="500"></canvas>
@@ -101,7 +101,6 @@
                 const dy = pos2.y - pos1.y;
                 const length = Math.sqrt(dx**2 + dy**2);
                 const angle = Math.atan2(dy, dx);
-                //console.log(angle)
                 const getMidPos2 = (c) => {
                     const l = length*c;
                     const x = Math.cos(angle)*l + pos1.x;

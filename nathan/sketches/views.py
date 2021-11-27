@@ -79,7 +79,8 @@ def ascii(request):
 
 def modular(request):
     meta = {
-        "title":"modular arithmetic",
-       # "description":"View the world in ascii, now in color!",
+        "title":"modular multiplication",
+       "description":"Generate cool shapes using modular multiplication. The foundation of RSA encryption.",
+        "image":"sketches/modular.png"
     }
     return render(request, "sketches/modular.html", context=meta)
