@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spirograph</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Spirograph</h1>
+    </div>
+
+    <div class="container">
+        <canvas id="paper" class="c" width="700" height="500"></canvas>
+    </div>
+
+    
+    <!-- <div class="container">
+        <canvas id="tool" class="c" width="400" height="400"></canvas>
+    </div>
+
+    <div class="container">
+        <input type="range" min="50" max=170 step="10" value="150" id="rad-slider"/>
+    </div> -->
+
+
+</body>
+
+
+<script>
+    let STROKE_WIDTH = 2;
+    let MATH2PI = 2*Math.PI;
+    let OUTERRING = 200;
+</script>
+
+<script>
+
+    class ToolSelector {
+        WIDTH = 400;
+        HEIGHT = 400;
+        RADIUS = 150;
+        holes = [];
+
+
+        constructor() {
+            this.toolCtx = document.getElementById("tool").getContext("2d");
+            this.__init();
+            this.addListener();
+            this.registerSlider();
+        }
+
+        __init() {
+            this.holes = [];
+            this.drawSelector();
+            this.addHole(0,0, 2);
+            this.createSpiral();
+            this.drawHoles();
+        }
+
+        drawSelector() {
+            this.toolCtx.clearRect(0, 0, this.WIDTH, this.HEIGHT);
+            this.toolCtx.beginPath();
+            this.toolCtx.arc(this.WIDTH/2, this.HEIGHT/2, this.RADIUS, 0, MATH2PI);
+            this.toolCtx.fillStyle = 'gray';
+            this.toolCtx.fill();
+        }
+
+        addHole(x, y, s=5) {
+            const [cX, cY] = [this.WIDTH/2, this.HEIGHT/2];
+            this.toolCtx.beginPath();
+            this.toolCtx.arc(cX+x, cY+y, s, 0, MATH2PI);
+            this.toolCtx.fillStyle = 'black';
+            this.toolCtx.fill();
+        }
+
+        createSpiral() {
+            let holes = 15;
+            const of_i = this.RADIUS/holes;
+            const ang_i = 2*MATH2PI/holes;
+            for(let i=2; i<holes-1; i++) {
+                const x = Math.cos(ang_i*i)*(of_i*i);
+                const y = Math.sin(ang_i*i)*(of_i*i);
+                this.holes.push({x, y});
+            }
+        }
+
+        drawHoles() {
+            for(const hole of this.holes) {
+                this.addHole(hole.x, hole.y);
+            }
+        }
+
+        
+        intersectsHoles(x, y) {
+            const [cX, cY] = [this.WIDTH/2, this.HEIGHT/2];
+            for(let i=0; i<this.holes.length;i++) {
+                const hole = this.holes[i];
+                if(x >= hole.x + cX - 5 && x <= hole.x + cX + 5 && y >= hole.y + cY +- 5 && y <= hole.y + cY + 5) {
+                    console.log(true);
+                    return i;
+                }
+            }
+            console.log(false);
+            return -1;
+        }
+
+        registerSlider() {
+            const slider = document.getElementById("rad-slider");
+            slider.addEventListener('input', (e) => {
+                this.RADIUS = slider.value;
+                console.log(slider.value)
+                this.__init();
+            })
+        }
+
+        addListener() {
+            const canvas = document.getElementById("tool");
+            
+            canvas.addEventListener('click', (e) => {
+                //console.log(canvas.getBoundingClientRect().top, e.clientY)
+                const rect = canvas.getBoundingClientRect();
+                const pos = {x:e.clientX - rect.left, y:e.clientY-rect.top};
+                console.log(pos);
+                const h = this.intersectsHoles(pos.x, pos.y);
+                if(h >= 0) {
+                    const hole = this.holes[h];
+                    const offset = Math.sqrt((hole.x*hole.x) + (hole.y*hole.y));
+                    console.log(offset)
+                    drawAnim(new CircleTool(this.RADIUS, offset, 0, OUTERRING/this.RADIUS, randomColor()));
+                }
+            })
+        }
+
+    }
+
+    //const ts = new ToolSelector();
+    //ts.addHole(10,10)
+
+</script>
+
+<script>
+
+    const paper_canvas = document.getElementById("paper");
+    const paper = paper_canvas.getContext("2d");
+    paper.globalCompositeOperation = 'source-over';
+
+
+
+    let WIDTH = 500;
+    let HEIGHT = 500;
+    let [cX, cY] = [WIDTH/2, HEIGHT/2];
+
+    function drawBrushPoint(x, y, c) {
+        paper.beginPath();
+        paper.arc(x, y, STROKE_WIDTH, 0, MATH2PI);
+        paper.fillStyle = c;
+        paper.fill();
+    }
+
+    class Tool {
+        rotation = 0;
+        constructor(d, c) {
+            this.distanceFromCenter = d;
+            this.color = c;
+        }
+
+        rotate(speed) {
+            this.rotation = (this.rotation + speed);
+        }
+
+        getCenter() {
+            const x = (Math.cos(this.rotation) * this.distanceFromCenter) + cX;
+            const y = (Math.sin(this.rotation) * this.distanceFromCenter) + cY;
+            return {x, y};
+        }
+
+        paint(x, y) {
+            drawBrushPoint(x, y, this.color);
+        }
+    }
+
+    class SimpleTool extends Tool {
+        constructor(r, c) {
+            super(r, c);
+        }
+
+        paint() {
+            const {x, y} = this.getCenter();
+            super.paint(x, y);
+        }
+    }
+
+    class CircleTool extends Tool {
+        
+        toolRotation = 0;
+
+        constructor(r, o, a, m, c) {
+            super(OUTERRING-r, c);
+            this.radius = r;
+            this.offset = o;
+            this.toolRotation = a;
+            this.SPEED_MULTIPLIER = m;
+        }
+
+        rotate(speed) {
+            super.rotate(speed);
+            this.toolRotation -= (speed*this.SPEED_MULTIPLIER);
+        }
+
+        paint() {
+            var {x, y} = this.getCenter();
+            x += Math.cos(this.toolRotation)*this.offset;
+            y += Math.sin(this.toolRotation)*this.offset;
+            super.paint(x, y);
+        }
+
+        test() {
+            var {x, y} = this.getCenter();
+            drawBrushPoint(x, y, "black");
+            paper.beginPath();
+            paper.arc(x, y, this.radius, 0, MATH2PI);
+            paper.stroke();
+            x += Math.cos(this.toolRotation)*this.offset;
+            y += Math.sin(this.toolRotation)*this.offset;
+            paper.beginPath();
+            paper.arc(x, y, 5, 0, MATH2PI);
+            paper.fillStyle = 'red';
+            paper.fill();
+        }
+    }
+
+    class MandorlaTool extends Tool{
+        
+        constructor(r, t, c) {
+            super(OUTERRING-r, c);
+            this.radius = r;
+            this.thetha = t;
+            this.rotation = 0;
+        }
+
+        rotate(speed) {
+
+        }
+
+        getEndpoints() {
+            var {x, y} = this.getCenter();
+            const t = this.thetha/2;
+            const x1 = Math.cos(this.rotation+t)*this.radius + x;
+            const y1 = Math.sin(this.rotation+t)*this.radius + y;
+            const x2 = Math.cos(this.rotation-t)*this.radius + x;
+            const y2 = Math.sin(this.rotation-t)*this.radius + y;
+            return [{x1, y2}, {x2, y2}];
+        }
+
+        test() {
+            var {x, y} = this.getCenter();
+            drawBrushPoint(x, y, "purple");
+            const t = this.thetha/2;
+
+            paper.beginPath();
+            // paper.arc(x, y, this.radius, this.rotation-t, this.rotation+t);
+            paper.arc(x, y, this.radius, 0, MATH2PI);
+            paper.stroke();
+            
+            const x1 = Math.cos(this.rotation+t)*this.radius + x;
+            const y1 = Math.sin(this.rotation+t)*this.radius + y;
+            drawBrushPoint(x1, y1, "purple");
+            const x2 = Math.cos(this.rotation-t)*this.radius + x;
+            const y2 = Math.sin(this.rotation-t)*this.radius + y;
+            drawBrushPoint(x2, y2, "purple");
+            
+            console.log({x1, y2})
+            let d = (OUTERRING-Math.sqrt((x1-cX)**2 + (y1-cY)**2));
+
+
+            paper.beginPath();
+            const xT = Math.cos(this.rotation) * (OUTERRING+this.radius-d) + cX;
+            const yT = Math.sin(this.rotation) * (OUTERRING+this.radius-d) + cY;
+            paper.arc(xT, yT, this.radius, 0, MATH2PI);
+            paper.stroke();
+
+        }
+        
+    }
+
+    const mt = new MandorlaTool(100, Math.PI/2, 'red');
+    mt.test();
+
+    class BasicCircleHouse {
+        constructor(r) {
+            this.radius = r;
+            this._draw();
+        }
+
+        _draw() {
+            drawBrushPoint(cX, cY); // draw center point
+            paper.beginPath();
+            paper.arc(cX, cY, this.radius, 0, MATH2PI);
+            paper.stroke();
+        }
+
+        createCircleTool(radius, offset, initialAngle, color) {
+            if(radius > this.radius) {
+                throw "Not allowed";
+            }
+            return new CircleTool(radius, offset, initialAngle, this.radius/radius, color);
+        }
+    }
+
+    function paintFullRotation(tool) {
+        for(let i=0; i<MATH2PI; i+=.001) {
+            tool.paint();
+            tool.rotate(.001);
+        }
+        tool.paint();
+    }
+    
+    function drawAnim(tool) {
+        const anim = () => {
+            for(let i=0; i<.08; i+=.001) {
+                tool.paint();
+                tool.rotate(.001);
+            }
+            requestAnimationFrame(anim);
+        }
+
+        requestAnimationFrame(anim);
+    }
+
+    function testAnim(tool) {
+        const anim = () => {
+            paper.clearRect(0, 0, WIDTH, HEIGHT);
+            new BasicCircleHouse(OUTERRING)
+            tool.test();
+            tool.rotate(.01);
+            requestAnimationFrame(anim);
+        }
+        requestAnimationFrame(anim);
+    }
+
+
+    //drawAnim(bch.createCircleTool(133.3, 40, 0, "red"))
+    //drawAnim(new CircleTool(133, 50, 0, 1.5, "red"));
+    //testAnim(new CircleTool(133, 50, 0, 1.5, "red"));
+    //new CircleTool(133, 50, 0, 1.5, "red").test();
+    //new CircleTool(50, 49, 0, 50, "purple");
+
+    //paintFullRotation(new SimpleTool(200, "red"));
+    const bch = new BasicCircleHouse(OUTERRING);
+    //const t = new CircleTool(108.3, 105, 0, 1.846, "green")
+    //testAnim(t);
+    //drawAnim(t);
+   // paintFullRotation(new CircleTool(50, 49, 0, 50, "purple"));
+
+   var randomColor = () => "#"+Math.floor(Math.random()*16777215).toString(16);
+   const createSpiral = () => {
+       const r = 108.3;
+       const m = 1.846;
+       const interval = r/7;
+       const rad = MATH2PI/7;
+       for(let i=1; i<6; i++) {
+            const t = new CircleTool(108.3, interval*i, rad*i, 1.846, randomColor());
+            drawAnim(t);
+       }
+   }
+
+   // createSpiral();
+   
+   
+   // drawAnim(new CircleTool(50, 30, 7, "green"));
+    // drawAnim(new CircleTool(100, 50, 50, "purple"));
+
+
+</script>
+
+
+
+<style>
+    .container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .c {
+        border: 1px solid black;
+    }
+
+    #tool {
+        margin: 10px;
+    }
+
+</style>
+
+
+</html>
