@@ -84,3 +84,11 @@ def modular(request):
         "image":"sketches/modular.png"
     }
     return render(request, "sketches/modular.html", context=meta)
+
+def spirograph(request):
+    meta = {
+        "title":"spirograph",
+        "description":"A spirograph is a simple mechanical device that produces a continuous circular motion. It is used as a visual aid in mathematics and is a common symbol in many cultures. lol github autopilot wrote that description - ngc",
+        "image":"sketches/spirograph.png"
+    }
+    return render(request, "sketches/sp2.html", context=meta)

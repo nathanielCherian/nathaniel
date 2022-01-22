@@ -12,11 +12,14 @@
         <h1>Spirograph</h1>
     </div>
 
-    <div class="container">
+    <div class="container vertical">
         <canvas id="paper" class="c" width="500" height="500"></canvas>
     </div>
 
-    
+    <div class="container">
+        <button onclick="clearDiagram()">Clear</button>
+    </div>
+
     <div class="container">
         <canvas id="tool" class="c" width="400" height="400"></canvas>
     </div>
@@ -25,6 +28,7 @@
         <input type="range" min="50" max=170 step="10" value="150" id="rad-slider"/>
     </div>
 
+    <button onclick="clearDiagram()">Clear</button>
 
 </body>
 
@@ -36,6 +40,19 @@
 </script>
 
 <script>
+
+    class AllTools {
+        tools = [];
+        addTool(tool) {
+            this.tools.push(tool);
+        }
+        clear() {
+            this.tools.forEach(tool => tool.dead = true);
+            this.tools = [];
+        }
+    }
+
+    let alltools = new AllTools();
 
     class ToolSelector {
         WIDTH = 400;
@@ -127,8 +144,9 @@
                 if(h >= 0) {
                     const hole = this.holes[h];
                     const offset = Math.sqrt((hole.x*hole.x) + (hole.y*hole.y));
-                    console.log(offset)
-                    drawAnim(new CircleTool(this.RADIUS, offset, 0, OUTERRING/this.RADIUS, randomColor()));
+                    let ct = new CircleTool(this.RADIUS, offset, 0, OUTERRING/this.RADIUS, randomColor())
+                    drawAnim(ct);
+                    alltools.addTool(ct);
                 }
             })
         }
@@ -136,7 +154,6 @@
     }
 
     const ts = new ToolSelector();
-    //ts.addHole(10,10)
 
 </script>
 
@@ -160,6 +177,7 @@
     }
 
     class Tool {
+        dead = false;
         rotation = 0;
         constructor(d, c) {
             this.distanceFromCenter = d;
@@ -316,17 +334,46 @@
     
     function drawAnim(tool) {
         const anim = () => {
-            for(let i=0; i<.08; i+=.001) {
-                tool.paint();
-                tool.rotate(.001);
+            if(!tool.dead) {
+                for(let i=0; i<.08; i+=.001) {
+                    tool.paint();
+                    tool.rotate(.001);
+                }
+                requestAnimationFrame(anim);
             }
-            requestAnimationFrame(anim);
         }
-
         requestAnimationFrame(anim);
     }
 
-    function testAnim(tool) {
+
+
+    const bch = new BasicCircleHouse(OUTERRING); // creating that outer ring
+
+   var randomColor = () => "#"+Math.floor(Math.random()*16777215).toString(16);
+   const createSpiral = () => {
+       const r = 108.3;
+       const m = 1.846;
+       const interval = r/7;
+       const rad = MATH2PI/7;
+       for(let i=1; i<6; i++) {
+            const ct = new CircleTool(108.3, interval*i, rad*i, 1.846, randomColor());
+            drawAnim(ct);
+            alltools.addTool(ct);
+       }
+   }
+
+
+   function clearDiagram() {
+       alltools.clear();
+       paper.clearRect(0, 0, WIDTH, HEIGHT);
+       const bch = new BasicCircleHouse(OUTERRING);
+   }
+
+   createSpiral();
+   
+
+   /*
+       function testAnim(tool) {
         const anim = () => {
             paper.clearRect(0, 0, WIDTH, HEIGHT);
             new BasicCircleHouse(OUTERRING)
@@ -336,39 +383,7 @@
         }
         requestAnimationFrame(anim);
     }
-
-
-    //drawAnim(bch.createCircleTool(133.3, 40, 0, "red"))
-    //drawAnim(new CircleTool(133, 50, 0, 1.5, "red"));
-    //testAnim(new CircleTool(133, 50, 0, 1.5, "red"));
-    //new CircleTool(133, 50, 0, 1.5, "red").test();
-    //new CircleTool(50, 49, 0, 50, "purple");
-
-    //paintFullRotation(new SimpleTool(200, "red"));
-    const bch = new BasicCircleHouse(OUTERRING);
-    //const t = new CircleTool(108.3, 105, 0, 1.846, "green")
-    //testAnim(t);
-    //drawAnim(t);
-   // paintFullRotation(new CircleTool(50, 49, 0, 50, "purple"));
-
-   var randomColor = () => "#"+Math.floor(Math.random()*16777215).toString(16);
-   const createSpiral = () => {
-       const r = 108.3;
-       const m = 1.846;
-       const interval = r/7;
-       const rad = MATH2PI/7;
-       for(let i=1; i<6; i++) {
-            const t = new CircleTool(108.3, interval*i, rad*i, 1.846, randomColor());
-            drawAnim(t);
-       }
-   }
-
-   createSpiral();
-   
-   
-   // drawAnim(new CircleTool(50, 30, 7, "green"));
-    // drawAnim(new CircleTool(100, 50, 50, "purple"));
-
+    */
 
 </script>
 
@@ -379,14 +394,15 @@
         width: 100%;
         display: flex;
         justify-content: center;
+        margin-bottom: 10px;
     }
+
 
     .c {
         border: 1px solid black;
     }
 
     #tool {
-        margin: 10px;
     }
 
 </style>
