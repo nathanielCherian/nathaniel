@@ -92,3 +92,12 @@ def spirograph(request):
         "image":"sketches/spirograph.png"
     }
     return render(request, "sketches/sp2.html", context=meta)
+
+
+def matrix(request):
+    meta = {
+        "title":"matrix",
+        "description": "The matrix effect",
+        "image":"sketches/matrix.png"
+    }
+    return render(request, "sketches/matrix.html", context=meta)
