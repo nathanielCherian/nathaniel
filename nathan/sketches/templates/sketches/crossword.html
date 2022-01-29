@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword</title>
+</head>
+<body>
+    
+
+    <script>
+
+let WORDS = `power
+desk
+venture
+deny
+folk
+knee
+deprive
+dragon
+soak
+leak
+nathan
+test
+monkey
+school
+life
+market`.split('\n');
+        console.log(WORDS)
+
+        const DIRECTION = {
+            ACROSS:0,
+            DOWN:1
+        }
+
+
+        class WordManager {
+
+            words = [];
+            
+            center = {
+                x:24,
+                y:24
+            }
+            
+            constructor() {
+                this.grid = [];
+                for(let i=0; i<50; i++) {
+                    this.grid.push(new Array(50).fill(' '));
+                }
+            }
+
+            getChar(x, y) {
+                return this.grid[this.center.y - y][this.center.x + x];
+            }
+
+            setChar(x, y, c) {
+                this.grid[this.center.y - y][this.center.x + x] = c;
+            }
+
+            addWord(word) {
+                let x = word.x;
+                let y = word.y;
+
+                for(let i=0; i<word.word.length; i++) {
+                    this.setChar(x, y, word.word[i]);
+                    if(word.direction === DIRECTION.ACROSS) {
+                        x++;
+                    } else {
+                        y--;
+                    }
+                }
+
+                this.words.push(word);
+            }
+
+            testFit(word) {
+                let x = word.x;
+                let y = word.y;
+
+                for(let i=0; i<word.word.length; i++) {
+                    const char = this.getChar(x, y);
+                    if(char !== ' ' && char !== word.word[i]) {
+                        return false;
+                    }
+
+                    if(word.direction === DIRECTION.ACROSS) {
+                        x++;
+                    } else {
+                        y--;
+                    }
+                }
+
+                return true
+            }
+
+            getRandomWord() {
+                return this.words[Math.floor(Math.random() * this.words.length)];
+            }
+
+            print() {
+                for(let i=0; i<50; i++) {
+                    console.log(this.grid[i].join(''));
+                }
+            }
+        }
+
+        class Word {
+
+            // The (x,y) coordinates of the first letter of the word
+            constructor(word, x, y, direction) {
+                this.word = word;
+                this.x = x;
+                this.y = y;
+                this.direction = direction;
+
+            }
+
+            getLetterOverlap(other_string) {
+                let overlap = [];
+                for(let i = 0; i < this.word.length; i++) {
+                    for(let j=0;j<other_string.length;j++) {
+                        if(this.word[i] === other_string[j]) {
+                            overlap.push({
+                                pos1: i,
+                                pos2: j,
+                                letter: this.word[i]
+                            });
+                        }
+                    }
+                }
+                return overlap;
+            } 
+        }
+        
+
+        const wordManager = new WordManager();
+        const firstWord = new Word(WORDS[0], 0, 0, DIRECTION.ACROSS);
+        wordManager.addWord(firstWord);
+
+        for (let i = 1; i<WORDS.length; i++) {
+
+            const word_string = WORDS[i];
+
+            const base_word = wordManager.getRandomWord();
+
+            const overlap = base_word.getLetterOverlap(word_string);
+            if(overlap.length == 0) { console.log('no overlap');continue; }
+
+            var addedWord = false;
+
+            for(let o=0; o<overlap.length; o++) {
+                const {pos1, pos2} = overlap[o];
+                const newDir = +!base_word.direction; // reverse the base direction
+                let newX, newY;
+                if(base_word.direction === DIRECTION.ACROSS) {
+                    newX = base_word.x + pos1;
+                    newY = base_word.y + pos2;
+                } else {
+                    newX = base_word.x - pos2;
+                    newY = base_word.y - pos1;
+                }
+
+                const newWord = new Word(word_string, newX, newY, newDir);
+                console.log(newWord)
+                const tf = wordManager.testFit(newWord)
+                if(tf) {
+                    wordManager.addWord(newWord);
+                    addedWord = true;
+                    break;
+                } else {
+                    console.log("%cno fit!", "color: red;");
+                }
+            }
+
+            if(!addedWord) {
+                console.log("%ctrying again...", "color: red;");
+                i--;
+            }
+
+            
+        }
+
+        wordManager.print();
+
+
+    </script>
+
+</body>
+</html>
