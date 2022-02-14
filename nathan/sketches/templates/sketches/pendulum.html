@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pendulum</title>
+</head>
+<body>
+    
+    <canvas id="c" width="500px" height="500px"></canvas>
+
+
+    <script>
+
+        const WIDTH = 500;
+        const HEIGHT = 500;
+        const GRAVITY = 9.8;
+        const dt = .1;
+
+        const center = {
+            x: WIDTH / 2,
+            y: HEIGHT / 2
+        }
+
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d');
+    
+        const draw_circle = (offset) => {
+            ctx.beginPath();
+            ctx.arc(center.x + offset.x, center.y + offset.y, 25, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        const draw_line = (x, y, length, theta) => {
+            ctx.beginPath();
+            ctx.moveTo(center.x+x, center.y+y);
+            ctx.lineTo(center.x + x + length * Math.cos(theta-Math.PI*.5), center.y+ y - length * Math.sin(theta-Math.PI*.5));
+            ctx.stroke();
+        }
+
+        const clear = () => {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        }
+
+        let LENGTH = 200;
+        var theta = Math.PI/2;
+        var velocity = 0;
+
+        // draw_line(0, 0, LENGTH, theta);
+        // draw_line(0, 0, LENGTH, -theta);
+
+        // draw_line(0, 0, LENGTH*1.5, 0);
+
+        const interval = setInterval(() => {
+            let a = (GRAVITY/LENGTH) * -Math.sin(theta);
+            velocity += a * dt;
+            theta += velocity*dt;
+            clear();
+            draw_line(0, 0, LENGTH, theta);
+            
+        }, 10);
+
+
+
+
+        const data = {
+            height: 0,
+            angle: 0,
+        }
+
+
+
+
+    </script>
+
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 1px solid black;
+        }
+    </style>
+
+</body>
+</html>
