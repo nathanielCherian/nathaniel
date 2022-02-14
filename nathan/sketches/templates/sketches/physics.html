@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics</title>
+</head>
+<body>
+    
+    <canvas id="c" width="500px" height="500px"></canvas>
+
+    <script>
+
+        const WIDTH = 500;
+        const HEIGHT = 500;
+        const GRAVITY = 9.8;
+        const dt = .01;
+
+        const center = {
+            x: WIDTH / 2,
+            y: HEIGHT / 2
+        }
+
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d');
+    
+        const adjust_x = (x) => x+center.x;
+        const adjust_y = (y) => center.y-y;
+
+        const gen_id = () => Math.random().toString(36).substr(2, 5);
+
+        const draw_circle = (offset, r) => {
+            ctx.beginPath();
+            ctx.arc(adjust_x(offset.x), adjust_y(offset.y), r, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        const draw_line = (x, y, length, theta) => {
+            ctx.beginPath();
+            ctx.moveTo(adjust_x(x), adjust_y(y));
+            ctx.lineTo(adjust_x(x + length * Math.cos(theta-Math.PI*.5)), adjust_y(y - length * Math.sin(theta-Math.PI*.5)));
+            ctx.stroke();
+        }
+
+        const clear = () => ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+        class Force {
+            static create(force, theta) {
+                return { force, theta }
+            }
+        }
+
+
+        class BaseObject {
+            constructor({x, y, m}, fixed = false) {
+                this.x = x;
+                this.y = y;
+                this.vX = 0;
+                this.vY = 0;
+                this.mass = m;
+                this.id = gen_id();
+                this.forces = {};
+                this.fixed = fixed;
+            }
+
+            add_force(force, id) { this.forces[id]=force; }
+            clear_force(id) { this.forces[id]={force:0, theta:0};}
+
+            sum_y_forces(){
+                return {force:Object.keys(this.forces).reduce((pV, id) => {
+                    const {force, theta} = this.forces[id];
+                    return pV + Math.cos(theta)*force;
+                }, 0),
+                theta:0};
+            }
+
+            iterate() {
+                if (this.fixed) return;
+                var [aX, aY] = Object.keys(this.forces).reduce((pV, id) => {
+                    const {force, theta} = this.forces[id];
+                    return [pV[0] + Math.sin(theta)*force, pV[1] + Math.cos(theta)*force];
+                }, [0, 0]);
+
+                aX = parseFloat(aX.toFixed(4))
+                aY = parseFloat(aY.toFixed(4))
+                this.vX += aX * dt;
+                this.vY += aY * dt;
+                this.x += this.vX * dt;
+                this.y += this.vY * dt;
+            }
+
+            get_x_vertices() {}
+            get_y_vertices() {}
+
+            collides(obj){}
+            draw(){}
+            says(msg){console.log(this.id+": "+msg)};
+        }
+
+        class Ball extends BaseObject {
+            constructor({x, y, vX, vY, m, r}) {
+                super({x, y, m});
+                this.radius = r;
+                this.vX = vX;
+                this.vY = vY;
+            }
+
+            draw() {
+                draw_circle({x:this.x, y:this.y}, this.radius);
+            }
+
+            get_x_vertices() {
+                return [this.x - this.radius, this.x + this.radius];
+            }
+
+            get_y_vertices() {
+                return [this.y - this.radius, this.y + this.radius];
+            }
+
+            collides(obj_list) {
+                for(const obj of obj_list) {
+                    if (obj.id === this.id) continue;
+                    const [x1, x2] = this.get_x_vertices();
+                    const [y1, y2] = this.get_y_vertices();
+                    const [x3, x4] = obj.get_x_vertices();
+                    const [y3, y4] = obj.get_y_vertices();
+                    if (x1 < x4 && x2 > x3 && y1 < y4 && y2 > y3) {
+                        obj.add_force(this.sum_y_forces(), this.id);
+                    } else {
+                        obj.clear_force(this.id);
+                    }
+                }
+            }
+
+        }
+
+        class FixedPlatform extends BaseObject {
+            constructor({x, y, w, h}) {
+                super({x, y, m:0}, true);
+                this.width = w;
+                this.height = h;
+            }
+
+            draw() {
+                ctx.fillRect(adjust_x(this.x), adjust_y(this.y), this.width, this.height);
+            }
+
+            get_x_vertices() {
+                return [this.x, this.x + this.width];
+            }
+
+            get_y_vertices() {
+                return [this.y, this.y - this.height/2];
+            }
+
+            collides(obj_list) {
+                for(const obj of obj_list) {
+                    if (obj.id === this.id) continue;
+                    const [x1, x2] = this.get_x_vertices();
+                    const [y1, y2] = this.get_y_vertices();
+                    const [x3, x4] = obj.get_x_vertices();
+                    const [y3, y4] = obj.get_y_vertices();
+                    if (x1 < x4 && x2 > x3 && y1 < y4 && y2 > y3) {
+                        obj.clear_force(this.id);
+                        obj.vY = 0;
+                        const force = obj.sum_y_forces(); // creating a normal force
+                        force.theta = Math.PI;
+                        obj.add_force(force, this.id);
+                        //console.log(obj)
+                        //this.says("added force", force.force)
+                    } else {
+                        obj.clear_force(this.id);
+                    }
+                }
+            }
+        }
+
+        class World {
+
+            GRAVITY = -9.8;
+            children = [];
+
+            constructor() {
+                this.id = gen_id();
+            }
+
+            add_object(obj) {
+                obj.add_force(Force.create(this.GRAVITY * obj.mass, 0), this.id);
+                this.children.push(obj);
+            }
+        
+            iterate() {
+                this.children.map(child => {
+                    child.iterate();
+                });
+            }
+
+            draw() {
+                this.children.map(child => {
+                    child.draw();
+                });
+            }
+
+        }
+
+        const world = new World();
+        world.add_object(new Ball({x:0, y:200, vX:10, vY:0, m:1, r:20}));
+        world.add_object(new Ball({x:-50, y:200, vX:0, vY:20, m:1, r:20}));
+        world.add_object(new FixedPlatform({x:-50, y:-50, w:100, h:10}));
+        world.add_object(new FixedPlatform({x:70, y:-150, w:50, h:10}));
+        //world.add_object(new FixedPlatform({x:-100, y:-100, w:10, h:500}));
+
+        //world.add_object(new Ball({x:100, y:200, m:1, r:10}));
+
+        const interval = setInterval(() => {
+            clear();
+            world.iterate();
+            world.children.map(child => {
+                child.draw();
+            });
+        
+            world.children.map(child => {
+                child.collides(world.children);
+            });
+
+
+        }, dt * 100);
+
+        
+
+    </script>
+
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 1px solid black;
+        }
+    </style>
+
+</body>
+</html>
