@@ -11,6 +11,8 @@
 
     <script>
 
+
+
 let WORDS = `power
 desk
 venture
@@ -27,6 +29,8 @@ monkey
 school
 life
 market`.split('\n');
+
+
         console.log(WORDS)
 
         const DIRECTION = {
@@ -81,16 +85,20 @@ market`.split('\n');
 
                 for(let i=0; i<word.word.length; i++) {
                     const char = this.getChar(x, y);
+
                     if(char !== ' ' && char !== word.word[i]) {
                         return false;
                     }
 
                     if(word.direction === DIRECTION.ACROSS) {
+                        //neighbors += +(this.getChar(x, y-1) !== ' ' && this.getChar(x, y+1) !== ' ');
                         x++;
                     } else {
+                        //neighbors += +(this.getChar(x-1, y) !== ' ' && this.getChar(x+1, y) !== ' ');
                         y--;
                     }
                 }
+
 
                 return true
             }
