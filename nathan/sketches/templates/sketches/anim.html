@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animation</title>
+</head>
+<body>
+    <canvas id="c" width="500px" height="500px"></canvas>
+</body>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    canvas {
+        display: block;
+        margin: 0 auto;
+        border: 1px solid black;
+    }
+</style>
+
+<script>
+    const WIDTH = 500;
+    const HEIGHT = 500;
+
+    const c = document.getElementById('c');
+    const ctx = c.getContext('2d');
+
+    const layers = [c.toDataURL()];
+    const set_layer = (l) => layers[l] = c.toDataURL();
+    const reset = () => {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        const background = new Image();
+        background.src = layers[0];
+        ctx.drawImage(background, 0, 0);
+    }
+
+    reset();
+
+    // on hover over the canvas event
+    c.addEventListener('mousemove', (e) => {
+        // get the mouse position
+        const mouse = {
+            x: e.offsetX,
+            y: e.offsetY
+        }
+
+        if(e.which === 0) {
+            // reset the canvas
+            reset();
+            // draw a circle at the mouse position
+            ctx.beginPath();
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+            ctx.arc(mouse.x, mouse.y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.fillStyle = "rgba(255, 0, 0, 1)";
+            ctx.arc(mouse.x, mouse.y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            set_layer(0);
+        }
+
+
+    });
+
+    // // on mouse drag event
+    // c.addEventListener('mousedown', (e) => {
+    //     // get the mouse position
+    //     const mouse = {
+    //         x: e.offsetX,
+    //         y: e.offsetY
+    //     }
+    //     console.log("dragged");
+    // });
+
+    // on mouse exit
+    c.addEventListener('mouseout', (e) => {
+        reset();
+    });
+
+
+</script>
+
+</html>
