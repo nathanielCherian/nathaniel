@@ -8,6 +8,9 @@
 </head>
 <body>
     <canvas id="c" width="500px" height="500px"></canvas>
+
+    <div id="layers"></div>
+
 </body>
 
 <style>
@@ -20,68 +23,196 @@
         margin: 0 auto;
         border: 1px solid black;
     }
+
+    .layer {
+        /* outline: 1px solid black; */
+    }
+
+    .selected {
+        outline: 2px solid black;
+    }
 </style>
 
 <script>
     const WIDTH = 500;
     const HEIGHT = 500;
 
+    const MOVE_SPEED = 5;
+
+    const layers_div = document.getElementById('layers');
+
     const c = document.getElementById('c');
     const ctx = c.getContext('2d');
 
-    const layers = [c.toDataURL()];
-    const set_layer = (l) => layers[l] = c.toDataURL();
-    const reset = () => {
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        const background = new Image();
-        background.src = layers[0];
-        ctx.drawImage(background, 0, 0);
+    const frames = [];
+
+    class PushArray extends Array {
+        push(...args) {
+            super.push(...args);
+            console.log("push");
+            this.update();
+            return this.length;
+        }
+
+        splice() {
+            super.splice(...arguments);
+            console.log("splice");
+            this.update();
+            return this.length;
+        }
+
+        pop() {
+            super.pop();
+            console.log("pop");
+            this.update();
+            return this.length;
+        }
+
+        update() {
+            layers_div.innerHTML = this.map((layer, i) => `<p class="layer" id="l-${i}"style="z-index: ${i}">layer: "${layer.id}"</p>`).join('');
+        }
+    }
+    const layers = new PushArray();
+    let selected_indeces = [];
+    const clear_selected = () => {
+        selected_indeces = [];
+        for(const layer of layers_div.children) {
+            layer.classList.remove('selected');
+        }
     }
 
-    reset();
+    const gen_id = () => Math.random().toString(36).substr(2, 5);
+    const create_stroke = (x, y) => ({points:[[x, y]], id:gen_id()});
+    const shift_stroke_points = (stroke, x, y) => {
+        return stroke.points.map((point) => [point[0]+x, point[1]+y]);
+    };    
 
-    // on hover over the canvas event
-    c.addEventListener('mousemove', (e) => {
-        // get the mouse position
-        const mouse = {
-            x: e.offsetX,
-            y: e.offsetY
+
+    
+    const redraw = () => {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        for(const {points} of layers) {
+            ctx.beginPath();
+            ctx.moveTo(points[0][0], points[0][1]);
+            for(let i=1; i<points.length; i++) {
+                ctx.lineTo(points[i][0], points[i][1]);
+            }
+            ctx.stroke();
         }
+    }
 
-        if(e.which === 0) {
-            // reset the canvas
-            reset();
-            // draw a circle at the mouse position
+    const capture_frame = () => {
+        redraw();
+        const data = ctx.getImageData(0, 0, WIDTH, HEIGHT);
+        frames.push(data);
+    };
+
+    c.addEventListener('mousemove', (e) => {
+        const x = e.offsetX;
+        const y = e.offsetY;
+
+        if(e.which == 0) {
+            redraw();
             ctx.beginPath();
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-            ctx.arc(mouse.x, mouse.y, 5, 0, 2 * Math.PI);
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
             ctx.fill();
-        } else {
-            ctx.beginPath();
-            ctx.fillStyle = "rgba(255, 0, 0, 1)";
-            ctx.arc(mouse.x, mouse.y, 5, 0, 2 * Math.PI);
-            ctx.fill();
-            set_layer(0);
+        } else if(e.which == 1) {
+            layers[layers.length-1].points.push([x, y]);
+            redraw();
         }
 
-
     });
 
-    // // on mouse drag event
-    // c.addEventListener('mousedown', (e) => {
-    //     // get the mouse position
-    //     const mouse = {
-    //         x: e.offsetX,
-    //         y: e.offsetY
-    //     }
-    //     console.log("dragged");
-    // });
+    c.addEventListener('mousedown', (e) => {
+        if(e.which == 1) {
+            console.log("added layer")
+            layers.push(create_stroke(e.offsetX, e.offsetY));
+        }
+    });
 
-    // on mouse exit
     c.addEventListener('mouseout', (e) => {
-        reset();
+        redraw();
     });
 
+    var isShiftDown = false;
+    document.addEventListener('keydown', (e) => {
+        if(e.ctrlKey && e.key == 'z') {
+            if(layers.length > 0) {
+                layers.pop();
+                redraw();
+            }
+        } else if (e.ctrlKey && e.key == 's') {
+            capture_frame();
+            event.preventDefault();
+        }
+
+        if(e.key == 'Escape') {
+            clear_selected();
+        }
+
+        if(e.key == 'Shift') {
+            isShiftDown = true;
+        }
+
+        for(const selected_index of selected_indeces) {
+            if(e.keyCode == 46) {
+                    console.log("deleting layer");
+                    layers.splice(selected_index, 1);
+                    redraw();                
+            }
+
+            if(e.keyCode == 39) { // right
+                layers[selected_index].points = shift_stroke_points(layers[selected_index], MOVE_SPEED, 0);
+                redraw();
+            } else if(e.keyCode == 37) { // left
+                layers[selected_index].points = shift_stroke_points(layers[selected_index], -MOVE_SPEED, 0);
+                redraw();
+            } else if(e.keyCode == 40) { // up
+                layers[selected_index].points = shift_stroke_points(layers[selected_index], 0, MOVE_SPEED);
+                redraw();
+            } else if(e.keyCode == 38) { // down
+                layers[selected_index].points = shift_stroke_points(layers[selected_index], 0, -MOVE_SPEED);
+                redraw();
+            } 
+        }
+
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if(e.key == 'Shift') {
+            isShiftDown = false;
+        }
+    });
+
+
+    // add event listener on layers class
+    layers_div.addEventListener('mousedown', (e) => {
+        if(e.target.className == "layer") {
+            if(!isShiftDown) {
+                clear_selected();
+            }
+
+            const layer_id = e.target.id.split('-')[1];
+            if(e.which == 1) {
+                e.target.className = "layer selected";
+                selected_indeces.push(layer_id);
+            }
+
+        }
+    });
+
+
+    const play_anim = (t) => {
+        // set interval 10 ms
+        var i = 0;
+        const interval = setInterval(() => {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            const frame = frames[i%frames.length];
+            ctx.putImageData(frame, 0, 0);
+            i++
+        }, t);
+    }
 
 </script>
 
