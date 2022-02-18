@@ -11,6 +11,11 @@
 
     <div id="layers"></div>
 
+
+    <button onclick="save()">Save (CTRL-S)</button>
+    <button onclick="clear_layers()">Clear (CTRL-D)</button>
+    <button onclick="capture_frame()">Capture Frame (CTRL-F)</button>
+
 </body>
 
 <style>
@@ -137,14 +142,22 @@
 
     var isShiftDown = false;
     document.addEventListener('keydown', (e) => {
-        if(e.ctrlKey && e.key == 'z') {
-            if(layers.length > 0) {
-                layers.pop();
-                redraw();
+        if(e.ctrlKey) {
+            if(e.key == 'z') {
+                if(layers.length > 0) {
+                    layers.pop();
+                    redraw();
+                }
+            } else if (e.key == 's') {
+                save();
+                event.preventDefault();
+            } else if (e.key == 'd') {
+                clear_layers();
+                event.preventDefault();
+            } else if(e.key == 'f') {
+                capture_frame();
+                event.preventDefault();
             }
-        } else if (e.ctrlKey && e.key == 's') {
-            capture_frame();
-            event.preventDefault();
         }
 
         if(e.key == 'Escape') {
@@ -202,9 +215,29 @@
         }
     });
 
+    const clear_layers = () => {
+        console.log("test")
+        layers.splice(0, layers.length);
+        redraw();
+    }
+
+    const save = () => {
+        localStorage.setItem('layers', JSON.stringify(layers));
+    }
+
+    const load = () => {
+        const layers_str = localStorage.getItem('layers');
+        if(layers_str) {
+            layers.splice(0, layers.length);
+            layers.push(...JSON.parse(layers_str));
+            redraw();
+        }
+    }
+
+
 
     const play_anim = (t) => {
-        // set interval 10 ms
+        if(frames.length <= 0) return;
         var i = 0;
         const interval = setInterval(() => {
             ctx.clearRect(0, 0, WIDTH, HEIGHT);
@@ -214,6 +247,12 @@
         }, t);
     }
 
+    (function(){
+        load();
+    })();
+    
 </script>
+
+
 
 </html>
