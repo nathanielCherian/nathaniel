@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
+    <title>test</title>
+</head>
+<body>
+    
+    <canvas id="c" width="500px" height="500px"></canvas>
+
+    <img id="i" style="border: 2px solid black;"/>
+
+    <script>
+        var gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width:500,
+            height:500,
+            workerScript:"gif.worker.js"
+        });
+
+
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d');
+
+        function draw_circle(offset, r) {
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(250+offset,250, r, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function clear() {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, 500, 500);
+        }
+
+        const frames = [];
+        for(var i = 0; i < 100; i++) {
+            clear();
+            draw_circle(i*5, 10);
+            const data = ctx.getImageData(0, 0, 500, 500);
+            frames.push(data);
+        }
+
+        for(var i = 0; i < frames.length; i++) {
+            gif.addFrame(frames[i], {delay:10});
+            // gif.addFrame(c, {
+            //     copy: true,
+            //     delay: 10
+            // });
+        }
+
+        //gif.addFrame(ctx, {copy: true});
+
+        gif.on('finished', function(blob) {
+            document.getElementById("i").src = URL.createObjectURL(blob);
+            //window.open(URL.createObjectURL(blob));
+        });
+
+        gif.render();
+
+        // // add a image element
+        // gif.addFrame(imageElement);
+
+        // // or a canvas element
+        // gif.addFrame(canvasElement, {delay: 200});
+
+        // // or copy the pixels from a canvas context
+        // gif.addFrame(ctx, {copy: true});
+
+        // gif.on('finished', function(blob) {
+        // window.open(URL.createObjectURL(blob));
+        // });
+
+        // gif.render();
+    </script>
+</body>
+</html>

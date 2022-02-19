@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js"></script>
     <title>Animation</title>
 </head>
 <body>
@@ -15,6 +16,8 @@
     <button onclick="save()">Save (CTRL-S)</button>
     <button onclick="clear_layers()">Clear (CTRL-D)</button>
     <button onclick="capture_frame()">Capture Frame (CTRL-F)</button>
+
+    <div id="gif-house"></div>
 
 </body>
 
@@ -225,15 +228,18 @@
 
     const save = () => {
         localStorage.setItem('layers', JSON.stringify(layers));
+
     }
 
     const load = () => {
-        const layers_str = localStorage.getItem('layers');
-        if(layers_str) {
-            layers.splice(0, layers.length);
-            layers.push(...JSON.parse(layers_str));
-            redraw();
-        }
+        const layer_string = localStorage.getItem('layers');
+
+        if(!(layer_string)) return;
+        const layers_ = JSON.parse(layer_string);
+        const frames_ = JSON.parse(frame_string);
+        layers.splice(0, layers.length);
+        layers.push(...layers_);
+        redraw();
     }
 
 
@@ -252,6 +258,31 @@
     (function(){
         load();
     })();
+
+
+    var gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width:500,
+            height:500,
+            workerScript:"gif.worker.js"
+        });
+
+    gif.on('finished', function(blob) {
+        var img = document.createElement('img');
+        img.src = URL.createObjectURL(blob);
+        img.style = "border: 1px solid black;";
+        document.getElementById("gif-house").appendChild(img);
+    });
+
+    const create_gif = () => {
+        if(frames.length <= 0) return;
+        for(var i = 0; i < frames.length; i++) {
+            gif.addFrame(frames[i], {delay:10});
+        }
+        gif.render();
+    }
+
     
 </script>
 
