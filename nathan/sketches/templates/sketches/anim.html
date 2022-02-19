@@ -95,7 +95,9 @@
 
     
     const redraw = () => {
+        ctx.fillStyle = 'white';
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
         for(const {points} of layers) {
             ctx.beginPath();
             ctx.moveTo(points[0][0], points[0][1]);
