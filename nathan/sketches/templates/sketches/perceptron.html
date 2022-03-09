@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perceptron</title>
+</head>
+<body>
+    
+    <canvas id="shape-canvas" width="500" height="500" class="c"></canvas>
+
+    <button onclick="load_shape(1)">Spawn Rectangle</button>
+    <button onclick="load_shape(-1)">Spawn Triangle</button>
+
+    <button onclick="train()">Train</button>
+
+    <canvas id="weights-canvas" width="500" height="500" class="c"></canvas>
+
+
+
+    <script>
+        const shape_canvas = document.getElementById('shape-canvas');
+        const shape_ctx = shape_canvas.getContext('2d');
+
+        const weights_canvas = document.getElementById('weights-canvas');
+        const weights_ctx = weights_canvas.getContext('2d');
+
+        const WIDTH = shape_canvas.width;
+        const HEIGHT = shape_canvas.height;
+
+        const CELL_PER_ROW = 10;
+        const cell_width = WIDTH / CELL_PER_ROW;
+        const cell_height = HEIGHT / CELL_PER_ROW;
+
+        // create 2d array of 0s
+        const weights = new Array(CELL_PER_ROW).fill(0).map(() => new Array(CELL_PER_ROW).fill(0));
+        
+        const clear = (ctx) => {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        }
+
+        const fill_grid = (ctx, x, y, color) => {
+            ctx.fillStyle = color || 'black';
+            ctx.fillRect(x*cell_width, y*cell_height, cell_width, cell_height);
+        }
+
+
+        const draw_grid = (ctx) => {
+            ctx.strokeStyle = '#ccc';
+            ctx.beginPath();
+
+            for(let i=0; i<CELL_PER_ROW; i++) {
+                ctx.moveTo(0, cell_height*i);
+                ctx.lineTo(WIDTH, cell_height*i);
+                ctx.stroke();
+                
+                ctx.moveTo(cell_width*i, 0);
+                ctx.lineTo(cell_width*i, HEIGHT);
+                ctx.stroke();
+            }
+        }
+
+        const draw_coords = (coords) => {
+            coords.forEach(({x, y}) => {
+                fill_grid(shape_ctx, x, y);
+            });
+        }
+
+        const random_rect = () => {
+            const x = Math.floor(Math.random()*CELL_PER_ROW/2);
+            const y = Math.floor(Math.random()*CELL_PER_ROW/2);
+            const wX = Math.floor(Math.random()*(CELL_PER_ROW-x)+1);
+            const wY = Math.floor(Math.random()*(CELL_PER_ROW-y)+1);
+            const coords = [];
+            for (let i=0; i<wX; i++) {
+                for (let j=0; j<wY; j++) {
+                    coords.push({x: x+i, y: y+j});
+                }
+            }
+            return coords;
+        }
+
+        const random_triangle = () => {
+            const wX = Math.floor(Math.random()*4)+2;
+
+            const x = Math.floor(Math.random()*(CELL_PER_ROW-wX*2)) + wX;
+            const y = Math.floor(Math.random()*(CELL_PER_ROW-wX))+wX;
+            
+            const coords = [];
+
+            for(let i=-wX; i<wX; i++) {
+                for(let j=0; j<wX-Math.abs(i); j++) {
+                    coords.push({x: x+i, y: y-j});
+                }
+            }
+            //coords.push({x, y});
+            return coords;
+            
+        }
+
+        draw_grid(shape_ctx);
+        var crds;
+        var cur_shape;
+
+        const load_shape = (shape) => {
+            clear(shape_ctx);
+            draw_grid(shape_ctx);
+            if(shape === 1) {
+                crds = random_rect();
+                cur_shape = 1;
+            } else if(shape === -1) {
+                crds = random_triangle();
+                cur_shape = -1;
+            }
+            draw_coords(crds);
+        }
+
+        const print_weights = () => {
+            clear(weights_ctx);
+            weights.forEach((row,y)=> {
+                row.forEach((weight, x) => {
+                    const v = weight*5 + 127;
+                    fill_grid(weights_ctx, x, y, `rgb(${v},${v},${v})`); 
+                });
+            });
+        }
+
+        /*
+        *    activation >0 is a rectangle
+        *    activation <= 0 is a triangle
+        */
+        const train = () => {
+            const activation = crds.reduce((acc, {x, y}) => {
+                return acc + weights[x][y];
+            }, 0);
+
+            console.log("activation: ", activation);
+
+            if(activation > 0) {
+                console.log("predicting: rect");
+            } else {
+                console.log("predicting: tria");
+            }
+
+            const pred_shape = (activation > 0) ? 1 : -1;
+
+            if(pred_shape === cur_shape) {
+                crds.forEach(({x, y}) => {
+                    weights[y][x] += pred_shape;
+                })
+            } else {
+                crds.forEach(({x, y}) => {
+                    weights[y][x] -= pred_shape;
+                })
+            }
+
+            print_weights();
+        }
+
+
+        setInterval((() => {
+            load_shape((Math.random()*2) > 1 ? 1 : -1);
+            train();
+        }), 500);
+
+
+
+    </script>
+
+    <style>
+        .c {
+            border: 1px solid black;
+        }
+    </style>
+
+</body>
+</html>
