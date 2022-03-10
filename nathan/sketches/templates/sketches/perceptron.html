@@ -29,13 +29,13 @@
         const WIDTH = shape_canvas.width;
         const HEIGHT = shape_canvas.height;
 
-        const CELL_PER_ROW = 10;
+        const CELL_PER_ROW = 75;
         const cell_width = WIDTH / CELL_PER_ROW;
         const cell_height = HEIGHT / CELL_PER_ROW;
 
         // create 2d array of 0s
         const weights = new Array(CELL_PER_ROW).fill(0).map(() => new Array(CELL_PER_ROW).fill(0));
-        
+        console.log(weights)
         const clear = (ctx) => {
             ctx.clearRect(0, 0, WIDTH, HEIGHT);
         }
@@ -68,10 +68,16 @@
         }
 
         const random_rect = () => {
-            const x = Math.floor(Math.random()*CELL_PER_ROW/2);
-            const y = Math.floor(Math.random()*CELL_PER_ROW/2);
-            const wX = Math.floor(Math.random()*(CELL_PER_ROW-x)+1);
-            const wY = Math.floor(Math.random()*(CELL_PER_ROW-y)+1);
+            const x = Math.floor(Math.random()*CELL_PER_ROW/1);
+            const y = Math.floor(Math.random()*CELL_PER_ROW/1);
+            const wX = Math.floor(Math.random()*(CELL_PER_ROW-x)+1)/1;
+            const wY = Math.floor(Math.random()*(CELL_PER_ROW-y)+1)/1;
+            
+            // const x = 5 + 3 - Math.ceil(Math.random()*6);
+            // const y = 5 + 3 - Math.ceil(Math.random()*6);
+            // const wX = 4;
+            // const wY = 4;
+
             const coords = [];
             for (let i=0; i<wX; i++) {
                 for (let j=0; j<wY; j++) {
@@ -82,11 +88,19 @@
         }
 
         const random_triangle = () => {
-            const wX = Math.floor(Math.random()*4)+2;
 
-            const x = Math.floor(Math.random()*(CELL_PER_ROW-wX*2)) + wX;
-            const y = Math.floor(Math.random()*(CELL_PER_ROW-wX))+wX;
-            
+            const x = Math.floor(Math.random()*CELL_PER_ROW/1);
+            const y = Math.floor(Math.random()*CELL_PER_ROW/1);
+            const maxW = Math.min(x, (CELL_PER_ROW - x), (y));
+
+            // const x = Math.floor(Math.random()*(CELL_PER_ROW-wX*2)) + wX;
+            // const y = Math.floor(Math.random()*(CELL_PER_ROW-wX))+wX;
+            const wX = Math.floor(Math.random()*maxW);//Math.floor(Math.random()*4)+2;
+
+            // const x = 5 + 3 - Math.ceil(Math.random()*6);
+            // const y = 5 + 3 - Math.ceil(Math.random()*6);
+            // const wX = 4;
+
             const coords = [];
 
             for(let i=-wX; i<wX; i++) {
@@ -158,11 +172,47 @@
             print_weights();
         }
 
+        const eval_error = (n) => {
+            var correct = 0;
+            for(let i=0; i<n; i++) {
+                const random_gen = Math.random()*2 > 1;
+                const crds = (random_gen) ? random_rect() : random_triangle();
+                const guess = crds.reduce((acc, {x, y}) => {
+                    return acc + weights[x][y];
+                }, 0) > 0;
+                correct += (guess === random_gen) ? 1 : 0;
+            }
+            return correct/n;
+        }
 
-        setInterval((() => {
+        const error_track = [];
+        const on_finished = () => {
+            console.log("error_track: ", error_track);
+            // create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = error_track.length*5;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+
+            ctx.moveTo(0, error_track[0]*300);
+            for(let i=1; i<error_track.length; i++) {
+                ctx.lineTo(i*5, error_track[i]*300);
+            }
+            ctx.stroke();
+            canvas.style.border = '1px solid #000';
+            document.body.appendChild(canvas);
+        }
+
+        const interval_ = setInterval((() => {
             load_shape((Math.random()*2) > 1 ? 1 : -1);
             train();
-        }), 500);
+            error_track.push(eval_error(100));
+            if(error_track.length > 500) {
+                clearInterval(interval_);
+                on_finished();
+            }
+        }), 10);
+
 
 
 
