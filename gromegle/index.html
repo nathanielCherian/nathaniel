@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WS Test</title>
+</head>
+<body>
+    
+
+    <button onclick="initiateCall()">Initiate Call</button>
+    <button onclick="joinCall()">Join Call</button>
+
+    <div id="chatbox"></div>
+    <input type="text" id="message" value="">
+    <button onclick="sendMessage()">Send Message</button>
+
+
+    <script>
+        const chatbox = document.getElementById('chatbox');
+        function addMessageToChatbox(message, person) {
+            const p = document.createElement('p');
+            p.innerText = person + ": " + message;
+            chatbox.appendChild(p);
+        }
+    </script>
+
+    <script>
+        const servers = {
+            iceServers: [
+                {
+                urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+                },
+            ],
+            iceCandidatePoolSize: 10,
+        };
+        const pc = new RTCPeerConnection(servers);
+        const myChannel = pc.createDataChannel('sendDataChannel');
+        myChannel.onopen = () => {
+            console.log('channel open');
+        }
+
+        pc.ondatachannel = e => {
+            console.log(e);
+            e.channel.onopen = () => {
+                console.log("yay channel open");
+            }
+            e.channel.onmessage = e => {
+                console.log(e);
+                addMessageToChatbox(e.data, "other");
+            }
+        }
+
+        function sendMessage() {
+            myChannel.send(document.getElementById('message').value);
+            addMessageToChatbox(document.getElementById('message').value, "me");
+            document.getElementById('message').value = "";
+        }
+
+    </script>
+
+    <script>
+
+        let PRINT_LOG = false;
+
+        class SocketEvents {
+            constructor(){
+                this.events = new Map();
+            }
+
+            on(code, callback){this.events.set(code, callback);}
+            message_received({code, payload}, socket){
+                const callback = this.events.get(code);
+                if(callback) callback(payload, socket);
+            }
+        }
+
+        const socketEvents = new SocketEvents();
+        socketEvents.on('pong', (payload, socket) => {
+            socket.meta = payload;
+            console.log(socket.meta)
+            console.log('pong received, connection to server is established');
+        });
+
+
+        const ws = new WebSocket('ws://192.168.1.22:7071');
+        // Add a listener that will be triggered when the WebSocket is ready to use
+        ws.addEventListener('open', () => {
+            console.log('WebSocket is connected');
+            console.log('sending ping...') // initiates connection with server
+            ws.emit('ping', {
+                message: 'Hello from the client'
+            });
+        });
+
+
+        ws.emit = (code, payload) => {
+            const message = JSON.stringify({
+                code,
+                payload
+            });
+            if(PRINT_LOG) console.log('Sending message...', {code, payload});
+            ws.send(message);
+        };
+
+        ws.addEventListener('message', event => {
+            const {code, payload} = JSON.parse(event.data);
+            if(PRINT_LOG) console.log('Received', {code, payload});
+            socketEvents.message_received({code, payload}, ws);
+        });
+
+
+
+        function initiateCall() {
+            pc.createOffer().then(offer => {
+                ws.emit('clientInitiateCall', {offer});
+                pc.setLocalDescription(offer)
+            });
+        }
+
+        function joinCall(id) { // temporary function
+            ws.emit('clientJoinRequest', {id});
+        }
+
+        socketEvents.on('clientJoinResponse', (payload, socket) => {
+            const {offer} = payload;
+            console.log('received offer...');
+            pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+            pc.createAnswer().then(answer => {
+                console.log("created answer...");
+                pc.setLocalDescription(answer);
+                ws.emit('clientSendAnswer', {answer});
+            });
+        });
+
+        socketEvents.on('clientRecieveAnswer', (payload, socket) => {
+            const {answer} = payload;
+            console.log('received answer...');
+            pc.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socketEvents.on('clientRecieveIceCandidate', (payload, socket) => {
+            const {candidate} = payload;
+            console.log('received candidate...');
+            pc.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        pc.onicecandidate = e => {
+            if(!e.candidate) return;
+            console.log(e.candidate);
+            ws.emit('clientSendIceCandidate', {
+                candidate: e.candidate
+            });
+        }
+
+    </script>
+
+</body>
+</html>
