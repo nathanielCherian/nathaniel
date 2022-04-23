@@ -2,7 +2,7 @@ const http = require('http');
 const static = require('node-static');
 const file = new static.Server('./');
 const SocketEvents = require('./SocketEvents');
-const { RTCPair } = require('./RTCPair');
+const { RTCPair, Room } = require('./RTCPair');
 const WebSocket = require('ws');
 
 const {uuidv4, prepare_message} = require('./utils');
@@ -13,13 +13,7 @@ const server = http.createServer((req, res) => {
 
 
 
-const rtc_rooms = {};
-const random_room = () => {
-  const keys = Object.keys(rtc_rooms);
-  if(keys.length == 0) return null;
-  return rtc_rooms[keys[Math.floor(Math.random() * keys.length)]];
-}
-
+const main_room = new Room();
 
 const socket_events = new SocketEvents();
 
@@ -29,54 +23,92 @@ socket_events.on('ping', (payload, socket) => {
   socket.send(prepare_message('pong', socket.meta));
 });
 
+socket_events.on('joinRoomRequest', (payload, socket) => {
+  const {id, name} = payload;
+  socket.meta.name = name;
+  console.log("adding socket to room ", id);
+  const members = main_room.getMembers(); // keeping copy of the members without the new guy
+  main_room.addSocket(socket); // adding new guy to the room
+  let status = 'ok';
+  socket.send(prepare_message('joinRoomRequest-status', {id: id, status})); // confirmation of joining room
+  if(status !== 'ok') return;
+  // sending the members back to requester to create offers with them 
+  socket.send(prepare_message('createOffersCommand', {members})); 
+});
+
+socket_events.on('clientInitiateOffer', (payload, socket) => {
+  const {offer, partner_id} = payload;
+  console.log("recieved offer from ", socket.meta['id']);
+  main_room.sendOffer(socket.meta, partner_id, offer);
+});
+
+socket_events.on('clientInitiateAnswer', (payload, socket) => {
+  const {answer, partner_id} = payload;
+  console.log("recieved answer from ", socket.meta['id']);
+  main_room.sendAnswer(socket.meta, partner_id, answer);
+});
+
+socket_events.on('clientInitiateIceCandidate', (payload, socket) => {
+  const {candidate, partner_id} = payload;
+  console.log("recieved ice candidate from ", socket.meta['id']);
+  main_room.sendIceCandidate(socket.meta, partner_id, candidate);
+});
+
+
+
+// const rtc_rooms = {};
+// const random_room = () => {
+//   const keys = Object.keys(rtc_rooms);
+//   if(keys.length == 0) return null;
+//   return rtc_rooms[keys[Math.floor(Math.random() * keys.length)]];
+// }
 // client creates call
-socket_events.on('clientInitiateCall', (payload, socket) => {
-  console.log("recieved clientInitiateCall from ", socket.meta.id);
-  socket.meta['role'] = 'caller';
-  const pair = new RTCPair();
-  pair.addSocket(socket);
-  pair.setOffer(payload.offer);
-  socket.pair = pair;
+// socket_events.on('clientInitiateCall', (payload, socket) => {
+//   console.log("recieved clientInitiateCall from ", socket.meta.id);
+//   socket.meta['role'] = 'caller';
+//   const pair = new RTCPair();
+//   pair.addSocket(socket);
+//   pair.setOffer(payload.offer);
+//   socket.pair = pair;
 
-  rtc_rooms[socket.meta.id] = pair;
+//   rtc_rooms[socket.meta.id] = pair;
 
-});
+// });
 
-socket_events.on('clientJoinRequest', (payload, socket) => {
-  console.log("recieved clientJoinRequest from ", socket.meta.id);
-  socket.meta['role'] = 'callee';
-  const {id} = payload;
-  const rtc_pair = (rtc_rooms[id] || random_room());
-  if(rtc_pair) { // found a room to connect with
-    const offer = rtc_pair.offer;
-    socket.pair = rtc_pair;
-    socket.send(prepare_message('clientJoinResponse', {offer}));
-    for(const candidate of rtc_pair.ice_candidates['caller']) {
-      socket.send(prepare_message('clientRecieveIceCandidate', {candidate})); // adding callers ice candidates to callee
-    }
-  }
-});
+// socket_events.on('clientJoinRequest', (payload, socket) => {
+//   console.log("recieved clientJoinRequest from ", socket.meta.id);
+//   socket.meta['role'] = 'callee';
+//   const {id} = payload;
+//   const rtc_pair = (rtc_rooms[id] || random_room());
+//   if(rtc_pair) { // found a room to connect with
+//     const offer = rtc_pair.offer;
+//     socket.pair = rtc_pair;
+//     socket.send(prepare_message('clientJoinResponse', {offer}));
+//     for(const candidate of rtc_pair.ice_candidates['caller']) {
+//       socket.send(prepare_message('clientRecieveIceCandidate', {candidate})); // adding callers ice candidates to callee
+//     }
+//   }
+// });
 
-socket_events.on('clientSendAnswer', (payload, socket) => {
-  const {answer} = payload;
-  const rtc_pair = socket.pair;
-  rtc_pair.setAnswer(answer);
-  console.log("recieved clientSendAnswer from ", socket.meta.id);
-  rtc_pair.sockets.caller.send(prepare_message('clientRecieveAnswer', {answer}));
-});
+// socket_events.on('clientSendAnswer', (payload, socket) => {
+//   const {answer} = payload;
+//   const rtc_pair = socket.pair;
+//   rtc_pair.setAnswer(answer);
+//   console.log("recieved clientSendAnswer from ", socket.meta.id);
+//   rtc_pair.sockets.caller.send(prepare_message('clientRecieveAnswer', {answer}));
+// });
 
-socket_events.on('clientSendIceCandidate', (payload, socket) => {
-  const rtc_pair = socket.pair;
-  const {candidate} = payload;
-  rtc_pair.ice_candidates[socket.meta['role']].push(candidate);
-  const other_socket = rtc_pair.otherSocket(socket);
-  if(other_socket) {
-    other_socket.send(prepare_message('clientRecieveIceCandidate', {candidate}));
-  }
-});
+// socket_events.on('clientSendIceCandidate', (payload, socket) => {
+//   const rtc_pair = socket.pair;
+//   const {candidate} = payload;
+//   rtc_pair.ice_candidates[socket.meta['role']].push(candidate);
+//   const other_socket = rtc_pair.otherSocket(socket);
+//   if(other_socket) {
+//     other_socket.send(prepare_message('clientRecieveIceCandidate', {candidate}));
+//   }
+// });
 
 
-const clients = new Map();
 const wss = new WebSocket.Server({ port: 7071 });
 wss.on('connection', (ws) => {
   console.log('new connection: ');
@@ -84,8 +116,6 @@ wss.on('connection', (ws) => {
     id: uuidv4(),
   }
   ws.meta = meta;
-
-  clients.set(meta.id, ws);
   
   ws.on('message', (message) => { 
     const {code, payload} = JSON.parse(message);
@@ -93,6 +123,10 @@ wss.on('connection', (ws) => {
     socket_events.message_received({code, payload}, ws);
   });
 
+  ws.on('close', () => {
+    console.log('connection closed ', ws.meta.id);
+    main_room.removeSocket(ws);
+  });
   
 });
 

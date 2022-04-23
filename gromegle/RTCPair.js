@@ -1,10 +1,31 @@
+const {prepare_message} = require('./utils');
 
-class PairManager {
-    pairs = []
+class Room {
+    sockets = []
     constructor(){}
-    addPair(pair){ this.pairs.push(pair) }
-    removePair(pair){ this.pairs = this.pairs.filter(p => p !== pair) }
-    
+    addSocket(socket){this.sockets.push(socket)}
+    removeSocket(socket){
+        this.sockets.splice(this.sockets.indexOf(socket), 1);
+    }
+
+    sendOffer(sender_data, recipient_id, offer) {
+        const recipient = this.sockets.find(s => s.meta.id === recipient_id);
+        recipient.send(prepare_message('clientRecieveOffer', {offer, sender_data}));
+    }
+
+    sendAnswer(sender_data, recipient_id, answer) {
+        const recipient = this.sockets.find(s => s.meta.id === recipient_id);
+        recipient.send(prepare_message('clientRecieveAnswer', {answer, sender_data}));
+    }
+
+    sendIceCandidate(sender_data, recipient_id, candidate) {
+        const recipient = this.sockets.find(s => s.meta.id === recipient_id);
+        recipient.send(prepare_message('clientRecieveIceCandidate', {candidate, sender_data}));
+    }
+
+    getMembers(){
+        return this.sockets.map(s => s.meta); // should contain the id and name
+    }
 }
 
 class RTCPair {
@@ -33,15 +54,6 @@ class RTCPair {
         return this.sockets['caller'];
     }
 
-    randomEmptyRoom(){
-        var pair = null;
-        while(!pair) {
-            const rand_i = Math.floor(Math.random() * this.pairs.length);
-            pair = this.pairs[rand_i];
-            pair = pair.empty() ? pair : null;
-        }
-        return pair;
-    }
 
     empty(){return !!this.sockets.callee}
 
@@ -50,4 +62,4 @@ class RTCPair {
 
 }
 
-module.exports = {RTCPair}
+module.exports = {RTCPair, Room}

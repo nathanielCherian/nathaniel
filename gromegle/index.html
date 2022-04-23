@@ -9,15 +9,257 @@
 <body>
     
 
-    <button onclick="initiateCall()">Initiate Call</button>
-    <button onclick="joinCall()">Join Call</button>
+    <div id="pre-join">
+        <input type="text" id="name-input" placeholder="Enter your name">
+        <button onclick="joinRoom()">Join Room</button>
+    </div>
 
-    <div id="chatbox"></div>
-    <input type="text" id="message" value="">
-    <button onclick="sendMessage()">Send Message</button>
+    <div id="post-join" style="display: none;">
+        <p>online: <span id="total-online">1</span></p>
+        <div id="chatbox"></div>
+        <input type="text" id="message" value="">
+        <button onclick="sendMessage()">Send Message</button>    
+    </div>
+    
+
 
 
     <script>
+        let PRINT_LOG = false;
+        const servers = {
+            iceServers: [
+                {
+                urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+                },
+            ],
+            iceCandidatePoolSize: 10,
+        };
+
+        const pre_join = document.getElementById('pre-join');
+        const post_join = document.getElementById('post-join');
+        const message_box = document.getElementById('message');
+        const total_online = document.getElementById('total-online');
+
+        const chatbox = document.getElementById('chatbox');
+        function appendToChatbox(message, c_attr) {
+            const p = document.createElement('p');
+            p.innerText = message;
+            p.className = c_attr;
+            chatbox.appendChild(p);
+        }
+        function addMessageToChatbox(message, person) {
+            appendToChatbox(person + ": " + message, 'message');
+        }
+
+        // This is where the main code will go
+
+        // 1. create a connection with the server
+
+        class SocketEvents {
+            constructor(){
+                this.events = new Map();
+            }
+
+            on(code, callback){this.events.set(code, callback);}
+            message_received({code, payload}, socket){
+                const callback = this.events.get(code);
+                if(callback) callback(payload, socket);
+            }
+        }
+
+        const ws = new WebSocket('ws://192.168.1.22:7071'); // websocket
+        const socketEvents = new SocketEvents(); // socket event listener to handle messages from the server
+
+        ws.emit = (code, payload) => {
+            const message = JSON.stringify({
+                code,
+                payload
+            });
+            if(PRINT_LOG) console.log('Sending message...', {code, payload});
+            ws.send(message);
+        };
+
+        ws.addEventListener('open', () => {
+            console.log('WebSocket is connected');
+            console.log('sending ping...') // initiates connection with server
+            ws.emit('ping', {
+                message: 'Hello from the client'
+            });
+        });
+
+        ws.addEventListener('message', event => {
+            const {code, payload} = JSON.parse(event.data);
+            if(PRINT_LOG) console.log('Received', {code, payload});
+            socketEvents.message_received({code, payload}, ws);
+        });
+
+        socketEvents.on('pong', (payload, socket) => {
+            socket.meta = payload;
+            console.log(socket.meta)
+            console.log('pong received, connection to server is established');
+        });
+
+
+        // 2. What happens when you try to join a room? 
+
+        const rtc_connections = {}; // need to start managing rtc connections
+        function updateTotalOnline() {
+            total_online.innerText = Object.keys(rtc_connections).length + 1;
+        }
+
+        function joinRoom(){
+            const name = document.getElementById('name-input').value;
+            if(!name) return alert('Please enter your name');
+            ws.meta.name = name;
+            ws.emit('joinRoomRequest', {id:ws.meta.id, name});
+        }
+
+        socketEvents.on('joinRoomRequest-status', (payload, socket) => {
+            const {status} = payload;
+            console.log("joinRoomRequest-status: ", status);
+            onJoined();
+        });
+
+        function onJoined(){
+            pre_join.style.display = 'none';
+            post_join.style.display = 'block';
+        }
+
+        // server will ask new user to start connection with other users
+        socketEvents.on('createOffersCommand', (payload, socket) => { 
+            const {members} = payload;
+            for (const {id, name} of members) {
+                createOffer(id, name);
+            }
+        });
+
+        function createPeerConnection(id, name) {
+            const pc = new RTCPeerConnection(servers);
+            rtc_connections[id] = pc; updateTotalOnline();
+            pc.meta = {id, name};
+
+            const myChannel = pc.createDataChannel('sendDataChannel');
+            myChannel.onopen = (e) => {
+                console.log('channel open from mycha', e);
+                appendToChatbox(`'${name}' joined the room`, 'system');
+            }
+            myChannel.onclose = (e) => {
+                console.log('channel close from mycha ', e);
+                delete rtc_connections[id]; updateTotalOnline();
+                appendToChatbox(`'${name}' left the room`, 'system');
+            }
+            pc.myChannel = myChannel;
+
+
+            pc.ondatachannel = e => {
+                e.channel.onmessage = e => {
+                    const {id, name, message} = JSON.parse(e.data);
+                    addMessageToChatbox(message, name);
+                }
+            }
+
+            pc.onicecandidate = e => {
+                if(!e.candidate) return;
+                console.log("created a candidate")
+                ws.emit('clientInitiateIceCandidate', {
+                    candidate: e.candidate,
+                    partner_id: id // this is the other persons ID, I am naming my conneciton after them
+                });
+            }
+
+
+            return pc;
+        }
+        
+        function createOffer(member_id, name) {
+            const pc = createPeerConnection(member_id, name);
+
+            pc.createOffer().then(offer => {
+                ws.emit('clientInitiateOffer', {offer, partner_id:member_id});
+                pc.setLocalDescription(new RTCSessionDescription(offer))
+            });
+
+            console.log("creaed offer for ", member_id, "alias: " + name);
+        }
+
+        socketEvents.on('clientRecieveOffer', (payload, socket) => {
+            const {offer, sender_data} = payload;
+            const {id, name} = sender_data;
+            console.log("Received offer from ", id);
+            receivedOffer(offer, id, name);
+        });
+
+
+
+        function receivedOffer(offer, sender_id, name) {
+            const pc = createPeerConnection(sender_id, name);
+
+            pc.setRemoteDescription(offer).then(() => {
+                pc.createAnswer().then(answer => {
+                    console.log("creating answer for ", sender_id);
+                    ws.emit('clientInitiateAnswer', {answer, partner_id:sender_id});
+                    pc.setLocalDescription(answer);
+                });
+            });
+        }
+
+        socketEvents.on('clientRecieveAnswer', (payload, socket) => {
+            const {answer, sender_data} = payload;
+            const {id, name} = sender_data;
+            console.log("Received answer from ", id);
+            receivedAnswer(answer, id);
+        });
+
+        function receivedAnswer(answer, sender_id) {
+            const pc = rtc_connections[sender_id];
+            pc.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+
+        socketEvents.on('clientRecieveIceCandidate', (payload, socket) => {
+            const {candidate, sender_data} = payload;
+            const {id, name} = sender_data;
+            console.log("Received ice candidate from ", id);
+            receivedIceCandidate(candidate, id);
+        });
+
+        function receivedIceCandidate(candidate, sender_id) {
+            const pc = rtc_connections[sender_id];
+            pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+
+        // 3. Everything should be open now, so you can start sending messages
+        message_box.addEventListener('keypress', e => {
+            if(e.keyCode === 13){
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            console.log("sending message")
+            const message = message_box.value;
+            addMessageToChatbox(message, 'me');
+            const keys = Object.keys(rtc_connections);
+            for(const key of keys) {
+                const pc = rtc_connections[key];
+                const myChannel = pc.myChannel;
+                myChannel.send(JSON.stringify({id:ws.meta.id, name:ws.meta.name, message}));
+            }
+            message_box.value = '';
+            message_box.focus();
+        }
+
+    </script>
+
+
+    <style>
+        p.system {
+            font-style: italic;
+        }
+        
+    </style>
+
+
+    <script type="text">
         const chatbox = document.getElementById('chatbox');
         function addMessageToChatbox(message, person) {
             const p = document.createElement('p');
@@ -26,7 +268,7 @@
         }
     </script>
 
-    <script>
+    <script type="text">
         const servers = {
             iceServers: [
                 {
@@ -60,7 +302,7 @@
 
     </script>
 
-    <script>
+    <script type="text">
 
         let PRINT_LOG = false;
 
