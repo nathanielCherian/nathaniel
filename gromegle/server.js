@@ -56,58 +56,6 @@ socket_events.on('clientInitiateIceCandidate', (payload, socket) => {
 
 
 
-// const rtc_rooms = {};
-// const random_room = () => {
-//   const keys = Object.keys(rtc_rooms);
-//   if(keys.length == 0) return null;
-//   return rtc_rooms[keys[Math.floor(Math.random() * keys.length)]];
-// }
-// client creates call
-// socket_events.on('clientInitiateCall', (payload, socket) => {
-//   console.log("recieved clientInitiateCall from ", socket.meta.id);
-//   socket.meta['role'] = 'caller';
-//   const pair = new RTCPair();
-//   pair.addSocket(socket);
-//   pair.setOffer(payload.offer);
-//   socket.pair = pair;
-
-//   rtc_rooms[socket.meta.id] = pair;
-
-// });
-
-// socket_events.on('clientJoinRequest', (payload, socket) => {
-//   console.log("recieved clientJoinRequest from ", socket.meta.id);
-//   socket.meta['role'] = 'callee';
-//   const {id} = payload;
-//   const rtc_pair = (rtc_rooms[id] || random_room());
-//   if(rtc_pair) { // found a room to connect with
-//     const offer = rtc_pair.offer;
-//     socket.pair = rtc_pair;
-//     socket.send(prepare_message('clientJoinResponse', {offer}));
-//     for(const candidate of rtc_pair.ice_candidates['caller']) {
-//       socket.send(prepare_message('clientRecieveIceCandidate', {candidate})); // adding callers ice candidates to callee
-//     }
-//   }
-// });
-
-// socket_events.on('clientSendAnswer', (payload, socket) => {
-//   const {answer} = payload;
-//   const rtc_pair = socket.pair;
-//   rtc_pair.setAnswer(answer);
-//   console.log("recieved clientSendAnswer from ", socket.meta.id);
-//   rtc_pair.sockets.caller.send(prepare_message('clientRecieveAnswer', {answer}));
-// });
-
-// socket_events.on('clientSendIceCandidate', (payload, socket) => {
-//   const rtc_pair = socket.pair;
-//   const {candidate} = payload;
-//   rtc_pair.ice_candidates[socket.meta['role']].push(candidate);
-//   const other_socket = rtc_pair.otherSocket(socket);
-//   if(other_socket) {
-//     other_socket.send(prepare_message('clientRecieveIceCandidate', {candidate}));
-//   }
-// });
-
 
 const wss = new WebSocket.Server({ port: 7071 });
 wss.on('connection', (ws) => {
