@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js" integrity="sha512-WoO4Ih0CDOSLYafy22wZD/mcJ7k0ESLqtQsFa6zFKnEUrbtuGU+GkLtVhgt93xa2qewG5gKEC6CWlN8OaCTSVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <title>Field Lines</title>
+</head>
+<body>
+    
+    <canvas id="c"></canvas>
+
+
+    <script>
+
+        function main() {
+            const canvas = document.querySelector('#c');
+            const renderer = new THREE.WebGLRenderer({canvas});
+            renderer.autoClearColor = true;
+
+            const fov = 40;
+            const aspect = 2;  // the canvas default
+            const near = 0.1;
+            const far = 400;
+            const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+            camera.position.set(0, 40, 0);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color('gray');
+
+            const controls = new THREE.OrbitControls(camera, canvas);
+
+            {
+                const light = new THREE.HemisphereLight( 'white', 0x080820, 1.5);
+                scene.add( light );
+            }
+
+            class Plate {
+                lines = [];
+                constructor(){
+                    this.__init();
+                    this.__testing();
+                    // this.populateFieldLines();
+                    // this.orientFieldLines(0,0);
+                    
+                }
+
+                __init(){
+                    const geo = new THREE.PlaneBufferGeometry(20, 20);
+                    const mat = new THREE.MeshBasicMaterial({color: 'red'});
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.rotation.x = -Math.PI / 2;
+                    scene.add(mesh);
+                    this.plate = mesh;
+                }
+
+                __testing(){
+                    // create sphere at 0,0
+                    const sphereGeo = new THREE.SphereGeometry(.5, 32, 32);
+                    const sphereMat = new THREE.MeshBasicMaterial({color: 'white'});
+                    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+                    sphere.position.set(0, 0, 0);
+                    scene.add(sphere);
+                }
+
+                addFieldLine(x,y) {
+                    const height = 2;
+                    const geo = new THREE.BoxGeometry(.33, height, .1);
+                    const mat = new THREE.MeshPhongMaterial({color: 'blue', side:THREE.DoubleSide});
+                    const mesh = new THREE.Mesh(geo, mat);
+
+                    const space = new THREE.Object3D();
+                    space.add(mesh);
+                    space.position.set(x, y, height/2);
+                    space.rotation.x = Math.PI / 2;
+                    space.rotation.y = Math.PI / 2;
+
+                    this.plate.add(space);
+                    
+                    return {line:mesh, space}
+                }
+
+                populateFieldLines(){
+                    const fieldLines = []
+                    const spacing = 1;
+                    const width = .33;
+                    for(let y=-10; y<10; y+=spacing){
+                        for(let x=-10+width; x<10; x+=(width+spacing)){
+                            const line = this.addFieldLine(x,y)
+                            this.lines.push(line);
+                            fieldLines.push(
+                                [line.space.position.x, line.space.position.y]
+                            )
+                        }
+                    }
+                    return fieldLines;
+                }
+
+
+                applyRotations(rotations) {
+                    for(let i=0; i<rotations.length; i++){
+                        const [space_rot, line_rot] = rotations[i];
+                        const space = this.lines[i].space;
+                        space.rotation.y = space_rot;
+                        const line = this.lines[i].line;
+                        line.rotation.x = line_rot;
+                    }
+                }
+
+                orientFieldLines(x, y) {
+                    this.lines.forEach(({line, space}) => {
+                        const dX = space.position.x - x;
+                        const dY = space.position.y - y;
+                        const r = Math.atan2(dY, dX);
+                        space.rotation.y = (Math.PI/2) + r;
+                    });
+                }
+
+                angleFieldLines(x, y, z) {
+                    this.lines.forEach(({line, space}) => {
+                        const dX = space.position.x - x;
+                        const dY = space.position.y - y;
+                        const dist = Math.sqrt(dX*dX + dY*dY);
+                        const r = Math.atan2(z, dist);
+                        line.rotation.x = Math.PI/2 + r;
+                    });
+                }
+
+            }
+
+
+            const plate = new Plate();
+            const fl = plate.populateFieldLines();
+
+            const calculate_space_rotation = (space_x, space_y, grav_x, grav_y) => {
+                const dX = space_x - grav_x;
+                const dY = space_y - grav_y;
+                const r = Math.atan2(dY, dX);
+                return (Math.PI/2) + r;
+            }
+
+            const calculate_line_angle = (space_x, space_y, grav_x, grav_y, grav_z) => {
+                const dX = space_x - grav_x;
+                const dY = space_y - grav_y;
+                const dist = Math.sqrt(dX*dX + dY*dY);
+                const r = Math.atan2(grav_z, dist);
+                return Math.PI/2 + r;
+            }
+
+            const calculate_gravity = (space_x, space_y, grav_x, grav_y, grav_z) => {
+                const dX = space_x - grav_x;
+                const dY = space_y - grav_y;
+                const dist = Math.sqrt(dX*dX + dY*dY);
+                return 1 / (dist*dist);
+            }
+
+            function calculate_rotations(fieldLines, gravities) {
+                const all_rotations = [];
+                for(const gravity of gravities){
+                    const {x, y, z} = gravity;
+                    const rotations = []
+                    for (const [space_x, space_y] of fieldLines) {
+                        const space_rot = calculate_space_rotation(space_x, space_y, x, y);
+                        const line_rot = calculate_line_angle(space_x, space_y, x, y, z);
+                        const gravity = calculate_gravity(space_x, space_y, x, y, z);
+                        rotations.push([space_rot, line_rot, gravity]);
+                    }
+                    all_rotations.push(rotations);
+                }
+
+                const rotations = [];
+                for(let i=0; i<all_rotations[0].length; i++) {
+                    var agg_space_rot = 0;
+                    var agg_line_rot = 0;
+                    var agg_gravity = 0;
+                    for(let r=0; r<all_rotations.length; r++) {
+                        const [space_rot, line_rot, gravity] = all_rotations[r][i]
+                        agg_space_rot += (space_rot * gravity)
+                        agg_line_rot += (line_rot * gravity)
+                        agg_gravity += gravity
+                    }
+                    rotations.push([agg_space_rot/agg_gravity, agg_line_rot/agg_gravity])
+                }
+
+                return rotations;
+            }
+
+
+
+
+
+            var gui_controls = new function() {
+                this.x = 0.0;
+                this.y = 0.0;
+                this.z = 1;
+            }
+            var gui = new dat.GUI();
+            gui.add(gui_controls, 'x', -10, 10);
+            gui.add(gui_controls, 'y', -10, 10);
+            gui.add(gui_controls, 'z', 1, 7);
+
+
+
+            var height = 6;
+            function render(time) {
+                time *= 0.001;  // convert to seconds
+
+                const rotations = calculate_rotations(fl, [{x:gui_controls.x, y:gui_controls.y, z:gui_controls.z}]);
+                plate.applyRotations(rotations);
+
+                // plate.orientFieldLines(gui_controls.x, gui_controls.y);
+                // plate.angleFieldLines(gui_controls.x, gui_controls.y, gui_controls.z);
+
+                if(resizeRendererToDisplaYSize(renderer)){
+                    const canvas = renderer.domElement;
+                    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                    camera.updateProjectionMatrix();
+                }
+
+                controls.update()
+                renderer.render(scene, camera);
+                requestAnimationFrame(render);
+            }
+
+            requestAnimationFrame(render);
+
+            function resizeRendererToDisplaYSize(renderer) {
+                const canvas = renderer.domElement;
+                const pixelRatio = window.devicePixelRatio;
+                const width = canvas.clientWidth * pixelRatio | 0;
+                const height = canvas.clientHeight * pixelRatio | 0;
+                const needResize = canvas.width !== width || canvas.height !== height;
+                if (needResize){
+                    renderer.setSize(width, height, false);
+                }
+                return needResize;
+            }
+
+
+        }
+
+        main();
+    </script>
+
+    <style>
+        html, body{
+            margin: 0;
+            height: 100%;
+        }
+
+        #c{
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+
+</body>
+</html>
