@@ -52,7 +52,7 @@
                 __init(){
                     const geo = new THREE.PlaneBufferGeometry(20, 20);
                     const mat = new THREE.MeshBasicMaterial({color: 'red'});
-                    const mesh = new THREE.Mesh(geo, mat);
+                    const mesh = new THREE.Object3D();//new THREE.Mesh(geo, mat);
                     mesh.rotation.x = -Math.PI / 2;
                     scene.add(mesh);
                     this.plate = mesh;
@@ -70,7 +70,12 @@
                 addFieldLine(x,y) {
                     const height = 2;
                     const geo = new THREE.BoxGeometry(.33, height, .1);
-                    const mat = new THREE.MeshPhongMaterial({color: 'blue', side:THREE.DoubleSide});
+
+                    //const color = 0x0000ff - (Math.random() * 0x000099);
+                    // choose a random color
+                    const color = Math.random() * 0xffffff;
+
+                    const mat = new THREE.MeshPhongMaterial({color, side:THREE.DoubleSide});
                     const mesh = new THREE.Mesh(geo, mat);
 
                     const space = new THREE.Object3D();
@@ -88,7 +93,7 @@
                     const fieldLines = []
                     const spacing = 1;
                     const width = .33;
-                    for(let y=-10; y<10; y+=spacing){
+                    for(let y=-10; y<20; y+=spacing){
                         for(let x=-10+width; x<10; x+=(width+spacing)){
                             const line = this.addFieldLine(x,y)
                             this.lines.push(line);
@@ -105,9 +110,13 @@
                     for(let i=0; i<rotations.length; i++){
                         const [space_rot, line_rot] = rotations[i];
                         const space = this.lines[i].space;
-                        space.rotation.y = space_rot;
+                        const space_dif = (space_rot%(2*Math.PI)) - space.rotation.y;
+                        space.rotation.y += space_dif/150;
+                        // space.rotation.y = space_rot;
                         const line = this.lines[i].line;
-                        line.rotation.x = line_rot;
+                        const line_dif = (line_rot%(2*Math.PI)) - line.rotation.x;
+                        line.rotation.x += line_dif/150;
+                        //line.rotation.x = line_rot;
                     }
                 }
 
@@ -151,41 +160,22 @@
                 return Math.PI/2 + r;
             }
 
-            const calculate_gravity = (space_x, space_y, grav_x, grav_y, grav_z) => {
+            const calculate_distance = (space_x, space_y, grav_x, grav_y) => {
                 const dX = space_x - grav_x;
                 const dY = space_y - grav_y;
-                const dist = Math.sqrt(dX*dX + dY*dY);
-                return 1 / (dist*dist);
+                return Math.sqrt(dX*dX + dY*dY);
             }
 
-            function calculate_rotations(fieldLines, gravities) {
-                const all_rotations = [];
-                for(const gravity of gravities){
-                    const {x, y, z} = gravity;
-                    const rotations = []
-                    for (const [space_x, space_y] of fieldLines) {
-                        const space_rot = calculate_space_rotation(space_x, space_y, x, y);
-                        const line_rot = calculate_line_angle(space_x, space_y, x, y, z);
-                        const gravity = calculate_gravity(space_x, space_y, x, y, z);
-                        rotations.push([space_rot, line_rot, gravity]);
-                    }
-                    all_rotations.push(rotations);
-                }
+            function calculate_rotations(fieldLines, gravity) {
+                const {x, y, z} = gravity;
 
                 const rotations = [];
-                for(let i=0; i<all_rotations[0].length; i++) {
-                    var agg_space_rot = 0;
-                    var agg_line_rot = 0;
-                    var agg_gravity = 0;
-                    for(let r=0; r<all_rotations.length; r++) {
-                        const [space_rot, line_rot, gravity] = all_rotations[r][i]
-                        agg_space_rot += (space_rot * gravity)
-                        agg_line_rot += (line_rot * gravity)
-                        agg_gravity += gravity
-                    }
-                    rotations.push([agg_space_rot/agg_gravity, agg_line_rot/agg_gravity])
+                for (const [space_x, space_y] of fieldLines) {
+                    const space_rot = calculate_space_rotation(space_x, space_y, x, y);
+                    const line_rot = calculate_line_angle(space_x, space_y, x, y, z);
+                    const dist = calculate_distance(space_x, space_y, x, y);
+                    rotations.push([space_rot, line_rot]);
                 }
-
                 return rotations;
             }
 
@@ -205,11 +195,12 @@
 
 
 
+
             var height = 6;
             function render(time) {
                 time *= 0.001;  // convert to seconds
 
-                const rotations = calculate_rotations(fl, [{x:gui_controls.x, y:gui_controls.y, z:gui_controls.z}]);
+                const rotations = calculate_rotations(fl, {x:gui_controls.x, y:gui_controls.y, z:gui_controls.z});
                 plate.applyRotations(rotations);
 
                 // plate.orientFieldLines(gui_controls.x, gui_controls.y);
