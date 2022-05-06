@@ -26,17 +26,27 @@
             const near = 0.1;
             const far = 400;
             const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-            camera.position.set(0, 40, 0);
+            camera.position.set(30, 0, 0);
             camera.lookAt(new THREE.Vector3(0, 0, 0));
 
             const scene = new THREE.Scene();
             scene.background = new THREE.Color('gray');
 
             const controls = new THREE.OrbitControls(camera, canvas);
+            controls.keys = {}
 
             {
                 const light = new THREE.HemisphereLight( 'white', 0x080820, 1.5);
                 scene.add( light );
+            }
+
+
+            {
+                const geometry = new THREE.SphereBufferGeometry(1, 32, 32);
+                const material = new THREE.MeshStandardMaterial({color: 'red'});
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(0,0,0)
+                scene.add(sphere);
             }
 
             class Plate {
@@ -54,6 +64,7 @@
                     const mat = new THREE.MeshBasicMaterial({color: 'red'});
                     const mesh = new THREE.Object3D();//new THREE.Mesh(geo, mat);
                     mesh.rotation.x = -Math.PI / 2;
+                    mesh.rotation.y = Math.PI/2
                     scene.add(mesh);
                     this.plate = mesh;
                 }
@@ -64,14 +75,15 @@
                     const sphereMat = new THREE.MeshBasicMaterial({color: 'white'});
                     const sphere = new THREE.Mesh(sphereGeo, sphereMat);
                     sphere.position.set(0, 0, 0);
-                    scene.add(sphere);
+                    this.plate.add(sphere);
+                    this.reference = sphere;
                 }
 
                 addFieldLine(x,y) {
-                    const height = 2;
+                    const height = 3;
                     const geo = new THREE.BoxGeometry(.33, height, .1);
 
-                    //const color = 0x0000ff - (Math.random() * 0x000099);
+                    // const color = 0x0000ff - (Math.random() * 0x000099);
                     // choose a random color
                     const color = Math.random() * 0xffffff;
 
@@ -106,16 +118,16 @@
                 }
 
 
-                applyRotations(rotations) {
+                applyRotations(rotations, gravity) {
                     for(let i=0; i<rotations.length; i++){
-                        const [space_rot, line_rot] = rotations[i];
+                        const [space_rot, line_rot, dist] = rotations[i];
                         const space = this.lines[i].space;
-                        const space_dif = (space_rot%(2*Math.PI)) - space.rotation.y;
-                        space.rotation.y += space_dif/150;
+                        const space_dif = space_rot - space.rotation.y;
+                        space.rotation.y += space_dif/(gravity*dist);
                         // space.rotation.y = space_rot;
                         const line = this.lines[i].line;
-                        const line_dif = (line_rot%(2*Math.PI)) - line.rotation.x;
-                        line.rotation.x += line_dif/150;
+                        const line_dif = line_rot - line.rotation.x;
+                        line.rotation.x += line_dif/(gravity*dist);
                         //line.rotation.x = line_rot;
                     }
                 }
@@ -174,7 +186,7 @@
                     const space_rot = calculate_space_rotation(space_x, space_y, x, y);
                     const line_rot = calculate_line_angle(space_x, space_y, x, y, z);
                     const dist = calculate_distance(space_x, space_y, x, y);
-                    rotations.push([space_rot, line_rot]);
+                    rotations.push([space_rot, line_rot, dist]);
                 }
                 return rotations;
             }
@@ -194,14 +206,51 @@
             gui.add(gui_controls, 'z', 1, 7);
 
 
+            // add event listener to listen for key press
+            const keydowns = {
+                38: false, // up
+                40: false, // down
+                37: false, // left
+                39: false, // right
+                32: false, // space
+            };
 
+            document.addEventListener('keydown', function(event) {
+                console.log(event.keyCode);
+                keydowns[event.keyCode] = true;
+            });
 
-            var height = 6;
+            document.addEventListener('keyup', function(event) {
+                console.log(event.keyCode);
+                keydowns[event.keyCode] = false;
+            });
+
+            var grav = 150;
             function render(time) {
                 time *= 0.001;  // convert to seconds
 
+                if(keydowns[38]){
+                    gui_controls.y -= .1;
+                }
+                if(keydowns[40]){
+                    gui_controls.y += .1;
+                }
+                if(keydowns[37]){
+                    gui_controls.x -= .1;
+                }
+                if(keydowns[39]){
+                    gui_controls.x += .1;
+                }
+
+                grav = 150;
+                if(keydowns[32]){
+                    grav = 10;
+                }
+                
+
                 const rotations = calculate_rotations(fl, {x:gui_controls.x, y:gui_controls.y, z:gui_controls.z});
-                plate.applyRotations(rotations);
+                plate.applyRotations(rotations, grav);
+                plate.reference.position.set(gui_controls.x, gui_controls.y, gui_controls.z);
 
                 // plate.orientFieldLines(gui_controls.x, gui_controls.y);
                 // plate.angleFieldLines(gui_controls.x, gui_controls.y, gui_controls.z);
