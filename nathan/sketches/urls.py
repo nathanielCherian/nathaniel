@@ -15,7 +15,7 @@ urlpatterns = [
     path('modular/', views.modular, name="modular"),
     path('spirograph/', views.spirograph, name="spirograph"),
     path('matrix/', views.matrix, name="matrix"),
-
+    path('field-lines', views.field_lines, name="field-lines"),
 
     path('spotify/', views.spotify, name="spotify"),
 ]

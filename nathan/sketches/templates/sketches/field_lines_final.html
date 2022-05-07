@@ -6,14 +6,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js" integrity="sha512-WoO4Ih0CDOSLYafy22wZD/mcJ7k0ESLqtQsFa6zFKnEUrbtuGU+GkLtVhgt93xa2qewG5gKEC6CWlN8OaCTSVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <title>Field Lines</title>
 </head>
 <body>
     
     <canvas id="c"></canvas>
+    <div class="info">
+        <p>"Field Lines" <i>Inspired by <a href="https://www.rob-ley.com/field-lines">Rob Ley</a></i></p>
+        <p class="directions-prompt" id="directions-prompt">Directions & Controls</p>
+
+        <div class="directions" id="directions-box">
+            <p>Use the arrow keys to change the position of the white sphere. This will determine where the lines are attracted to</p>
+            <p>Press the space bar to speed up the attraction of the field lines.</p>
+            <p id="close-directions">close...</p>
+        </div>
+    </div>
+
 
     <script>
+
+
+        document.getElementById('directions-prompt').addEventListener('click', function(){
+            console.log("thooughj")
+            document.getElementById('directions-box').style.display = 'block';
+        });
+
+        document.getElementById('close-directions').addEventListener('click', function(){
+            document.getElementById('directions-box').style.display = 'none';
+        });
+        
+        document.addEventListener('keydown', function(e){
+            if(e.keyCode == 27){
+                document.getElementById('directions-box').style.display = 'none';
+            }
+        });
+
+
+
+        const data = {
+            x:0,
+            y:0,
+            z:3
+        }
 
         function main() {
             const canvas = document.querySelector('#c');
@@ -166,15 +200,8 @@
 
 
 
-            var gui_controls = new function() {
-                this.x = 0.0;
-                this.y = 0.0;
-                this.z = 3;
-            }
-            var gui = new dat.GUI();
-            gui.add(gui_controls, 'x', -20, 20);
-            gui.add(gui_controls, 'y', -20, 20);
-            gui.add(gui_controls, 'z', 1, 7);
+
+            
 
 
             // add event listener to listen for key press
@@ -199,16 +226,16 @@
                 time *= 0.001;  // convert to seconds
 
                 if(keydowns[38]){
-                    gui_controls.x -= .1;
+                    data.x -= .1;
                 }
                 if(keydowns[40]){
-                    gui_controls.x += .1;
+                    data.x += .1;
                 }
                 if(keydowns[37]){
-                    gui_controls.y -= .1;
+                    data.y -= .1;
                 }
                 if(keydowns[39]){
-                    gui_controls.y += .1;
+                    data.y += .1;
                 }
 
                 grav = 150;
@@ -217,9 +244,9 @@
                 }
                 
 
-                const rotations = calculate_rotations(fl, {x:gui_controls.x, y:gui_controls.y, z:gui_controls.z});
+                const rotations = calculate_rotations(fl, {x:data.x, y:data.y, z:data.z});
                 plate.applyRotations(rotations, grav);
-                plate.reference.position.set(gui_controls.x, gui_controls.y, gui_controls.z);
+                plate.reference.position.set(data.x, data.y, data.z);
 
 
                 if(resizeRendererToDisplaYSize(renderer)){
@@ -264,6 +291,42 @@
             height: 100%;
             display: block;
         }
+
+        .info {
+            position:fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            /* background-color: red; */
+            top:0;
+            width: 100%;
+            z-index: 100;
+        }
+
+        .info > p {
+            margin: 0;
+            margin-top: 10px;
+        }
+
+        .directions-prompt {
+            cursor: pointer;
+        }
+
+        .directions {
+            display: none;
+        }
+
+        #directions-box {
+            text-align: center;
+            background-color: white;
+            padding: 10px;
+        }
+
+        #close-directions {
+            cursor: pointer;
+        }
+
     </style>
 
 </body>
