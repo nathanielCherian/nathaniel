@@ -37,10 +37,6 @@
                 },
             ],
             iceCandidatePoolSize: 10,
-            configuration: {
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: true
-            }
         };
 
 
@@ -144,14 +140,7 @@
 
         function createPeerConnection(id, name) {
             const pc = new RTCPeerConnection(options);
-
-
-            // check when stream has been added
-            pc.addEventListener('track', event => {
-                console.log("HELLO FROM STREAM");
-            });
-
-
+            
             pc.onicecandidate = e => {
                 if(!e.candidate) return;
                 console.log("created a candidate")
@@ -164,20 +153,6 @@
 
             rtc_connections[id] = pc; updateTotalOnline();
             pc.meta = {id, name};
-
-
-            const gumStream = navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: true,
-            });
-            gumStream.then(stream => {
-                console.log(stream.getTracks());
-                for(const track of stream.getTracks()) {
-                    console.log("adding track...");
-                    pc.addTrack(track, stream);
-                }
-            });
-
 
             const myChannel = pc.createDataChannel('sendDataChannel');
             myChannel.onopen = (e) => {
