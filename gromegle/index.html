@@ -26,14 +26,23 @@
 
     <script>
         let PRINT_LOG = false;
-        const servers = {
+        const offer_options = {
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true
+        }
+        const options = {
             iceServers: [
                 {
                 urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
                 },
             ],
             iceCandidatePoolSize: 10,
+            configuration: {
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+            }
         };
+
 
         const pre_join = document.getElementById('pre-join');
         const post_join = document.getElementById('post-join');
@@ -134,9 +143,41 @@
         });
 
         function createPeerConnection(id, name) {
-            const pc = new RTCPeerConnection(servers);
+            const pc = new RTCPeerConnection(options);
+
+
+            // check when stream has been added
+            pc.addEventListener('track', event => {
+                console.log("HELLO FROM STREAM");
+            });
+
+
+            pc.onicecandidate = e => {
+                if(!e.candidate) return;
+                console.log("created a candidate")
+                ws.emit('clientInitiateIceCandidate', {
+                    candidate: e.candidate,
+                    partner_id: id // this is the other persons ID, I am naming my conneciton after them
+                });
+            };
+
+
             rtc_connections[id] = pc; updateTotalOnline();
             pc.meta = {id, name};
+
+
+            const gumStream = navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: true,
+            });
+            gumStream.then(stream => {
+                console.log(stream.getTracks());
+                for(const track of stream.getTracks()) {
+                    console.log("adding track...");
+                    pc.addTrack(track, stream);
+                }
+            });
+
 
             const myChannel = pc.createDataChannel('sendDataChannel');
             myChannel.onopen = (e) => {
@@ -158,23 +199,15 @@
                 }
             }
 
-            pc.onicecandidate = e => {
-                if(!e.candidate) return;
-                console.log("created a candidate")
-                ws.emit('clientInitiateIceCandidate', {
-                    candidate: e.candidate,
-                    partner_id: id // this is the other persons ID, I am naming my conneciton after them
-                });
-            }
 
-
+            
             return pc;
         }
         
         function createOffer(member_id, name) {
             const pc = createPeerConnection(member_id, name);
 
-            pc.createOffer().then(offer => {
+            pc.createOffer(offer_options).then(offer => {
                 ws.emit('clientInitiateOffer', {offer, partner_id:member_id});
                 pc.setLocalDescription(new RTCSessionDescription(offer))
             });
