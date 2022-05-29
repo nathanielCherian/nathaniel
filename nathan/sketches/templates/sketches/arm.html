@@ -1,0 +1,174 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ARM</title>
+    </head>
+    <body>
+        
+        <!-- <textarea id="arm-code"></textarea> -->
+
+    </body>
+
+    <script>
+
+        const registers = new function Registers() {
+            this.registers = new Array(16).fill(0);
+            this.register_lookup = {
+                'r0':0,
+                'r1':1,
+                'r2':2,
+                'r3':3,
+                'r4':4,
+                'r5':5,
+                'r6':6,
+                'r7':7,
+                'r8':8,
+                'r9':9,
+                'r10':10,
+                'r11':11,
+                'r12':12,
+                'r13':13,
+                'r14':14,
+                'r15':15,
+                'fp':11,
+                'sp':13,
+                'lr':14,
+                'pc':15,
+            }
+            this.get = function(register) {
+                return this.registers[this.register_lookup[register]];
+            }
+            this.safe_get = function(possibly_register) { // could be a number value
+                return possibly_register.startsWith('#') ? parseInt(possibly_register.substr(1)) : this.get(possibly_register);
+            }
+            this.set = function(register, value) {
+                this.registers[this.register_lookup[register]] = value;
+            }
+            this.increment = function(){ // incrementing program counter
+                this.registers[15]++;
+            }
+        }
+
+        // create_regex
+        const cr = (...args) => new RegExp(args.join(''), 'i');
+        // regex lookup
+        const rl = {
+            REGISTER:'r[0-9]|r1[0-5]|fp|sp|lr|pc',
+            REGISTER_OR_NUM:'r[0-9]|r1[0-5]|fp|sp|lr|pc|#-?\\d+',
+            COMMA_SEPERATOR:'\\s*,\\s*',
+            ENDLINE:'$',
+            ANY_WHITESPACE:'\\s*',
+            ANY_NUMBER:'\\d+\\s*',
+        }
+
+        const instruction_regex = {
+            'MOV':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+            'ADD':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+            'SUB':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+
+        }
+
+
+
+
+        const instruction_lookup = {
+            'MOV':(op)=>{
+                const reg = instruction_regex.MOV;
+                const [, dst, src] = op.match(reg);
+                console.log('mov ', dst, src);
+                const src_val = registers.safe_get(src);
+                registers.set(dst, src_val);
+                registers.increment();
+            },
+            'ADD':(op)=>{
+                const reg = instruction_regex.ADD;
+                const [, dst, src1, src2] = op.match(reg);
+                console.log('add ', dst, src1, src2);
+                const src1_val = registers.get(src1); // will always be register
+                const src2_val = registers.safe_get(src2); // could be a literal value
+                registers.set(dst, src1_val + src2_val);
+                registers.increment();
+            },
+            'SUB':(op)=>{
+                const reg = instruction_regex.SUB;
+                const [, dst, src1, src2] = op.match(reg);
+                console.log('sub ', dst, src1, src2);
+                const src1_val = registers.get(src1); // will always be register
+                const src2_val = registers.safe_get(src2); // could be a literal value
+                registers.set(dst, src1_val - src2_val);
+                registers.increment();
+            },
+        }
+        const instruction_set = Object.keys(instruction_lookup);
+        const instruction_reg = new RegExp(`^(${instruction_set.join('|')})\\s(.+)`, 'i');
+
+        const used_labels = {};
+        const label_reg = new RegExp('^([a-zA-Z0-9_]+)\\s*:\\s*$', 'i');
+        const create_label_func = (label, i) => {
+            if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
+            used_labels[label] = i;
+            console.log(label)
+            return () => registers.increment();
+        }
+
+
+        const arm_code = `
+        main:
+            mov  r0, #-10
+
+            mov r1, #2
+            
+            mov r2, r0
+            add r2, r1, r1
+            sub r2, r2, #10
+            
+        `.split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0)
+            .map((line, i) => { // change this to map later
+                const instruction_match = line.match(instruction_reg);
+                if(instruction_match){
+                    const [,instruction, operand] = instruction_match;
+                    return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+                }
+                const label_match = line.match(label_reg);
+                if(label_match){
+                    const [,label] = label_match;
+                    return create_label_func(label.trim(), i);
+                }
+                throw new Error(`Invalid instruction: '${line}'`);
+
+            });
+
+
+
+            function run(arm_code) {
+                const instruction_size = arm_code.length;
+                const get_pc = () => registers.get('pc');
+                while(get_pc() < instruction_size){
+                    if(get_pc() < 0) throw new Error(`PC out of bounds...`);
+                    arm_code[get_pc()]();
+                }
+            }
+            run(arm_code);
+
+            console.log(registers.registers)
+
+
+
+    </script>
+
+
+    <style>
+        #arm-code {
+            width: 400px;
+            height: 1000px;
+            font-family: monospace;
+            font-size: 14px;
+            background: #f0f0f0;
+        }
+    </style>
+    </html>

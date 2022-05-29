@@ -140,7 +140,7 @@
 
         function createPeerConnection(id, name) {
             const pc = new RTCPeerConnection(options);
-            
+
             pc.onicecandidate = e => {
                 if(!e.candidate) return;
                 console.log("created a candidate")
@@ -173,8 +173,6 @@
                     addMessageToChatbox(message, name);
                 }
             }
-
-
             
             return pc;
         }
