@@ -10,10 +10,28 @@
         
         <!-- <textarea id="arm-code"></textarea> -->
 
+        <div id="stack">
+            <table id="stack-table">
+                <tr>
+                    <th>Address</th>
+                    <th>Value</th>
+                </tr>
+                
+                <tbody id="stack-body">
+                    <!-- <tr class="code-font">
+                        <td>0x00</td>
+                        <td>0x00000000</td>
+                    </tr> -->
+                </tbody>
+
+
+            </table>
+        </div>
+
     </body>
 
     <script>
-
+        const COLOR_PALLETE = ['#400000','#400000','#400900','#234000','#004000','#004000','#004000','#000d40','#000040','#000040','#000040','#000040','#280040','#400003','#400000','#000000','#540000','#540000','#541d00','#375400','#005400','#005400','#005402','#002154','#000054','#000054','#000054','#000054','#3c0054','#540017','#540000','#0d0d0d','#680000','#680000','#683100','#4b6800','#006800','#006800','#006816','#003568','#001168','#000068','#000068','#000068','#500068','#68002b','#680000','#212121','#7c0000','#7c0000','#7c4500','#5f7c00','#0b7c00','#007c00','#007c2a','#00497c','#00257c','#00007c','#00007c','#10007c','#64007c','#7c003f','#7c0000','#353535','#900000','#900400','#905900','#739000','#1f9000','#009000','#00903e','#005d90','#003990','#000090','#000090','#240090','#780090','#900053','#900000','#494949','#a40000','#a41800','#a46d00','#87a400','#33a400','#00a400','#00a452','#0071a4','#004da4','#0000a4','#0000a4','#3800a4','#8c00a4','#a40067','#a40013','#5d5d5d','#b80000','#b82c00','#b88100','#9bb800','#47b800','#00b800','#00b866','#0085b8','#0061b8','#000db8','#0000b8','#4c00b8','#a000b8','#b8007b','#b80027','#717171','#cc0000','#cc4000','#cc9500','#afcc00','#5bcc00','#06cc00','#00cc7a','#0099cc','#0075cc','#0021cc','#0c00cc','#6000cc','#b400cc','#cc008f','#cc003b','#858585','#e00000','#e05400','#e0a900','#c3e000','#6fe000','#1ae000','#00e08e','#00ade0','#0089e0','#0035e0','#2000e0','#7400e0','#c800e0','#e000a3','#e0004f','#999999','#f41414','#f46814','#f4bd14','#d7f414','#83f414','#2ef414','#14f4a2','#14c1f4','#149df4','#1449f4','#3414f4','#8814f4','#dc14f4','#f414b7','#f41463','#adadad','#ff2828','#ff7c28','#ffd128','#ebff28','#97ff28','#42ff28','#28ffb6','#28d5ff','#28b1ff','#285dff','#4828ff','#9c28ff','#f028ff','#ff28cb','#ff2877','#c1c1c1','#ff3c3c','#ff903c','#ffe53c','#ffff3c','#abff3c','#56ff3c','#3cffca','#3ce9ff','#3cc5ff','#3c71ff','#5c3cff','#b03cff','#ff3cff','#ff3cdf','#ff3c8b','#d5d5d5','#ff5050','#ffa450','#fff950','#ffff50','#bfff50','#6aff50','#50ffde','#50fdff','#50d9ff','#5085ff','#7050ff','#c450ff','#ff50ff','#ff50f3','#ff509f','#e9e9e9','#ff6464','#ffb864','#ffff64','#ffff64','#d3ff64','#7eff64','#64fff2','#64ffff','#64edff','#6499ff','#8464ff','#d864ff','#ff64ff','#ff64ff','#ff64b3','#fdfdfd','#ff7878','#ffcc78','#ffff78','#ffff78','#e7ff78','#92ff78','#78ffff','#78ffff','#78ffff','#78adff','#9878ff','#ec78ff','#ff78ff','#ff78ff','#ff78c7','#ffffff','#ff8c8c','#ffe08c','#ffff8c','#ffff8c','#fbff8c','#a6ff8c','#8cffff','#8cffff','#8cffff','#8cc1ff','#ac8cff','#ff8cff','#ff8cff','#ff8cff','#ff8cdb','#ffffff']
         const BIT_SIZE = 32; // nevermind, some functionality is only for 32 bit (memory storage)
         const MAX_MEM = 2**32 - 1;
         const RANGE = [-1*2**31,2**31-1];
@@ -23,11 +41,16 @@
 
 
         const to_twos_c = (d) => (~d + 1 >>> 0);
-
+        const to_hex = (d, pad) => ("0x" + d.toString(16).padStart(pad, '0'));
+        const to_color = (v) => {
+            return `${COLOR_PALLETE[v]}40`
+        }
 
         const stack = new function Stack() {
+            this.stack_table = document.getElementById("stack-body");
             this.head = STACK_HEAD;
             this.stack = [];
+
 
             this.checkAddr = (addr) => {
                 if(addr < 0x0 || addr > STACK_HEAD) {
@@ -44,11 +67,11 @@
             }
 
             this.load_4_bytes = (addr) => {
-                var val = 0x0;
-                // for(let i = 0; i < 4; i++) {
-                //     val = val|(this.load_byte(addr+i) << (i*8));
-                // }
-                return val;
+                return 0x0 |
+                    this.load_byte(addr) << 24 |
+                    this.load_byte(addr-1) << 16 |
+                    this.load_byte(addr-2) << 8 |
+                    this.load_byte(addr-3);
             }
 
             this.set_byte = (addr, val) => {
@@ -57,40 +80,32 @@
                 const size_difference = Math.max(r - this.stack.length, 0);
                 this.stack.push(...Array(size_difference).fill(0));
                 this.stack[r] = val;
+                this.update_stack_table();
             }
 
             this.set_4_bytes = function(addr, val) {
                 // to preserve integrity to ARM emulator values will be split into 4 1-byte secs.
                 
                 const fin = val < 0 ? to_twos_c(-val) : val;
-                console.log(fin.toString(16));
-                const p1 = (fin & 0xff000000) // >> 24;
-                const p2 = (fin & 0x00ff0000) >> 16;
-                const p3 = (fin & 0x0000ff00) >> 8;
+                const p1 = (fin & 0xff000000) >>> 24;
+                const p2 = (fin & 0x00ff0000) >>> 16;
+                const p3 = (fin & 0x0000ff00) >>> 8;
                 const p4 = (fin & 0x000000ff);
 
-                console.log(p1)
                 console.log(p1.toString(16),p2.toString(16),p3.toString(16),p4.toString(16))
 
                 this.set_byte(addr,   p1);
-                this.set_byte(addr+1, p2);
-                this.set_byte(addr+2, p3);
-                this.set_byte(addr+3, p4);
-                // if(!this.checkAddr(addr)) return;
-                // const r = this.head - addr;
-                // const size_difference = Math.max(r - this.stack.length, 0);
-                // this.stack.push(...Array(size_difference).fill(0));
+                this.set_byte(addr-1, p2);
+                this.set_byte(addr-2, p3);
+                this.set_byte(addr-3, p4);
+            }
 
-                // const p1 = (val & 0xff000000) >> 24;
-                // const p2 = (val & 0x00ff0000) >> 16;
-                // const p3 = (val & 0x0000ff00) >> 8;
-                // const p4 = (val & 0x000000ff);
-                // this.stack[r-3] = p1;
-                // this.stack[r-2] = p2;
-                // this.stack[r-1] = p3;
-                // this.stack[r-0] = p4;
-
-                // this.stack[r] = val;
+            this.update_stack_table = function() {
+                this.stack_table.innerHTML = "";
+                this.stack_table.innerHTML = this.stack.map((v, i) => {
+                    // style="background-color:#${to_hex(v*256,6).substring(2)}
+                    return `<tr class="code-font"><td>${to_hex(this.head - i, 8)}</td><td style="background-color:${to_color(v)}">${to_hex(v, 2)}</td></tr>`;
+                }).join('');
             }
         }
         
@@ -186,6 +201,7 @@
                 if(condition) {
                     const reg = instruction_regex.B;
                     const [, label] = op.match(reg);
+                    if(!used_labels[label]) throw new Error(`Label '${label}' not found`);
                     console.log(inst+' ', label, used_labels[label]);
                     registers.set('pc', used_labels[label]);
                     return;
@@ -328,12 +344,20 @@
 
             console.log(registers.registers)
 
-            stack.set_4_bytes(registers.get('fp'), -10);
-            console.log(stack.load_4_bytes(registers.get('fp')));
+            stack.set_4_bytes(registers.get('fp'), 9696969);
+            stack.set_4_bytes(registers.get('fp')-4, 9696969);
+            // stack.set_4_bytes(registers.get('fp')-2, 10000);
+            console.log('output: ', stack.load_4_bytes(registers.get('fp')));
+            
+            
+
             console.log(stack.stack);
 
 
     </script>
+
+
+
 
 
     <style>
@@ -344,5 +368,12 @@
             font-size: 14px;
             background: #f0f0f0;
         }
+
+        .code-font {
+            font-family: monospace;
+            font-size: 14px;
+        }
     </style>
+
+
     </html>
