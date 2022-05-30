@@ -54,7 +54,7 @@
 
             this.checkAddr = (addr) => {
                 if(addr < 0x0 || addr > STACK_HEAD) {
-                    throw Error("SEGMENTATION FAULT: Address out of bounds");
+                    throw Error(`SEGMENTATION FAULT: Address '${addr}'' out of bounds `);
                     return false;
                 }
                 return true;
@@ -174,6 +174,8 @@
             ENDLINE:'$',
             ANY_WHITESPACE:'\\s*',
             ANY_NUMBER:'\\d+\\s*',
+            BRACKET:(...args) => `\\[${args.join('')}\\]`,
+            OPTIONAL:(...args) => `(?:${args.join('')})?`,
         }
 
         const instruction_regex = {
@@ -181,11 +183,25 @@
             'ADD':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
             'SUB':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
             'CMP':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
-            'B':cr(`(${rl.LABEL})`, rl.ENDLINE),
             'BX':cr(`(${rl.REGISTER})`, rl.ENDLINE),
+            'B':cr(`(${rl.LABEL})`, rl.ENDLINE),
+            'STR':cr(
+                `(${rl.REGISTER})`, 
+                rl.COMMA_SEPERATOR, 
+                rl.BRACKET(
+                    rl.ANY_WHITESPACE, 
+                    `(${rl.REGISTER})`,
+                    rl.OPTIONAL(
+                        rl.COMMA_SEPERATOR,
+                        `(${rl.REGISTER_OR_NUM})`
+                    ),
+                    rl.ANY_WHITESPACE,
+                ), 
+                rl.ENDLINE
+            ),
+            'LDR':"" // temp
         }
-
-
+        instruction_regex.LDR = instruction_regex.STR;
 
         const used_labels = {};
         const label_reg = new RegExp('^([a-zA-Z0-9_]+)\\s*:\\s*$', 'i');
@@ -251,6 +267,24 @@
                 flags.set('V', +(s <= RANGE[0] || s >= RANGE[1]));
                 registers.increment();
             },
+            'STR':(op)=>{
+                const reg = instruction_regex.STR;
+                const [, src, dst, offset] = op.match(reg);
+                console.log('str ', src, dst, offset);
+                const final_dst = registers.get(dst) + 
+                                (offset ? registers.safe_get(offset) : 0);
+                stack.set_4_bytes(final_dst, registers.get(src));
+                registers.increment();
+            },
+            'LDR':(op)=>{
+                const reg = instruction_regex.LDR;
+                const [, dst, src, offset] = op.match(reg);
+                console.log('ldr ', dst, src, offset);
+                const addr = registers.get(src) + 
+                                (offset ? registers.safe_get(offset) : 0);
+                registers.set(dst, stack.load_4_bytes(addr));
+                registers.increment();
+            },
             'BX':(op)=>{
                 const reg = instruction_regex.BX;
                 const [, src] = op.match(reg);
@@ -293,18 +327,14 @@
         main:
             mov r10, lr
 
+            mov r0, #10000000
+            str r0, [ fp ]
+            str r0, [fp, #-4]
             mov r0, #0
-        loop:
-            bl increment
-            cmp r0, #10
-            blt loop
 
-            
+            ldr r1, [fp, #-4]
+
             mov lr, r10
-            bx lr
-
-        increment:
-            add r0, r0, #1
             bx lr
 
         `.split('\n')
@@ -344,10 +374,10 @@
 
             console.log(registers.registers)
 
-            stack.set_4_bytes(registers.get('fp'), 9696969);
-            stack.set_4_bytes(registers.get('fp')-4, 9696969);
-            // stack.set_4_bytes(registers.get('fp')-2, 10000);
-            console.log('output: ', stack.load_4_bytes(registers.get('fp')));
+            // stack.set_4_bytes(registers.get('fp'), 9696969);
+            // stack.set_4_bytes(registers.get('fp')-4, 9696969);
+            // // stack.set_4_bytes(registers.get('fp')-2, 10000);
+            // console.log('output: ', stack.load_4_bytes(registers.get('fp')));
             
             
 
