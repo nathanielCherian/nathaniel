@@ -14,6 +14,87 @@
 
     <script>
 
+        const BIT_SIZE = 32; // nevermind, some functionality is only for 32 bit (memory storage)
+        const MAX_MEM = 2**32 - 1;
+        const RANGE = [-1*2**31,2**31-1];
+
+        const STACK_HEAD = 0x000186a0;
+        if(STACK_HEAD > MAX_MEM) console.log("Stack head is too high!");
+
+
+        const to_twos_c = (d) => (~d + 1 >>> 0);
+
+
+        const stack = new function Stack() {
+            this.head = STACK_HEAD;
+            this.stack = [];
+
+            this.checkAddr = (addr) => {
+                if(addr < 0x0 || addr > STACK_HEAD) {
+                    throw Error("SEGMENTATION FAULT: Address out of bounds");
+                    return false;
+                }
+                return true;
+            }
+
+            this.load_byte = (addr) => {
+                if(!this.checkAddr(addr)) return;
+                const r = this.head - addr;
+                return r >= this.stack.length ? 0 : this.stack[r];
+            }
+
+            this.load_4_bytes = (addr) => {
+                var val = 0x0;
+                // for(let i = 0; i < 4; i++) {
+                //     val = val|(this.load_byte(addr+i) << (i*8));
+                // }
+                return val;
+            }
+
+            this.set_byte = (addr, val) => {
+                if(!this.checkAddr(addr)) return;
+                const r = this.head - addr;
+                const size_difference = Math.max(r - this.stack.length, 0);
+                this.stack.push(...Array(size_difference).fill(0));
+                this.stack[r] = val;
+            }
+
+            this.set_4_bytes = function(addr, val) {
+                // to preserve integrity to ARM emulator values will be split into 4 1-byte secs.
+                
+                const fin = val < 0 ? to_twos_c(-val) : val;
+                console.log(fin.toString(16));
+                const p1 = (fin & 0xff000000) // >> 24;
+                const p2 = (fin & 0x00ff0000) >> 16;
+                const p3 = (fin & 0x0000ff00) >> 8;
+                const p4 = (fin & 0x000000ff);
+
+                console.log(p1)
+                console.log(p1.toString(16),p2.toString(16),p3.toString(16),p4.toString(16))
+
+                this.set_byte(addr,   p1);
+                this.set_byte(addr+1, p2);
+                this.set_byte(addr+2, p3);
+                this.set_byte(addr+3, p4);
+                // if(!this.checkAddr(addr)) return;
+                // const r = this.head - addr;
+                // const size_difference = Math.max(r - this.stack.length, 0);
+                // this.stack.push(...Array(size_difference).fill(0));
+
+                // const p1 = (val & 0xff000000) >> 24;
+                // const p2 = (val & 0x00ff0000) >> 16;
+                // const p3 = (val & 0x0000ff00) >> 8;
+                // const p4 = (val & 0x000000ff);
+                // this.stack[r-3] = p1;
+                // this.stack[r-2] = p2;
+                // this.stack[r-1] = p3;
+                // this.stack[r-0] = p4;
+
+                // this.stack[r] = val;
+            }
+        }
+        
+
         const registers = new function Registers() {
             this.registers = new Array(16).fill(0);
             this.register_lookup = {
@@ -52,6 +133,21 @@
             }
         }
 
+        const flags = new function Flags() {
+            this.flags = {
+                'Z':0,
+                'N':0,
+                'C':0,
+                'V':0,
+            }
+            this.get = function(flag) {
+                return this.flags[flag.toUpperCase()];
+            }
+            this.set = function(flag, value) {
+                this.flags[flag.toUpperCase()] = value;
+            }
+        }
+
         // create_regex
         const cr = (...args) => new RegExp(args.join(''), 'i');
         // regex lookup
@@ -59,6 +155,7 @@
             REGISTER:'r[0-9]|r1[0-5]|fp|sp|lr|pc',
             REGISTER_OR_NUM:'r[0-9]|r1[0-5]|fp|sp|lr|pc|#-?\\d+',
             COMMA_SEPERATOR:'\\s*,\\s*',
+            LABEL:'[a-zA-Z0-9_]+',
             ENDLINE:'$',
             ANY_WHITESPACE:'\\s*',
             ANY_NUMBER:'\\d+\\s*',
@@ -68,11 +165,34 @@
             'MOV':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
             'ADD':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
             'SUB':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
-
+            'CMP':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+            'B':cr(`(${rl.LABEL})`, rl.ENDLINE),
+            'BX':cr(`(${rl.REGISTER})`, rl.ENDLINE),
         }
 
 
 
+        const used_labels = {};
+        const label_reg = new RegExp('^([a-zA-Z0-9_]+)\\s*:\\s*$', 'i');
+        const create_label_func = (label, i) => {
+            if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
+            used_labels[label] = i;
+            console.log(label)
+            return () => registers.increment();
+        }
+
+        const instruction_base = {
+            BRANCH: (condition, op, inst) => {
+                if(condition) {
+                    const reg = instruction_regex.B;
+                    const [, label] = op.match(reg);
+                    console.log(inst+' ', label, used_labels[label]);
+                    registers.set('pc', used_labels[label]);
+                    return;
+                }
+                registers.increment();
+            }
+        }
 
         const instruction_lookup = {
             'MOV':(op)=>{
@@ -101,30 +221,76 @@
                 registers.set(dst, src1_val - src2_val);
                 registers.increment();
             },
+            'CMP':(op)=>{
+                const reg = instruction_regex.CMP;
+                const [, src1, src2] = op.match(reg);
+                console.log('cmp ', src1, src2);
+                const src1_val = registers.get(src1); // will always be register
+                const src2_val = registers.safe_get(src2); // could be a literal value
+                const s = src1_val - src2_val;
+                // console.log(src1_val.toString(10), src2_val.toString(10), s.toString(10));
+                flags.set('Z', +(s === 0));
+                flags.set('N', +(s < 0));
+                flags.set('C', 0); // hardcode 0 for now
+                flags.set('V', +(s <= RANGE[0] || s >= RANGE[1]));
+                registers.increment();
+            },
+            'BX':(op)=>{
+                const reg = instruction_regex.BX;
+                const [, src] = op.match(reg);
+                const src_val = registers.get(src);
+                console.log('bx ', src);
+                registers.set('pc', src_val);
+            },
+            'B':(op)=>{
+                instruction_base.BRANCH(true, op, 'b');
+            },
+            'BL':(op)=>{
+                registers.set('lr', registers.get('pc')+1);
+                instruction_base.BRANCH(true, op, 'bl');
+            },
+            'BEQ':(op)=>{
+                instruction_base.BRANCH(flags.get('Z')==1, op, 'beq');
+            },
+            'BNE':(op)=>{
+                instruction_base.BRANCH(flags.get('Z')==0, op, 'bne');
+            },
+            'BGE':(op)=>{
+                instruction_base.BRANCH(flags.get('N')==flags.get('V'), op, 'bge');
+            },
+            'BLT':(op)=>{
+                instruction_base.BRANCH(flags.get('N')!=flags.get('V'), op, 'blt');
+            },
+            'BGT':(op)=>{
+                instruction_base.BRANCH(flags.get('Z')==0 && flags.get('N')==flags.get('V'), op, 'bgt');
+            },
+            'BLE':(op)=>{
+                instruction_base.BRANCH(flags.get('Z')==1 || flags.get('N')!=flags.get('V'), op, 'ble');
+            },
         }
         const instruction_set = Object.keys(instruction_lookup);
         const instruction_reg = new RegExp(`^(${instruction_set.join('|')})\\s(.+)`, 'i');
 
-        const used_labels = {};
-        const label_reg = new RegExp('^([a-zA-Z0-9_]+)\\s*:\\s*$', 'i');
-        const create_label_func = (label, i) => {
-            if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
-            used_labels[label] = i;
-            console.log(label)
-            return () => registers.increment();
-        }
-
+        console.log(instruction_reg)
 
         const arm_code = `
         main:
-            mov  r0, #-10
+            mov r10, lr
 
-            mov r1, #2
+            mov r0, #0
+        loop:
+            bl increment
+            cmp r0, #10
+            blt loop
+
             
-            mov r2, r0
-            add r2, r1, r1
-            sub r2, r2, #10
-            
+            mov lr, r10
+            bx lr
+
+        increment:
+            add r0, r0, #1
+            bx lr
+
         `.split('\n')
             .map((line) => line.trim())
             .filter((line) => line.length > 0)
@@ -147,16 +313,24 @@
 
             function run(arm_code) {
                 const instruction_size = arm_code.length;
+                registers.set('fp', STACK_HEAD); // setting frame pointer to top of stack
+                registers.set('sp', STACK_HEAD);
+                registers.set('lr', instruction_size); // setting link register to the end of the code
                 const get_pc = () => registers.get('pc');
                 while(get_pc() < instruction_size){
                     if(get_pc() < 0) throw new Error(`PC out of bounds...`);
                     arm_code[get_pc()]();
                 }
             }
+
             run(arm_code);
+
 
             console.log(registers.registers)
 
+            stack.set_4_bytes(registers.get('fp'), -10);
+            console.log(stack.load_4_bytes(registers.get('fp')));
+            console.log(stack.stack);
 
 
     </script>
