@@ -76,13 +76,17 @@
         }
 
         const out_buf = new function Buffer() {
-            this.display = document.getElementById('out-buf-content')
+            this.display = document.getElementById('out-buf-content');
             this.buf = [];
             this.write = (d) => {
                 this.buf.push(d);
+                this.update_display();
             }
             this.get = () => {
                 return this.buf.join("");
+            }
+            this.update_display = () => {
+                this.display.innerHTML = this.get();
             }
         }
 
@@ -271,6 +275,7 @@
                 ), 
                 rl.ENDLINE
             ),
+            'STRB':"", // temp
             'LDR':"", // temp
             'PUSH':cr(rl.BRACES("(", 
                 rl.MULTIPLE(
@@ -284,6 +289,7 @@
             ")")),
             "POP":"" // temp
         }
+        instruction_regex.STRB = instruction_regex.STR;
         instruction_regex.LDR = instruction_regex.STR;
         instruction_regex.POP = instruction_regex.PUSH;
 
@@ -298,7 +304,7 @@
                 const arg3 = registers.get('r2');
                 if(arg1 != 1) throw new Error("Not implemeted yet...");
                 for(let i = 0; i < arg3; i++) {
-                    const c = stack.load_byte(arg2-i-3);
+                    const c = stack.load_byte(arg2+i);
                     out_buf.write(String.fromCharCode(c));
                 }
                 registers.increment();
@@ -395,6 +401,15 @@
                 stack.set_4_bytes(final_dst, registers.get(src));
                 registers.increment();
             },
+            'STRB':(op)=>{
+                const reg = instruction_regex.STRB;
+                const [, src, dst, offset] = op.match(reg);
+                console.log('strb ', src, dst, offset);
+                const final_dst = registers.get(dst) + 
+                                (offset ? registers.safe_get(offset) : 0);
+                stack.set_byte(final_dst, registers.get(src)&0x000000ff);
+                registers.increment();
+            },
             'LDR':(op)=>{
                 const reg = instruction_regex.LDR;
                 const [, dst, src, offset] = op.match(reg);
@@ -489,7 +504,11 @@
             mov r10, lr
 
             mov r0, #65
-            push {r0}
+            strb r0, [sp, #0]
+            mov r0, #66
+            strb r0, [sp, #-1]
+            mov r0, #67
+            strb r0, [sp, #-2]
             bl test
 
             mov lr, r10
@@ -497,8 +516,8 @@
 
         test:
             mov r0, #1
-            mov r1, sp
-            mov r2, #1
+            sub r1, sp, #2
+            mov r2, #3
             b write
             bx lr
 
