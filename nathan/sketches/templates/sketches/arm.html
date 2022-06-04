@@ -10,22 +10,50 @@
         
         <!-- <textarea id="arm-code"></textarea> -->
 
-        <div id="stack">
-            <table id="stack-table">
-                <tr>
-                    <th>Address</th>
-                    <th>Value</th>
-                </tr>
-                
-                <tbody id="stack-body">
-                    <!-- <tr class="code-font">
-                        <td>0x00</td>
-                        <td>0x00000000</td>
-                    </tr> -->
-                </tbody>
+        <div id="system-info">
+
+            <div id="stack" class="table">
+                <table id="stack-table">
+                    <tr>
+                        <th>Address</th>
+                        <th>Value</th>
+                    </tr>
+                    
+                    <tbody id="stack-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="registers" class="table">
+                <table id="registers-table">
+                    <tr>
+                        <th>Register</th>
+                        <th>Value</th>
+                    </tr>
+                    
+                    <tbody id="registers-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="flags" class="table">
+                <table id="flags-table">
+                    <tr>
+                        <th>Flag</th>
+                        <th>Value</th>
+                    </tr>
+                    
+                    <tbody id="flags-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="out-buf">
+                <div id="out-buf-content">
+                </div>
+            </div>
 
 
-            </table>
         </div>
 
     </body>
@@ -41,9 +69,21 @@
 
 
         const to_twos_c = (d) => (~d + 1 >>> 0);
+        const full_twos_c = (d) => d<0 ? to_twos_c(-d) : d;
         const to_hex = (d, pad) => ("0x" + d.toString(16).padStart(pad, '0'));
         const to_color = (v) => {
             return `${COLOR_PALLETE[v]}40`
+        }
+
+        const out_buf = new function Buffer() {
+            this.display = document.getElementById('out-buf-content')
+            this.buf = [];
+            this.write = (d) => {
+                this.buf.push(d);
+            }
+            this.get = () => {
+                return this.buf.join("");
+            }
         }
 
         const stack = new function Stack() {
@@ -86,13 +126,11 @@
             this.set_4_bytes = function(addr, val) {
                 // to preserve integrity to ARM emulator values will be split into 4 1-byte secs.
                 
-                const fin = val < 0 ? to_twos_c(-val) : val;
+                const fin = full_twos_c(val);
                 const p1 = (fin & 0xff000000) >>> 24;
                 const p2 = (fin & 0x00ff0000) >>> 16;
                 const p3 = (fin & 0x0000ff00) >>> 8;
                 const p4 = (fin & 0x000000ff);
-
-                console.log(p1.toString(16),p2.toString(16),p3.toString(16),p4.toString(16))
 
                 this.set_byte(addr,   p1);
                 this.set_byte(addr-1, p2);
@@ -102,15 +140,24 @@
 
             this.update_stack_table = function() {
                 this.stack_table.innerHTML = "";
+                const sp = registers.get('sp');
+                const fp = registers.get('fp');
                 this.stack_table.innerHTML = this.stack.map((v, i) => {
+                    const addr = this.head - i;
                     // style="background-color:#${to_hex(v*256,6).substring(2)}
-                    return `<tr class="code-font"><td>${to_hex(this.head - i, 8)}</td><td style="background-color:${to_color(v)}">${to_hex(v, 2)}</td></tr>`;
+                    return `<tr class="code-font">
+                                <td>${to_hex(this.head - i, 8)}</td>
+                                <td style="background-color:${to_color(v)}">${to_hex(v, 2)}</td>
+                                ${addr === sp ? `<td>SP</td>` : ""}
+                                ${addr === fp ? `<td>FP</td>` : ""}
+                            </tr>`;
                 }).join('');
             }
         }
         
 
         const registers = new function Registers() {
+            this.registers_table = document.getElementById("registers-body");
             this.registers = new Array(16).fill(0);
             this.register_lookup = {
                 'r0':0,
@@ -124,15 +171,15 @@
                 'r8':8,
                 'r9':9,
                 'r10':10,
-                'r11':11,
-                'r12':12,
-                'r13':13,
-                'r14':14,
-                'r15':15,
                 'fp':11,
+                'r12':12,
                 'sp':13,
                 'lr':14,
                 'pc':15,
+                'r11':11,
+                'r13':13,
+                'r14':14,
+                'r15':15,
             }
             this.get = function(register) {
                 return this.registers[this.register_lookup[register]];
@@ -142,13 +189,24 @@
             }
             this.set = function(register, value) {
                 this.registers[this.register_lookup[register]] = value;
+                this.update_table();
             }
             this.increment = function(){ // incrementing program counter
                 this.registers[15]++;
+                this.update_table();
+            }
+            this.update_table = function() {
+                this.registers_table.innerHTML = Object.keys(this.register_lookup).slice(0,15).map((r, i) => {
+                    return `<tr class="code-font">
+                                <td>${r}</td>
+                                <td>${to_hex(full_twos_c(this.registers[i]), 8)}</td>
+                            </tr>`;
+                }).join('');
             }
         }
 
         const flags = new function Flags() {
+            this.flags_table = document.getElementById("flags-body");
             this.flags = {
                 'Z':0,
                 'N':0,
@@ -160,6 +218,16 @@
             }
             this.set = function(flag, value) {
                 this.flags[flag.toUpperCase()] = value;
+                this.update_table();
+            }
+
+            this.update_table = function() {
+                this.flags_table.innerHTML = Object.entries(this.flags).map(([k, v]) => {
+                    return `<tr class="code-font">
+                                <td>${k}</td>
+                                <td>${v}</td>
+                            </tr>`;
+                }).join('');
             }
         }
 
@@ -168,6 +236,7 @@
         // regex lookup
         const rl = {
             REGISTER:'r[0-9]|r1[0-5]|fp|sp|lr|pc',
+            REGISTER_RANGE:'(?:r[0-9]|r1[0-5]|fp|sp|lr|pc)-(?:r[0-9]|r1[0-5]|fp|sp|lr|pc)',
             REGISTER_OR_NUM:'r[0-9]|r1[0-5]|fp|sp|lr|pc|#-?\\d+',
             COMMA_SEPERATOR:'\\s*,\\s*',
             LABEL:'[a-zA-Z0-9_]+',
@@ -175,7 +244,10 @@
             ANY_WHITESPACE:'\\s*',
             ANY_NUMBER:'\\d+\\s*',
             BRACKET:(...args) => `\\[${args.join('')}\\]`,
+            BRACES:(...args) => `\\{${args.join('')}\\}`,
             OPTIONAL:(...args) => `(?:${args.join('')})?`,
+            MULTIPLE:(...args) => `(?:${args.join('')})*`,
+            OR:(...args) => `${args.join('|')}`,
         }
 
         const instruction_regex = {
@@ -193,21 +265,51 @@
                     `(${rl.REGISTER})`,
                     rl.OPTIONAL(
                         rl.COMMA_SEPERATOR,
-                        `(${rl.REGISTER_OR_NUM})`
+                        `(${rl.REGISTER_OR_NUM})`,
                     ),
                     rl.ANY_WHITESPACE,
                 ), 
                 rl.ENDLINE
             ),
-            'LDR':"" // temp
+            'LDR':"", // temp
+            'PUSH':cr(rl.BRACES("(", 
+                rl.MULTIPLE(
+                    rl.OR(
+                        rl.REGISTER.replace('|sp', ''),
+                        rl.ANY_WHITESPACE,
+                        '-',
+                        ','
+                    )
+                ),
+            ")")),
+            "POP":"" // temp
         }
         instruction_regex.LDR = instruction_regex.STR;
+        instruction_regex.POP = instruction_regex.PUSH;
 
-        const used_labels = {};
+        const used_labels = {
+            'write':()=>{
+                // arg1: instruction code
+                // arg2: pointer to buffer
+                // arg3: number of bytes to print out
+                // returns: number of bytes printed or -1 if error
+                const arg1 = registers.get('r0');
+                const arg2 = registers.get('r1');
+                const arg3 = registers.get('r2');
+                if(arg1 != 1) throw new Error("Not implemeted yet...");
+                for(let i = 0; i < arg3; i++) {
+                    const c = stack.load_byte(arg2-i-3);
+                    out_buf.write(String.fromCharCode(c));
+                }
+                registers.increment();
+            }
+        };
         const label_reg = new RegExp('^([a-zA-Z0-9_]+)\\s*:\\s*$', 'i');
         const create_label_func = (label, i) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
-            used_labels[label] = i;
+            used_labels[label] = () => {
+                registers.set('pc', i);
+            };
             console.log(label)
             return () => registers.increment();
         }
@@ -218,11 +320,28 @@
                     const reg = instruction_regex.B;
                     const [, label] = op.match(reg);
                     if(!used_labels[label]) throw new Error(`Label '${label}' not found`);
-                    console.log(inst+' ', label, used_labels[label]);
-                    registers.set('pc', used_labels[label]);
+                    console.log(inst+' ');
+                    used_labels[label]();
                     return;
                 }
                 registers.increment();
+            },
+            STACK: (regs, regFunc) => {
+                regs.split(',').forEach((r) => {
+                    if(r.trim() === '') throw new Error('Invalid stack operation');
+                    if(r.length <= 3) {
+                        regFunc(registers.register_lookup[r]);
+                    } else {
+                        const [r1, r2] = r.split('-');
+                        const start = registers.register_lookup[r1.trim()];
+                        const end = registers.register_lookup[r2.trim()];
+                        if(start >= end) throw new Error("Invalid Range");
+                        registers.registers.slice(start, end+1).forEach((r, i) => {
+                            regFunc(start+i);
+                        });
+                    }
+                });
+                stack.update_stack_table();
             }
         }
 
@@ -285,6 +404,48 @@
                 registers.set(dst, stack.load_4_bytes(addr));
                 registers.increment();
             },
+            'PUSH':(op)=> {
+                const reg = instruction_regex.PUSH;
+                const [, src] = op.match(reg);
+                instruction_base.STACK(src, (r) => {
+                    registers.set('sp', registers.get('sp') - 4);
+                    stack.set_4_bytes(registers.get('sp'), registers.registers[r]);
+                });
+                // src.split(',').forEach((s)=> {
+                //     if(s.trim() === '') throw new Error('Invalid push syntax');
+                //     if(s.length <= 3) {
+                //         console.log("we are pushing a register ", s);
+
+                //         registers.set('sp', registers.get('sp')-4);
+                //         stack.set_4_bytes(registers.get('sp'), registers.get(s));
+                        
+                //     } else {
+                //         const [r1, r2] = s.split('-');
+                //         console.log("we are pushing a range ", r1, r2);
+                //         const start = registers.register_lookup[r1];
+                //         const end = registers.register_lookup[r2];
+                //         if(start >= end) throw new Error('Invalid range');
+                //         const sp = registers.get('sp');
+                //         registers.registers.slice(start, end+1).forEach((r, i)=> {
+                //             stack.set_4_bytes(sp-(4*(i+1)), r);
+                //         });
+                //         registers.set('sp', sp-(4*(end-start+1)));
+                //     }
+                // });
+                // console.log('push ', src.split(','));
+                registers.increment();
+            },
+            'POP':(op)=> {
+                const reg = instruction_regex.POP;
+                const [, dst] = op.match(reg);
+                console.log('pop ', dst);
+                instruction_base.STACK(dst, (r) => {
+                    const sp = registers.get('sp');
+                    registers.registers[r] = stack.load_4_bytes(sp);
+                    registers.set('sp', sp + 4);
+                });
+                registers.increment();
+            },
             'BX':(op)=>{
                 const reg = instruction_regex.BX;
                 const [, src] = op.match(reg);
@@ -327,14 +488,18 @@
         main:
             mov r10, lr
 
-            mov r0, #10000000
-            str r0, [ fp ]
-            str r0, [fp, #-4]
-            mov r0, #0
-
-            ldr r1, [fp, #-4]
+            mov r0, #65
+            push {r0}
+            bl test
 
             mov lr, r10
+            bx lr
+
+        test:
+            mov r0, #1
+            mov r1, sp
+            mov r2, #1
+            b write
             bx lr
 
         `.split('\n')
@@ -363,6 +528,10 @@
                 registers.set('sp', STACK_HEAD);
                 registers.set('lr', instruction_size); // setting link register to the end of the code
                 const get_pc = () => registers.get('pc');
+                
+                registers.update_table();
+                stack.update_stack_table();
+                flags.update_table();
                 while(get_pc() < instruction_size){
                     if(get_pc() < 0) throw new Error(`PC out of bounds...`);
                     arm_code[get_pc()]();
@@ -374,7 +543,7 @@
 
             console.log(registers.registers)
 
-            // stack.set_4_bytes(registers.get('fp'), 9696969);
+            // stack.set_4_bytes(registers.get('fp'), 305419896);
             // stack.set_4_bytes(registers.get('fp')-4, 9696969);
             // // stack.set_4_bytes(registers.get('fp')-2, 10000);
             // console.log('output: ', stack.load_4_bytes(registers.get('fp')));
@@ -402,6 +571,16 @@
         .code-font {
             font-family: monospace;
             font-size: 14px;
+        }
+
+        #system-info {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+        }
+
+        .table {
+            margin: 20px;
         }
     </style>
 
