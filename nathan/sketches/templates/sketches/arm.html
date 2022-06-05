@@ -242,11 +242,16 @@
             REGISTER:'r[0-9]|r1[0-5]|fp|sp|lr|pc',
             REGISTER_RANGE:'(?:r[0-9]|r1[0-5]|fp|sp|lr|pc)-(?:r[0-9]|r1[0-5]|fp|sp|lr|pc)',
             REGISTER_OR_NUM:'r[0-9]|r1[0-5]|fp|sp|lr|pc|#-?\\d+',
+            STRING:'"([^"]*)"',
+            DIRECTIVE:'(\\.asciz|\\.ascii)',
             COMMA_SEPERATOR:'\\s*,\\s*',
+            COLON_SEPERATOR:'\\s*:\\s*',
             LABEL:'[a-zA-Z0-9_]+',
+            STARTLINE:'^',
             ENDLINE:'$',
             ANY_WHITESPACE:'\\s*',
             ANY_NUMBER:'\\d+\\s*',
+            CAPTURE:(arg) => `(${arg})`,
             BRACKET:(...args) => `\\[${args.join('')}\\]`,
             BRACES:(...args) => `\\{${args.join('')}\\}`,
             OPTIONAL:(...args) => `(?:${args.join('')})?`,
@@ -255,6 +260,7 @@
         }
 
         const instruction_regex = {
+            'LABEL':cr(rl.STARTLINE, rl.CAPTURE(rl.LABEL), rl.COLON_SEPERATOR, rl.OPTIONAL(rl.DIRECTIVE, rl.ANY_WHITESPACE, rl.STRING), rl.ENDLINE),
             'MOV':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
             'ADD':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
             'SUB':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
@@ -310,7 +316,14 @@
                 registers.increment();
             }
         };
-        const label_reg = new RegExp('^([a-zA-Z0-9_]+)\\s*:\\s*$', 'i');
+
+        const handle_directive = (label, directive, data) => {
+            if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
+            used_labels[label] = () => {throw new Error(`Label '${label}' not jumpable`);}
+            if(directive == '.asciz') {}
+
+        }
+
         const create_label_func = (label, i) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
             used_labels[label] = () => {
@@ -500,7 +513,7 @@
         console.log(instruction_reg)
 
         const arm_code = `
-        main:
+        main: .asciz "Hello World"
             mov r10, lr
 
             mov r0, #65
@@ -520,7 +533,6 @@
             mov r2, #3
             b write
             bx lr
-
         `.split('\n')
             .map((line) => line.trim())
             .filter((line) => line.length > 0)
@@ -530,9 +542,10 @@
                     const [,instruction, operand] = instruction_match;
                     return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
                 }
-                const label_match = line.match(label_reg);
+                const label_match = line.match(instruction_regex.LABEL);
                 if(label_match){
-                    const [,label] = label_match;
+                    const [,label, directive, data] = label_match;
+                    if(directive && data) console.log({directive, data})
                     return create_label_func(label.trim(), i);
                 }
                 throw new Error(`Invalid instruction: '${line}'`);
