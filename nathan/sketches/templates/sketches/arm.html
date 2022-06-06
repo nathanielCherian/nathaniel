@@ -320,8 +320,13 @@
         const handle_directive = (label, directive, data) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
             used_labels[label] = () => {throw new Error(`Label '${label}' not jumpable`);}
-            if(directive == '.asciz') {}
-
+            if(directive == '.asciz') {
+                data.split("").reverse().map((c, i) => {
+                    stack.set_byte(STACK_HEAD-i, c.charCodeAt(0));
+                });
+                stack.set_byte(STACK_HEAD-data.length, 0);
+            }
+            return ()=>registers.increment();
         }
 
         const create_label_func = (label, i) => {
@@ -516,12 +521,6 @@
         main: .asciz "Hello World"
             mov r10, lr
 
-            mov r0, #65
-            strb r0, [sp, #0]
-            mov r0, #66
-            strb r0, [sp, #-1]
-            mov r0, #67
-            strb r0, [sp, #-2]
             bl test
 
             mov lr, r10
@@ -529,8 +528,8 @@
 
         test:
             mov r0, #1
-            sub r1, sp, #2
-            mov r2, #3
+            sub r1, sp, #11
+            mov r2, #12
             b write
             bx lr
         `.split('\n')
@@ -545,7 +544,7 @@
                 const label_match = line.match(instruction_regex.LABEL);
                 if(label_match){
                     const [,label, directive, data] = label_match;
-                    if(directive && data) console.log({directive, data})
+                    if(directive && data) return handle_directive(label, directive, data);
                     return create_label_func(label.trim(), i);
                 }
                 throw new Error(`Invalid instruction: '${line}'`);
