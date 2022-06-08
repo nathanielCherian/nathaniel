@@ -95,19 +95,36 @@
             this.head = STACK_HEAD;
             this.stack = [];
 
+            this.heap = [];
+            this.heap_start = STACK_HEAD+1;
+            this.bin_size = 100;
 
             this.checkAddr = (addr) => {
-                if(addr < 0x0 || addr > STACK_HEAD) {
-                    throw Error(`SEGMENTATION FAULT: Address '${addr}'' out of bounds `);
+                if(addr < 0x0 || addr > MAX_MEM) {
+                    throw Error(`SEGMENTATION FAULT: Address '${addr}' out of bounds `);
                     return false;
                 }
                 return true;
             }
 
-            this.load_byte = (addr) => {
-                if(!this.checkAddr(addr)) return;
+            this.__stack_load_byte = (addr) => {
                 const r = this.head - addr;
                 return r >= this.stack.length ? 0 : this.stack[r];
+            }
+
+            this.__heap_load_byte = (addr) => {
+                const r = addr - this.heap_start;
+                const index = Math.floor((addr - this.heap_start)/50);
+                if(index >= this.heap.length) return 0;
+                const rel_index = (addr-this.heap_start)-(index*this.bin_size)
+                if (rel_index >= this.heap[index].length) return 0;
+                return this.heap[index][rel_index];
+            }
+
+            this.load_byte = (addr) => {
+                if(!this.checkAddr(addr)) return;
+                if(addr < this.heap_start) return this.__stack_load_byte(addr);
+                return this.__heap_load_byte(addr);
             }
 
             this.load_4_bytes = (addr) => {
@@ -118,13 +135,27 @@
                     this.load_byte(addr-3);
             }
 
-            this.set_byte = (addr, val) => {
-                if(!this.checkAddr(addr)) return;
+            this.__stack_set_byte = (addr, val) => {
                 const r = this.head - addr;
                 const size_difference = Math.max(r - this.stack.length, 0);
                 this.stack.push(...Array(size_difference).fill(0));
                 this.stack[r] = val;
                 this.update_stack_table();
+            }
+
+            this.__heap_set_byte = (addr, val) => {
+                const index = Math.floor((addr - this.heap_start)/50);
+                if(index >= this.heap.length) throw new Error("Heap memory not allocated")
+                const rel_index = (addr-this.heap_start)-(index*this.bin_size)
+                const size_diff = Math.max(rel_index - this.heap[index].length, 0);
+                this.heap[index].push(...Array(size_diff).fill(0));
+                this.heap[index][rel_index] = val;
+            }
+
+            this.set_byte = (addr, val) => {
+                if(!this.checkAddr(addr)) return;
+                if(addr < this.heap_start) return this.__stack_set_byte(addr, val);
+                return this.__heap_set_byte(addr, val);
             }
 
             this.set_4_bytes = function(addr, val) {
@@ -159,10 +190,16 @@
             }
 
             this.getHead = function() {
-                return this.head - this.stack.length;
+                return this.head;
             }
-
             
+            this.malloc = function(size) {
+                const initial_size = this.heap.length+1;
+                for(let i=0; i<size; i+= this.bin_size) {
+                    this.heap.push([]);
+                }
+                return ((this.heap.length - initial_size) * this.bin_size) + this.heap_start;
+            }
         }
         
 
@@ -350,10 +387,10 @@
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
             used_labels[label] = () => STACK_HEAD //{throw new Error(`Label '${label}' not jumpable`);}
             if(directive == '.asciz') {
-                
-                // data.split('').reverse().map((c, i) => {
-                //     stack.set_byte(STACK_HEAD-i, c.charCodeAt(0)); // NEED TO CHANGE THIS ASAP
-                // });
+                const addr = stack.malloc(data.length+1);
+                data.split('').map((c, i) => {
+                    stack.set_byte(addr+i, c.charCodeAt(0)); // NEED TO CHANGE THIS ASAP
+                });
                 // stack.set_byte(STACK_HEAD-data.length, 0);
             }
             return ()=>registers.increment();
@@ -559,8 +596,8 @@
         main: 
             mov r10, lr
 
-            str r0, [sp]
-            ldr r0, =hello
+            push {r0,r4}
+
             bl test
 
             mov lr, r10
@@ -568,8 +605,8 @@
 
         test:
             mov r0, #1
-            sub r1, sp, #11
-            mov r2, #12
+            mov r1, #100001
+            mov r2, #5
             b write
             bx lr
         `.split('\n')
