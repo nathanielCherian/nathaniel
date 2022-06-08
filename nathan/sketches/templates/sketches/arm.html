@@ -12,7 +12,23 @@
 
         <div id="system-info">
 
-            <div id="stack" class="table">
+            <div id="heap" class="box">
+                <div class="title">Heap</div>
+                <div id="heap-content">
+                    <table id="heap-table">
+                        <tr>
+                            <th>Address</th>
+                            <th>Value</th>
+                        </tr>
+                        
+                        <tbody id="heap-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="stack" class="box">
+                <div class="title">Stack</div>
                 <table id="stack-table">
                     <tr>
                         <th>Address</th>
@@ -24,7 +40,8 @@
                 </table>
             </div>
 
-            <div id="registers" class="table">
+            <div id="registers" class="box">
+                <div class="title">Registers</div>
                 <table id="registers-table">
                     <tr>
                         <th>Register</th>
@@ -36,7 +53,8 @@
                 </table>
             </div>
 
-            <div id="flags" class="table">
+            <div id="flags" class="box">
+                <div class="title">Flags</div>
                 <table id="flags-table">
                     <tr>
                         <th>Flag</th>
@@ -48,10 +66,12 @@
                 </table>
             </div>
 
-            <div id="out-buf">
-                <div id="out-buf-content">
-                </div>
+            <div id="out-buf" class="box">
+                <div class="title">Output Buffer</div>
+                <div id="out-buf-content"></div>
             </div>
+
+
 
 
         </div>
@@ -74,6 +94,15 @@
         const to_color = (v) => {
             return `${COLOR_PALLETE[v]}40`
         }
+        const create_mem_row = (addr, val, ...args) => {
+            return `
+                    <tr class="code-font">
+                        <td>${to_hex(addr, 8)}</td>
+                        <td style="background-color:${to_color(val)}">${to_hex(val, 2)}</td>
+                        ${args.join("")}
+                    </tr>
+                `
+        }
 
         const out_buf = new function Buffer() {
             this.display = document.getElementById('out-buf-content');
@@ -90,6 +119,52 @@
             }
         }
 
+
+        const heap = new function Heap() {
+            this.start = STACK_HEAD+1;
+            this.heap = [];
+            this.bins = {};
+            this.heap_table = document.getElementById('heap-body');
+
+            this.checkAddr = (idx) => {
+                if(idx < 0 || idx >= this.heap.length) throw new Error("Invalid heap address");
+            }
+            
+            this.set_byte = (addr, val) => {
+                const idx = addr - this.start;
+                this.checkAddr(idx);
+                this.heap[idx] = val;
+                this.update_display();
+            }
+            
+            this.load_byte = (addr) => {
+                const idx = addr - this.start;
+                this.checkAddr(idx);
+                return this.heap[idx];
+            }
+
+            this.malloc = (size) => {
+                const addr = this.heap.length; //this.heap.reduce((acc, cur) => acc + cur.length, this.start);
+                this.heap.push(...Array(size).fill(0));
+                this.bins[addr] = size;
+                this.update_display();
+                return addr + this.start;
+            }
+
+            this.update_display = () => {
+                this.heap_table.innerHTML = Object.entries(this.bins).map(([addr, size]) => {
+                   return this.heap.slice(addr, addr+size).map((v, i) => {
+                            return create_mem_row(this.start+parseInt(addr)+i, v)
+                        }).join("")
+                }).join("<hr>");
+            }
+
+        }
+
+        // heap.malloc(10);
+        // heap.set_byte(heap.start+1, 0x12);
+        // heap.malloc(10);
+
         const stack = new function Stack() {
             this.stack_table = document.getElementById("stack-body");
             this.head = STACK_HEAD;
@@ -100,34 +175,70 @@
             this.bin_size = 100;
 
             this.checkAddr = (addr) => {
-                if(addr < 0x0 || addr > MAX_MEM) {
+                if(addr < 0x0 || addr > STACK_HEAD) {
                     throw Error(`SEGMENTATION FAULT: Address '${addr}' out of bounds `);
                     return false;
                 }
                 return true;
             }
 
-            this.__stack_load_byte = (addr) => {
+            this.load_byte = (addr) => {
+                if(!this.checkAddr(addr)) return;
                 const r = this.head - addr;
                 return r >= this.stack.length ? 0 : this.stack[r];
             }
 
-            this.__heap_load_byte = (addr) => {
-                const r = addr - this.heap_start;
-                const index = Math.floor((addr - this.heap_start)/50);
-                if(index >= this.heap.length) return 0;
-                const rel_index = (addr-this.heap_start)-(index*this.bin_size)
-                if (rel_index >= this.heap[index].length) return 0;
-                return this.heap[index][rel_index];
-            }
 
-            this.load_byte = (addr) => {
+            this.set_byte = (addr, val) => {
                 if(!this.checkAddr(addr)) return;
-                if(addr < this.heap_start) return this.__stack_load_byte(addr);
-                return this.__heap_load_byte(addr);
+                const r = this.head - addr;
+                const size_difference = Math.max(r - this.stack.length, 0);
+                this.stack.push(...Array(size_difference).fill(0));
+                this.stack[r] = val;
+                this.update_display();
             }
 
-            this.load_4_bytes = (addr) => {
+            this.update_display = function() {
+                this.stack_table.innerHTML = "";
+                const sp = registers.get('sp');
+                const fp = registers.get('fp');
+                this.stack_table.innerHTML = this.stack.map((v, i) => {
+                    const addr = this.head - i;
+                    // style="background-color:#${to_hex(v*256,6).substring(2)}
+                    return create_mem_row(
+                        this.head-i, 
+                        v, 
+                        addr === sp ? `<td>SP</td>` : "",
+                        addr === fp ? `<td>FP</td>` : "")
+                }).join('');
+            }
+
+            this.getHead = function() {
+                return this.head;
+            }
+            
+        }
+        
+        const memory = new function Memory() {
+
+            this.stack_cutoff = stack.head;
+
+            this.stack = stack;
+            this.heap = heap;
+
+            this.set_byte = function(addr, val) {
+                if(addr <= this.stack_cutoff) {
+                    this.stack.set_byte(addr, val);
+                } else {
+                    this.heap.set_byte(addr, val);
+                }
+            }
+            this.load_byte = function(addr) {
+                if(addr <= this.stack_cutoff) return this.stack.load_byte(addr)
+                return this.heap.load_byte(addr);
+            }
+
+            this.load_4_bytes = function(addr) {
                 return 0x0 |
                     this.load_byte(addr) << 24 |
                     this.load_byte(addr-1) << 16 |
@@ -135,32 +246,7 @@
                     this.load_byte(addr-3);
             }
 
-            this.__stack_set_byte = (addr, val) => {
-                const r = this.head - addr;
-                const size_difference = Math.max(r - this.stack.length, 0);
-                this.stack.push(...Array(size_difference).fill(0));
-                this.stack[r] = val;
-                this.update_stack_table();
-            }
-
-            this.__heap_set_byte = (addr, val) => {
-                const index = Math.floor((addr - this.heap_start)/50);
-                if(index >= this.heap.length) throw new Error("Heap memory not allocated")
-                const rel_index = (addr-this.heap_start)-(index*this.bin_size)
-                const size_diff = Math.max(rel_index - this.heap[index].length, 0);
-                this.heap[index].push(...Array(size_diff).fill(0));
-                this.heap[index][rel_index] = val;
-            }
-
-            this.set_byte = (addr, val) => {
-                if(!this.checkAddr(addr)) return;
-                if(addr < this.heap_start) return this.__stack_set_byte(addr, val);
-                return this.__heap_set_byte(addr, val);
-            }
-
             this.set_4_bytes = function(addr, val) {
-                // to preserve integrity to ARM emulator values will be split into 4 1-byte secs.
-                
                 const fin = full_twos_c(val);
                 const p1 = (fin & 0xff000000) >>> 24;
                 const p2 = (fin & 0x00ff0000) >>> 16;
@@ -173,35 +259,19 @@
                 this.set_byte(addr-3, p4);
             }
 
-            this.update_stack_table = function() {
-                this.stack_table.innerHTML = "";
-                const sp = registers.get('sp');
-                const fp = registers.get('fp');
-                this.stack_table.innerHTML = this.stack.map((v, i) => {
-                    const addr = this.head - i;
-                    // style="background-color:#${to_hex(v*256,6).substring(2)}
-                    return `<tr class="code-font">
-                                <td>${to_hex(this.head - i, 8)}</td>
-                                <td style="background-color:${to_color(v)}">${to_hex(v, 2)}</td>
-                                ${addr === sp ? `<td>SP</td>` : ""}
-                                ${addr === fp ? `<td>FP</td>` : ""}
-                            </tr>`;
-                }).join('');
+            this.getStackHead = function() {
+                return stack.getHead();
             }
 
-            this.getHead = function() {
-                return this.head;
-            }
-            
             this.malloc = function(size) {
-                const initial_size = this.heap.length+1;
-                for(let i=0; i<size; i+= this.bin_size) {
-                    this.heap.push([]);
-                }
-                return ((this.heap.length - initial_size) * this.bin_size) + this.heap_start;
+                return this.heap.malloc(size);
+            }
+
+            this.update_displays = function() {
+                this.heap.update_display();
+                this.stack.update_display();
             }
         }
-        
 
         const registers = new function Registers() {
             this.registers_table = document.getElementById("registers-body");
@@ -376,7 +446,7 @@
                 const arg3 = registers.get('r2');
                 if(arg1 != 1) throw new Error("Not implemeted yet...");
                 for(let i = 0; i < arg3; i++) {
-                    const c = stack.load_byte(arg2+i);
+                    const c = memory.load_byte(arg2+i);
                     out_buf.write(String.fromCharCode(c));
                 }
                 registers.increment();
@@ -385,13 +455,12 @@
 
         const handle_directive = (label, directive, data) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
-            used_labels[label] = () => STACK_HEAD //{throw new Error(`Label '${label}' not jumpable`);}
+            used_labels[label] = () => STACK_HEAD
             if(directive == '.asciz') {
-                const addr = stack.malloc(data.length+1);
+                const addr = memory.malloc(data.length+1);
                 data.split('').map((c, i) => {
-                    stack.set_byte(addr+i, c.charCodeAt(0)); // NEED TO CHANGE THIS ASAP
+                    memory.set_byte(addr+i, c.charCodeAt(0));
                 });
-                // stack.set_byte(STACK_HEAD-data.length, 0);
             }
             return ()=>registers.increment();
         }
@@ -432,7 +501,7 @@
                         });
                     }
                 });
-                stack.update_stack_table();
+                memory.update_displays();
             }
         }
 
@@ -483,7 +552,7 @@
                 console.log('str ', src, dst, offset);
                 const final_dst = registers.get(dst) + 
                                 (offset ? registers.safe_get(offset) : 0);
-                stack.set_4_bytes(final_dst, registers.get(src));
+                memory.set_4_bytes(final_dst, registers.get(src));
                 registers.increment();
             },
             'STRB':(op)=>{
@@ -492,7 +561,7 @@
                 console.log('strb ', src, dst, offset);
                 const final_dst = registers.get(dst) + 
                                 (offset ? registers.safe_get(offset) : 0);
-                stack.set_byte(final_dst, registers.get(src)&0x000000ff);
+                memory.set_byte(final_dst, registers.get(src)&0x000000ff);
                 registers.increment();
             },
             'LDR':(op)=>{
@@ -504,7 +573,7 @@
                 } else {
                     const addr = registers.get(src) + 
                                 (offset ? registers.safe_get(offset) : 0);
-                    registers.set(dst, stack.load_4_bytes(addr));
+                    registers.set(dst, memory.load_4_bytes(addr));
                 }
 
                 registers.increment();
@@ -514,30 +583,8 @@
                 const [, src] = op.match(reg);
                 instruction_base.STACK(src, (r) => {
                     registers.set('sp', registers.get('sp') - 4);
-                    stack.set_4_bytes(registers.get('sp'), registers.registers[r]);
+                    memory.set_4_bytes(registers.get('sp'), registers.registers[r]);
                 });
-                // src.split(',').forEach((s)=> {
-                //     if(s.trim() === '') throw new Error('Invalid push syntax');
-                //     if(s.length <= 3) {
-                //         console.log("we are pushing a register ", s);
-
-                //         registers.set('sp', registers.get('sp')-4);
-                //         stack.set_4_bytes(registers.get('sp'), registers.get(s));
-                        
-                //     } else {
-                //         const [r1, r2] = s.split('-');
-                //         console.log("we are pushing a range ", r1, r2);
-                //         const start = registers.register_lookup[r1];
-                //         const end = registers.register_lookup[r2];
-                //         if(start >= end) throw new Error('Invalid range');
-                //         const sp = registers.get('sp');
-                //         registers.registers.slice(start, end+1).forEach((r, i)=> {
-                //             stack.set_4_bytes(sp-(4*(i+1)), r);
-                //         });
-                //         registers.set('sp', sp-(4*(end-start+1)));
-                //     }
-                // });
-                // console.log('push ', src.split(','));
                 registers.increment();
             },
             'POP':(op)=> {
@@ -546,7 +593,7 @@
                 console.log('pop ', dst);
                 instruction_base.STACK(dst, (r) => {
                     const sp = registers.get('sp');
-                    registers.registers[r] = stack.load_4_bytes(sp);
+                    registers.registers[r] = memory.load_4_bytes(sp);
                     registers.set('sp', sp + 4);
                 });
                 registers.increment();
@@ -594,14 +641,11 @@
         hello: .asciz "Hello World"
         
         main: 
-            mov r10, lr
-
-            push {r0,r4}
+            push {lr}
 
             bl test
 
-            mov lr, r10
-            bx lr
+            pop {pc}
 
         test:
             mov r0, #1
@@ -632,14 +676,15 @@
 
             function run(arm_code) {
                 const instruction_size = arm_code.length;
-                registers.set('fp', stack.getHead()); // setting frame pointer to top of stack
-                registers.set('sp', stack.getHead());
+                registers.set('fp', memory.getStackHead()); // setting frame pointer to top of stack
+                registers.set('sp', memory.getStackHead());
                 registers.set('lr', instruction_size); // setting link register to the end of the code
                 const get_pc = () => registers.get('pc');
-                
+
+                memory.update_displays();
                 registers.update_table();
-                stack.update_stack_table();
                 flags.update_table();
+
                 while(get_pc() < instruction_size){
                     if(get_pc() < 0) throw new Error(`PC out of bounds...`);
                     arm_code[get_pc()]();
@@ -649,15 +694,7 @@
             run(arm_code);
 
 
-            console.log(registers.registers)
-
-            // stack.set_4_bytes(registers.get('fp'), 305419896);
-            // stack.set_4_bytes(registers.get('fp')-4, 9696969);
-            // // stack.set_4_bytes(registers.get('fp')-2, 10000);
-            // console.log('output: ', stack.load_4_bytes(registers.get('fp')));
-            
-            
-
+            console.log(registers.registers)            
             console.log(stack.stack);
 
 
@@ -687,9 +724,21 @@
             width: 100%;
         }
 
-        .table {
+        .box {
             margin: 20px;
         }
+
+        .title {
+            text-align: center;
+        }
+
+        #out-buf-content {
+            width: 300px;
+            height: 400px;
+            border: 1px solid black;
+            padding: 5px;
+        }
+
     </style>
 
 
