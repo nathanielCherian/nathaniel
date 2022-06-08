@@ -157,6 +157,12 @@
                             </tr>`;
                 }).join('');
             }
+
+            this.getHead = function() {
+                return this.head - this.stack.length;
+            }
+
+            
         }
         
 
@@ -251,6 +257,7 @@
             ENDLINE:'$',
             ANY_WHITESPACE:'\\s*',
             ANY_NUMBER:'\\d+\\s*',
+            GROUP:(...args) => `(?:${args.join('')})`,
             CAPTURE:(arg) => `(${arg})`,
             BRACKET:(...args) => `\\[${args.join('')}\\]`,
             BRACES:(...args) => `\\{${args.join('')}\\}`,
@@ -282,7 +289,29 @@
                 rl.ENDLINE
             ),
             'STRB':"", // temp
-            'LDR':"", // temp
+            'LDR':cr(
+                `(${rl.REGISTER})`, 
+                rl.COMMA_SEPERATOR,
+                rl.GROUP(
+                    rl.OR(
+                        rl.BRACKET(
+                            rl.ANY_WHITESPACE, 
+                            `(${rl.REGISTER})`,
+                            rl.OPTIONAL(
+                                rl.COMMA_SEPERATOR,
+                                `(${rl.REGISTER_OR_NUM})`,
+                            ),
+                            rl.ANY_WHITESPACE,
+                        ),
+                        rl.CAPTURE(
+                            rl.ANY_WHITESPACE+
+                            '='+
+                            rl.LABEL
+                        )
+                    )
+                ),
+                rl.ENDLINE
+            ),
             'PUSH':cr(rl.BRACES("(", 
                 rl.MULTIPLE(
                     rl.OR(
@@ -296,8 +325,8 @@
             "POP":"" // temp
         }
         instruction_regex.STRB = instruction_regex.STR;
-        instruction_regex.LDR = instruction_regex.STR;
         instruction_regex.POP = instruction_regex.PUSH;
+        console.log(instruction_regex.LDR);
 
         const used_labels = {
             'write':()=>{
@@ -319,12 +348,13 @@
 
         const handle_directive = (label, directive, data) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
-            used_labels[label] = () => {throw new Error(`Label '${label}' not jumpable`);}
+            used_labels[label] = () => STACK_HEAD //{throw new Error(`Label '${label}' not jumpable`);}
             if(directive == '.asciz') {
-                data.split("").reverse().map((c, i) => {
-                    stack.set_byte(STACK_HEAD-i, c.charCodeAt(0));
-                });
-                stack.set_byte(STACK_HEAD-data.length, 0);
+                
+                // data.split('').reverse().map((c, i) => {
+                //     stack.set_byte(STACK_HEAD-i, c.charCodeAt(0)); // NEED TO CHANGE THIS ASAP
+                // });
+                // stack.set_byte(STACK_HEAD-data.length, 0);
             }
             return ()=>registers.increment();
         }
@@ -430,11 +460,16 @@
             },
             'LDR':(op)=>{
                 const reg = instruction_regex.LDR;
-                const [, dst, src, offset] = op.match(reg);
-                console.log('ldr ', dst, src, offset);
-                const addr = registers.get(src) + 
+                const [, dst, src, offset, directive] = op.match(reg);
+                console.log('ldr ', dst, src, offset, directive);
+                if(directive) {
+                    console.log(dst, directive)
+                } else {
+                    const addr = registers.get(src) + 
                                 (offset ? registers.safe_get(offset) : 0);
-                registers.set(dst, stack.load_4_bytes(addr));
+                    registers.set(dst, stack.load_4_bytes(addr));
+                }
+
                 registers.increment();
             },
             'PUSH':(op)=> {
@@ -518,9 +553,14 @@
         console.log(instruction_reg)
 
         const arm_code = `
-        main: .asciz "Hello World"
+
+        hello: .asciz "Hello World"
+        
+        main: 
             mov r10, lr
 
+            str r0, [sp]
+            ldr r0, =hello
             bl test
 
             mov lr, r10
@@ -555,8 +595,8 @@
 
             function run(arm_code) {
                 const instruction_size = arm_code.length;
-                registers.set('fp', STACK_HEAD); // setting frame pointer to top of stack
-                registers.set('sp', STACK_HEAD);
+                registers.set('fp', stack.getHead()); // setting frame pointer to top of stack
+                registers.set('sp', stack.getHead());
                 registers.set('lr', instruction_size); // setting link register to the end of the code
                 const get_pc = () => registers.get('pc');
                 
