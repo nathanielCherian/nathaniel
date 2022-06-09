@@ -112,7 +112,9 @@
                 this.update_display();
             }
             this.get = () => {
-                return this.buf.join("");
+                return this.buf.join("")
+                    .replaceAll('\n', '<br>')
+                    .replaceAll('\t', '&nbsp;&nbsp;&nbsp;&nbsp;');
             }
             this.update_display = () => {
                 this.display.innerHTML = this.get();
@@ -161,9 +163,6 @@
 
         }
 
-        // heap.malloc(10);
-        // heap.set_byte(heap.start+1, 0x12);
-        // heap.malloc(10);
 
         const stack = new function Stack() {
             this.stack_table = document.getElementById("stack-body");
@@ -458,7 +457,9 @@
             used_labels[label] = () => STACK_HEAD
             if(directive == '.asciz') {
                 const addr = memory.malloc(data.length+1);
-                data.split('').map((c, i) => {
+                data.replaceAll('\\n', '\n')
+                    .replaceAll('\\t', '\t')
+                    .split('').map((c, i) => {
                     memory.set_byte(addr+i, c.charCodeAt(0));
                 });
             }
@@ -638,19 +639,24 @@
 
         const arm_code = `
 
-        hello: .asciz "Hello World"
-        
+        hello: .asciz "Hello World! %d \\t"
+        sim: .asciz   "this is arm sim."
+
         main: 
             push {lr}
 
+            mov r1, #100001
+            mov r2, #15
+            bl test
+
+            mov r1, #100016
+            mov r2, #15
             bl test
 
             pop {pc}
 
         test:
             mov r0, #1
-            mov r1, #100001
-            mov r2, #5
             b write
             bx lr
         `.split('\n')
