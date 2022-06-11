@@ -103,6 +103,12 @@
                     </tr>
                 `
         }
+        const grv = (val, opt) => {
+            if (opt == '%d') return val;
+            if (opt == '%x') return to_hex(val, 8);
+            if (opt == '%c') return String.fromCharCode(val);
+        }
+
 
         const out_buf = new function Buffer() {
             this.display = document.getElementById('out-buf-content');
@@ -449,14 +455,36 @@
                     out_buf.write(String.fromCharCode(c));
                 }
                 registers.increment();
+            },
+            'printf':()=>{
+                // arg1: memory location of beginning of string
+                // arg2-argX: printf format string
+                // returns: number of bytes printed or -1 if error
+                const chars = [];
+                while(memory.load_byte(registers.get('r0')) != 0) {
+                    chars.push(String.fromCharCode(memory.load_byte(registers.get('r0'))));
+                    registers.set('r0', registers.get('r0')+1);             
+                }
+                
+                const s = chars.reduce((acc, cur)=>{
+                    const [s, i] = acc;
+                    const full = s+cur;
+                    const match = full.match(/%(d|c|x)/);
+                    const final = (match == null) ? [full,i] : [full.replace(match[0], grv(registers.registers[i], match[0])), i+1];
+                    return final;
+                }, ["", 1]);
+
+
+                out_buf.write(s[0]);
+                registers.increment();
             }
         };
 
         const handle_directive = (label, directive, data) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
-            used_labels[label] = () => STACK_HEAD
             if(directive == '.asciz') {
                 const addr = memory.malloc(data.length+1);
+                used_labels[label] = () => addr;
                 data.replaceAll('\\n', '\n')
                     .replaceAll('\\t', '\t')
                     .split('').map((c, i) => {
@@ -571,6 +599,7 @@
                 console.log('ldr ', dst, src, offset, directive);
                 if(directive) {
                     console.log(dst, directive)
+                    registers.set(dst, used_labels[directive.slice(1)]());
                 } else {
                     const addr = registers.get(src) + 
                                 (offset ? registers.safe_get(offset) : 0);
@@ -639,26 +668,21 @@
 
         const arm_code = `
 
-        hello: .asciz "Hello World! %d \\t"
-        sim: .asciz   "this is arm sim."
+        str: .asciz "number: %d\\n"
 
         main: 
             push {lr}
 
-            mov r1, #100001
-            mov r2, #15
-            bl test
-
-            mov r1, #100016
-            mov r2, #15
-            bl test
+        mov r1, #0
+        for_label:
+            ldr r0, =str
+            bl printf
+            add r1, r1, #1
+            cmp r1, #10
+            blt for_label
 
             pop {pc}
-
-        test:
-            mov r0, #1
-            b write
-            bx lr
+            
         `.split('\n')
             .map((line) => line.trim())
             .filter((line) => line.length > 0)
