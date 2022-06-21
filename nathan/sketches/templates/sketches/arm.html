@@ -736,30 +736,36 @@
 
         console.log(instruction_reg)
 
+        // mov r0, #0
+        // mov r1, sp
+        // mov r2, #2
+        // bl read
+
+        // sub r1, sp, #8
+        // mov r0, #0
+        // mov r2, #1
+        // bl read
+
         const arm_code = `
 
-        str: .asciz "number: %d\\n"
+        prompt: .asciz "Type a character: "
+        response: .asciz "you said: %c"
 
         main: 
             push {lr}
 
-            mov r1, #0
-        
-        for_label:
-            ldr r0, =str
+            ldr r0, =prompt
             bl printf
-            add r1, r1, #1
-            cmp r1, #10
-            blt for_label
+
+            mov r0, #65
 
             mov r0, #0
-            mov r1, sp
-            add r1, r1, #1
+            sub r1, sp, #7
             mov r2, #1
             bl read
 
-            ldr r0, =str
-            mov r1, #69
+            ldr r0, =response
+            ldr r1, [sp, #-4]
             bl printf
 
             pop {pc}
