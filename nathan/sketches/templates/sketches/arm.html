@@ -736,6 +736,12 @@
 
         console.log(instruction_reg)
 
+        const on_exit = () => {
+            const out_val = registers.get('r0');
+            console.log("done with program", out_val);
+            out_buf.write(`\nfinished with exit status '${out_val}'`)
+        }
+
         // mov r0, #0
         // mov r1, sp
         // mov r2, #2
@@ -803,10 +809,11 @@
                 thread.setOnStart(()=>{
                     const get_pc = () => registers.get('pc');
                     while((get_pc() < instruction_size)){
-                        if(get_pc() < 0) throw new Error(`PC out of bounds...`);
-                        if(!thread.active) break;
+                        if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
+                        if(!thread.active) break; // the thread is paused
                         arm_code[get_pc()]();
                     }
+                    if(get_pc() > instruction_size-1) on_exit();
                 });
 
                 thread.start();
