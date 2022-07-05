@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword Generator</title>
+</head>
+<body>
+    
+    <script>
+
+    const ORIEN_ENUM = {
+        HORI:0,
+        VERT:1
+    }
+
+const WORDS = `power
+desk
+venture
+deny
+folk
+knee
+deprive
+dragon
+soak
+leak
+nathan
+test
+monkey
+school
+life
+market`.toLowerCase().split('\n')//.sort((a, b) => ((a.length < b.length)*2)-1)
+
+
+        const REFERENCE = 'a'.charCodeAt(0);
+        const l_to_c = (l) => l.charCodeAt(0)-REFERENCE; // starting 'a' at 0
+        const c_to_l = (c) => String.fromCharCode(l+REFERENCE);
+
+        const letter_map = Array.from(Array(26), ()=>Array())
+
+        WORDS.map((word, word_i) => {
+            word.split("").map((letter, letter_i) => {
+                const code = l_to_c(letter);
+                letter_map[code].push([word_i, letter_i])
+            })
+        })
+
+
+        // FUNCTIONAL TIME YAY!
+
+        const create_empty = (size) => {
+            return Array.from(Array(size), ()=>Array(size).fill(0))
+        }
+
+        const set = (cw, x, y, l) => {
+            cw[y][x] = l;
+            return cw;
+        }
+
+        const get = (cw, x, y) => {
+            return cw[y][x];
+        }
+
+        const is_filled = (cw, x, y) => {
+            if( get(cw, x, y) ) return true;
+            return false;  
+        }
+
+        const to_string = (cw) => {
+            return cw.map((row) => {
+                return row.join("");
+            }).join('\n')
+        }
+
+        const insert_word = (cw, word, x, y, orient) => {
+            word.split("").map((letter, i) => {
+                if(orient == ORIEN_ENUM.VERT) {
+                    set(cw, x, y+i, letter)
+                } else {
+                    set(cw, x+i, y, letter);
+                }
+            });
+        }
+
+        const is_word_safe = (cw, word, x, y, orient) => {
+            return word.split("").every((letter, i) => {
+                if(orient == ORIEN_ENUM.VERT) {
+                    return get(cw, x, y+i, letter) == 0
+                } else {
+                    return get(cw, x+i, y, letter) == 0
+                }
+            });
+        }
+
+        const cw = create_empty(10);
+        const steps = [];
+        const on_board = {};
+
+        const add_word = (word, x, y, orien) => {
+            const n = insert_word(cw, word, x, y, orien);
+            steps.push(n);
+            on_board[word] = {x, y, orien}
+        }
+
+
+        console.log(is_word_safe(cw, WORDS[0], 3, 3, ORIEN_ENUM.HORI))
+        add_word(WORDS[0], 3, 3, ORIEN_ENUM.HORI);
+
+
+        const word = WORDS[1]; // choose new word
+        console.log(word, on_board)
+        word.split("").forEach((l, li) => { // loop through all letters of new word
+            // find what matches already exist on the board
+            const matches = letter_map[l_to_c(l)].filter(([word, letter], i) => {
+                return (on_board[WORDS[word]] !== undefined)
+            });
+
+            for (let i=0; i<matches.length; i++) {
+                const [word_i, letter_i] = matches[i];
+                const word = WORDS[word_i];
+                const {x, y, orien} = on_board[word];
+                const newX = x+li ? orien == ORIEN_ENUM.HORI : x-letter_i;
+                const newY = y+letter_i ? orien == ORIEN_ENUM.HORI : y-
+                console.log(word);
+
+            }
+
+        })
+
+
+        console.log(to_string(cw));
+
+
+        // console.log(letter_map)
+        // class Crossword {
+        //     filled = [];
+            
+        //     constructor() {
+        //         this.filled = Array.from(Array(10), ()=>Array(10).fill(0))
+        //         console.log(this.filled)
+        //     }
+
+        //     set(x, y, l) {
+        //         this.filled[y][x] = l;
+        //     }
+
+        //     get(x, y) {
+        //         return this.filled[y][x];
+        //     }
+
+        //     is_filled(x, y) {
+        //         if( this.get(x, y) ) return true;
+        //         return false;  
+        //     }
+
+        //     toString() {
+        //         return this.filled.map((row) => {
+        //             return row.join("");
+        //         }).join('\n')
+        //     }
+
+        //     insert_word(word, x, y, orient) {
+        //         word.split("").map((letter, i) => {
+        //             if(orient == ORIEN_ENUM.VERT) {
+        //                 this.set(x, y+i, letter)
+        //             } else {
+        //                 this.set(x+i, y, letter);
+        //             }
+        //         });
+        //     }
+
+        //     recreate(steps) {
+        //         this.insert_word(...steps);
+        //     }
+
+        // }
+
+        // const c = new Crossword();
+        // c.insert_word("hello", 0, 0, ORIEN_ENUM.VERT);
+        // console.log(c.is_filled(0,1))
+        // console.log(c.toString())
+
+
+
+    </script>
+
+</body>
+</html>
