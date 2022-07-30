@@ -110,3 +110,11 @@ def field_lines(request):
         "image":"sketches/field_lines.png"
     }
     return render(request, "sketches/field_lines_final.html", context=meta)
+
+def arm(request):
+    meta = {
+        "title":"ARM Emulator",
+        "description":"This is an emulator of ARM Assembly written in javascript. Write your own programs and inspect what going on behind the curtain (registers, memory, flags).",
+        "image":"sketches/arm.png"
+    }
+    return render(request, "sketches/arm.html", context=meta)

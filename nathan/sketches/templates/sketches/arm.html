@@ -71,8 +71,11 @@
                 <textarea readonly="true" id="out-buf-content"></textarea>
             </div>
 
-
-
+            <div id="code-section" class="box">
+                <div class="title">ARM Code</div>
+                <textarea id="code-input" spellcheck="false"></textarea>
+                <button id="code-submit">Run</button>
+            </div>
 
         </div>
 
@@ -132,7 +135,10 @@
             this.buf = [];
             this.input = [];
 
+            this.locked = false
+
             this.write = (d) => {
+                if (this.locked) return;
                 this.buf.push(d);
                 this.update_display();
             }
@@ -174,7 +180,10 @@
             }
 
 
-
+            this.end = (message) => {
+                this.write(message)
+                this.locked = true;
+            }
 
         }
 
@@ -739,61 +748,119 @@
         const on_exit = () => {
             const out_val = registers.get('r0');
             console.log("done with program", out_val);
-            out_buf.write(`\nfinished with exit status '${out_val}'`)
+            out_buf.end(`\nfinished with exit status '${out_val}'`)
         }
 
-        // mov r0, #0
-        // mov r1, sp
-        // mov r2, #2
-        // bl read
+  
+        // CODE INPUT SECTION
 
-        // sub r1, sp, #8
-        // mov r0, #0
-        // mov r2, #1
-        // bl read
+        const code_input = document.getElementById("code-input")
+        code_input.value = localStorage.getItem('arm-code')
 
-        const arm_code = `
+        console.log(code_input.value)
+        if (code_input.value == 0) {
+        code_input.value =`
+prompt: .asciz "Type a character: "
+response: .asciz "you said: %c"
 
-        prompt: .asciz "Type a character: "
-        response: .asciz "you said: %c"
+main: 
+    push {lr}
 
-        main: 
-            push {lr}
+    ldr r0, =prompt
+    bl printf
 
-            ldr r0, =prompt
-            bl printf
+    mov r0, #65
 
-            mov r0, #65
+    mov r0, #0
+    sub r1, sp, #7
+    mov r2, #1
+    bl read
 
-            mov r0, #0
-            sub r1, sp, #7
-            mov r2, #1
-            bl read
+    ldr r0, =response
+    ldr r1, [sp, #-4]
+    bl printf
 
-            ldr r0, =response
-            ldr r1, [sp, #-4]
-            bl printf
+    mov r0, #1
 
-            pop {pc}
+    pop {pc}
+`
+        }
+
+        document.getElementById("code-input").oninput = (e) => {
+            const s = document.getElementById('code-input').value
+            console.log(s)
+            localStorage.setItem('arm-code', s)
+
+        }
+
+        document.getElementById("code-submit").onclick = (e) => {
+            const arm_code = document.getElementById("code-input").value
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0)
+                .map((line, i) => { // change this to map later
+                    const instruction_match = line.match(instruction_reg);
+                    if(instruction_match){
+                        const [,instruction, operand] = instruction_match;
+                        return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+                    }
+                    const label_match = line.match(instruction_regex.LABEL);
+                    if(label_match){
+                        const [,label, directive, data] = label_match;
+                        if(directive && data) return handle_directive(label, directive, data);
+                        return create_label_func(label.trim(), i);
+                    }
+                    throw new Error(`Invalid instruction: '${line}'`);
+                });
             
-        `.split('\n')
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0)
-            .map((line, i) => { // change this to map later
-                const instruction_match = line.match(instruction_reg);
-                if(instruction_match){
-                    const [,instruction, operand] = instruction_match;
-                    return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
-                }
-                const label_match = line.match(instruction_regex.LABEL);
-                if(label_match){
-                    const [,label, directive, data] = label_match;
-                    if(directive && data) return handle_directive(label, directive, data);
-                    return create_label_func(label.trim(), i);
-                }
-                throw new Error(`Invalid instruction: '${line}'`);
+            run(arm_code)
+        };
+        
 
-            });
+        // const arm_code = `
+
+        // prompt: .asciz "Type a character: "
+        // response: .asciz "you said: %c"
+
+        // main: 
+        //     push {lr}
+
+        //     ldr r0, =prompt
+        //     bl printf
+
+        //     mov r0, #65
+
+        //     mov r0, #0
+        //     sub r1, sp, #7
+        //     mov r2, #1
+        //     bl read
+
+        //     ldr r0, =response
+        //     ldr r1, [sp, #-4]
+        //     bl printf
+
+        //     mov r0, #1
+
+        //     pop {pc}
+            
+        // `.split('\n')
+        //     .map((line) => line.trim())
+        //     .filter((line) => line.length > 0)
+        //     .map((line, i) => { // change this to map later
+        //         const instruction_match = line.match(instruction_reg);
+        //         if(instruction_match){
+        //             const [,instruction, operand] = instruction_match;
+        //             return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+        //         }
+        //         const label_match = line.match(instruction_regex.LABEL);
+        //         if(label_match){
+        //             const [,label, directive, data] = label_match;
+        //             if(directive && data) return handle_directive(label, directive, data);
+        //             return create_label_func(label.trim(), i);
+        //         }
+        //         throw new Error(`Invalid instruction: '${line}'`);
+
+        //     });
 
 
             function run(arm_code) {
@@ -819,11 +886,7 @@
                 thread.start();
             }
 
-            run(arm_code);
-
-
-            console.log(registers.registers)            
-            console.log(stack.stack);
+            // run(arm_code);
 
 
     </script>
@@ -861,6 +924,22 @@
         }
 
         #out-buf-content {
+            width: 300px;
+            height: 400px;
+            border: 1px solid black;
+            padding: 5px;
+        }
+
+        #code-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #code-submit {
+            margin-top: 10px;
+        }
+
+        #code-input {
             width: 300px;
             height: 400px;
             border: 1px solid black;
