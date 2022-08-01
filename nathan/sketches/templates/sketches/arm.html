@@ -179,20 +179,26 @@
                 };
             }
 
-
             this.end = (message) => {
                 this.write(message)
                 this.locked = true;
+            }
+
+            this.reset = () => {
+                this.buf = []
+                this.input = []
+                this.locked = false
+                this.update_display()
             }
 
         }
 
 
         const heap = new function Heap() {
+            this.heap_table = document.getElementById('heap-body');
             this.start = STACK_HEAD+1;
             this.heap = [];
             this.bins = {};
-            this.heap_table = document.getElementById('heap-body');
 
             this.checkAddr = (idx) => {
                 if(idx < 0 || idx >= this.heap.length) throw new Error("Invalid heap address");
@@ -227,6 +233,12 @@
                 }).join("<hr>");
             }
 
+            this.reset = () => {
+                this.start = STACK_HEAD+1;
+                this.heap = [];
+                this.bins = {};
+                this.update_display()
+            }
         }
 
 
@@ -280,6 +292,15 @@
 
             this.getHead = function() {
                 return this.head;
+            }
+
+            this.reset = function() {
+                this.head = STACK_HEAD;
+                this.stack = [];
+                this.heap = [];
+                this.heap_start = STACK_HEAD+1;
+                this.bin_size = 100;
+                this.update_display()
             }
             
         }
@@ -336,6 +357,11 @@
                 this.heap.update_display();
                 this.stack.update_display();
             }
+
+            this.reset = function() {
+                this.heap.reset()
+                this.stack.reset()
+            }
         }
 
         const registers = new function Registers() {
@@ -385,6 +411,11 @@
                             </tr>`;
                 }).join('');
             }
+
+            this.reset = function() {
+                this.registers = new Array(16).fill(0);
+                this.update_table()
+            }
         }
 
         const flags = new function Flags() {
@@ -410,6 +441,16 @@
                                 <td>${v}</td>
                             </tr>`;
                 }).join('');
+            }
+
+            this.reset = function() {
+                this.flags = {
+                    'Z':0,
+                    'N':0,
+                    'C':0,
+                    'V':0,
+                }
+                this.update_table()
             }
         }
 
@@ -500,7 +541,7 @@
         instruction_regex.POP = instruction_regex.PUSH;
         console.log(instruction_regex.LDR);
 
-        const used_labels = {
+        const base_labels = {
             'write':()=>{
                 // arg1: instruction code  STDOUT (1)
                 // arg2: pointer to buffer
@@ -558,6 +599,8 @@
                 registers.increment();
             }
         };
+
+        var used_labels = {...base_labels};
 
         const handle_directive = (label, directive, data) => {
             if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
@@ -757,43 +800,52 @@
         const code_input = document.getElementById("code-input")
         code_input.value = localStorage.getItem('arm-code')
 
-        console.log(code_input.value)
+
+        const fib_loop = 'response: .asciz "Fib #%d: %d\\n"\n\nmain: \n    push {lr}\n\nmov r3, #1\nmov r4, #11\n\nmov r5, #1\nmov r6, #1\n\nfib_loop:\n    bl print_num\n\n    mov r7, r6\n    add r6, r5, r6\n    mov r5, r7\n\n    add r3, r3, #1\n    cmp r3, r4\n    blt fib_loop\n \n    mov r0, #0\n    pop {pc}\n\nprint_num:\n    ldr r0, =response\n    mov r1, r3\n    mov r2, r6\n    push {lr}\n    bl printf\n    pop {lr}\n    bx lr'
+
         if (code_input.value == 0) {
-        code_input.value =`
-prompt: .asciz "Type a character: "
-response: .asciz "you said: %c"
+            code_input.value = fib_loop
+//         code_input.value =`
+// prompt: .asciz "Type a character: "
+// response: .asciz "you said: %c"
 
-main: 
-    push {lr}
+// main: 
+//     push {lr}
 
-    ldr r0, =prompt
-    bl printf
+//     ldr r0, =prompt
+//     bl printf
 
-    mov r0, #65
+//     mov r0, #65
 
-    mov r0, #0
-    sub r1, sp, #7
-    mov r2, #1
-    bl read
+//     mov r0, #0
+//     sub r1, sp, #7
+//     mov r2, #1
+//     bl read
 
-    ldr r0, =response
-    ldr r1, [sp, #-4]
-    bl printf
+//     ldr r0, =response
+//     ldr r1, [sp, #-4]
+//     bl printf
 
-    mov r0, #1
+//     mov r0, #1
 
-    pop {pc}
-`
+//     pop {pc}
+// `
         }
 
         document.getElementById("code-input").oninput = (e) => {
             const s = document.getElementById('code-input').value
-            console.log(s)
             localStorage.setItem('arm-code', s)
 
         }
 
         document.getElementById("code-submit").onclick = (e) => {
+
+            used_labels = {...base_labels}
+            memory.reset()
+            registers.reset()
+            flags.reset()
+            out_buf.reset()
+
             const arm_code = document.getElementById("code-input").value
                 .split('\n')
                 .map((line) => line.trim())
@@ -813,6 +865,8 @@ main:
                     throw new Error(`Invalid instruction: '${line}'`);
                 });
             
+            // console.log(arm_code)
+
             run(arm_code)
         };
         
@@ -863,28 +917,29 @@ main:
         //     });
 
 
-            function run(arm_code) {
-                const instruction_size = arm_code.length;
-                registers.set('fp', memory.getStackHead()); // setting frame pointer to top of stack
-                registers.set('sp', memory.getStackHead());
-                registers.set('lr', instruction_size); // setting link register to the end of the code
+        function run(arm_code) {
 
-                memory.update_displays();
-                registers.update_table();
-                flags.update_table();
+            const instruction_size = arm_code.length;
+            registers.set('fp', memory.getStackHead()); // setting frame pointer to top of stack
+            registers.set('sp', memory.getStackHead());
+            registers.set('lr', instruction_size); // setting link register to the end of the code
 
-                thread.setOnStart(()=>{
-                    const get_pc = () => registers.get('pc');
-                    while((get_pc() < instruction_size)){
-                        if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
-                        if(!thread.active) break; // the thread is paused
-                        arm_code[get_pc()]();
-                    }
-                    if(get_pc() > instruction_size-1) on_exit();
-                });
+            memory.update_displays();
+            registers.update_table();
+            flags.update_table();
 
-                thread.start();
-            }
+            thread.setOnStart(()=>{
+                const get_pc = () => registers.get('pc');
+                while((get_pc() < instruction_size)){
+                    if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
+                    if(!thread.active) break; // the thread is paused
+                    arm_code[get_pc()]();
+                }
+                if(get_pc() > instruction_size-1) on_exit();
+            });
+
+            thread.start();
+        }
 
             // run(arm_code);
 
