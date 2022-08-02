@@ -117,4 +117,4 @@ def arm(request):
         "description":"This is an emulator of ARM Assembly written in javascript. Write your own programs and inspect what going on behind the curtain (registers, memory, flags).",
         "image":"sketches/arm.png"
     }
-    return render(request, "sketches/arm.html", context=meta)
+    return render(request, "sketches/arm_p.html", context=meta)
