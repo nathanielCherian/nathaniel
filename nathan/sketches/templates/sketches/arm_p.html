@@ -1,0 +1,1072 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% include 'snippets/meta.html'%}
+</head>
+<body>
+    
+    <!-- <textarea id="arm-code"></textarea> -->
+
+    <div id="system-info">
+
+        <div id="heap" class="box">
+            <div class="title">Heap</div>
+            <div id="heap-content">
+                <table id="heap-table">
+                    <tr>
+                        <th>Address</th>
+                        <th>Value</th>
+                    </tr>
+                    
+                    <tbody id="heap-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="stack" class="box">
+            <div class="title">Stack</div>
+            <table id="stack-table">
+                <tr>
+                    <th>Address</th>
+                    <th>Value</th>
+                </tr>
+                
+                <tbody id="stack-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="registers" class="box">
+            <div class="title">Registers</div>
+            <table id="registers-table">
+                <tr>
+                    <th>Register</th>
+                    <th>Value</th>
+                </tr>
+                
+                <tbody id="registers-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="flags" class="box">
+            <div class="title">Flags</div>
+            <table id="flags-table">
+                <tr>
+                    <th>Flag</th>
+                    <th>Value</th>
+                </tr>
+                
+                <tbody id="flags-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="out-buf" class="box">
+            <div class="title">Output Buffer</div>
+            <textarea readonly="true" id="out-buf-content"></textarea>
+        </div>
+
+        <div id="code-section" class="box">
+            <div class="title">ARM Code</div>
+            <textarea id="code-input" spellcheck="false"></textarea>
+            <button id="code-submit">Run</button>
+            <button id="code-submit__debug">Debug</button>
+            <button id="code-step" hidden="true">Step</button>
+        </div>
+
+    </div>
+
+</body>
+
+<script>
+    const COLOR_PALLETE = ['#400000','#400000','#400900','#234000','#004000','#004000','#004000','#000d40','#000040','#000040','#000040','#000040','#280040','#400003','#400000','#000000','#540000','#540000','#541d00','#375400','#005400','#005400','#005402','#002154','#000054','#000054','#000054','#000054','#3c0054','#540017','#540000','#0d0d0d','#680000','#680000','#683100','#4b6800','#006800','#006800','#006816','#003568','#001168','#000068','#000068','#000068','#500068','#68002b','#680000','#212121','#7c0000','#7c0000','#7c4500','#5f7c00','#0b7c00','#007c00','#007c2a','#00497c','#00257c','#00007c','#00007c','#10007c','#64007c','#7c003f','#7c0000','#353535','#900000','#900400','#905900','#739000','#1f9000','#009000','#00903e','#005d90','#003990','#000090','#000090','#240090','#780090','#900053','#900000','#494949','#a40000','#a41800','#a46d00','#87a400','#33a400','#00a400','#00a452','#0071a4','#004da4','#0000a4','#0000a4','#3800a4','#8c00a4','#a40067','#a40013','#5d5d5d','#b80000','#b82c00','#b88100','#9bb800','#47b800','#00b800','#00b866','#0085b8','#0061b8','#000db8','#0000b8','#4c00b8','#a000b8','#b8007b','#b80027','#717171','#cc0000','#cc4000','#cc9500','#afcc00','#5bcc00','#06cc00','#00cc7a','#0099cc','#0075cc','#0021cc','#0c00cc','#6000cc','#b400cc','#cc008f','#cc003b','#858585','#e00000','#e05400','#e0a900','#c3e000','#6fe000','#1ae000','#00e08e','#00ade0','#0089e0','#0035e0','#2000e0','#7400e0','#c800e0','#e000a3','#e0004f','#999999','#f41414','#f46814','#f4bd14','#d7f414','#83f414','#2ef414','#14f4a2','#14c1f4','#149df4','#1449f4','#3414f4','#8814f4','#dc14f4','#f414b7','#f41463','#adadad','#ff2828','#ff7c28','#ffd128','#ebff28','#97ff28','#42ff28','#28ffb6','#28d5ff','#28b1ff','#285dff','#4828ff','#9c28ff','#f028ff','#ff28cb','#ff2877','#c1c1c1','#ff3c3c','#ff903c','#ffe53c','#ffff3c','#abff3c','#56ff3c','#3cffca','#3ce9ff','#3cc5ff','#3c71ff','#5c3cff','#b03cff','#ff3cff','#ff3cdf','#ff3c8b','#d5d5d5','#ff5050','#ffa450','#fff950','#ffff50','#bfff50','#6aff50','#50ffde','#50fdff','#50d9ff','#5085ff','#7050ff','#c450ff','#ff50ff','#ff50f3','#ff509f','#e9e9e9','#ff6464','#ffb864','#ffff64','#ffff64','#d3ff64','#7eff64','#64fff2','#64ffff','#64edff','#6499ff','#8464ff','#d864ff','#ff64ff','#ff64ff','#ff64b3','#fdfdfd','#ff7878','#ffcc78','#ffff78','#ffff78','#e7ff78','#92ff78','#78ffff','#78ffff','#78ffff','#78adff','#9878ff','#ec78ff','#ff78ff','#ff78ff','#ff78c7','#ffffff','#ff8c8c','#ffe08c','#ffff8c','#ffff8c','#fbff8c','#a6ff8c','#8cffff','#8cffff','#8cffff','#8cc1ff','#ac8cff','#ff8cff','#ff8cff','#ff8cff','#ff8cdb','#ffffff']
+    const BIT_SIZE = 32; // nevermind, some functionality is only for 32 bit (memory storage)
+    const MAX_MEM = 2**32 - 1;
+    const RANGE = [-1*2**31,2**31-1];
+
+    const STACK_HEAD = 0x000186a0;
+    if(STACK_HEAD > MAX_MEM) console.log("Stack head is too high!");
+
+
+    const to_twos_c = (d) => (~d + 1 >>> 0);
+    const full_twos_c = (d) => d<0 ? to_twos_c(-d) : d;
+    const to_hex = (d, pad) => ("0x" + d.toString(16).padStart(pad, '0'));
+    const to_color = (v) => {
+        return `${COLOR_PALLETE[v]}40`
+    }
+    const create_mem_row = (addr, val, ...args) => {
+        return `
+                <tr class="code-font">
+                    <td>${to_hex(addr, 8)}</td>
+                    <td style="background-color:${to_color(val)}">${to_hex(val, 2)}</td>
+                    ${args.join("")}
+                </tr>
+            `
+    }
+    const grv = (val, opt) => {
+        if (opt == '%d') return val;
+        if (opt == '%x') return to_hex(val, 8);
+        if (opt == '%c') return String.fromCharCode(val);
+    }
+
+
+    const thread = new function Thread() {
+        this.active = true;
+        this.pause = () => {
+            this.active = false;
+        }
+
+        this.unpause = () => {
+            this.active = true;
+            this.start();
+        }
+
+        this.setOnStart = (start) => {
+            this.start = start;
+        }
+    }
+
+
+    const out_buf = new function Buffer() {
+        this.display = document.getElementById('out-buf-content');
+        this.buf = [];
+        this.input = [];
+
+        this.locked = false
+
+        this.write = (d) => {
+            if (this.locked) return;
+            this.buf.push(d);
+            this.update_display();
+        }
+        this.get = () => {
+            return this.buf.join("") + this.input.join("");
+        }
+        
+        this.update_display = () => {
+            this.display.innerHTML = this.get();
+        }
+        
+        this.get_input_char = (n) =>{
+            if(n >= this.input.length) console.warn("Attempting to read non-existent chars");
+            return this.input[n] || '';
+        }
+
+        this.clearInput = () => {
+            this.buf.push(...this.input)
+            this.input = [];
+            this.update_display();
+        }
+
+        this.start_input = (callback) => {
+            thread.pause();
+            this.display.onkeyup = (e) => {
+                if(e.key == 'Backspace') {
+                    this.input.pop();
+                } else if(e.key == 'Enter'){
+                    this.input.push('\n');
+                    callback();
+                    this.clearInput();
+                    this.display.onkeyup = ()=>{};
+                    thread.unpause();
+                } else {
+                    this.input.push(e.key);
+                }
+                this.update_display();
+            };
+        }
+
+        this.end = (message) => {
+            this.write(message)
+            this.locked = true;
+        }
+
+        this.reset = () => {
+            this.buf = []
+            this.input = []
+            this.locked = false
+            this.update_display()
+        }
+
+    }
+
+
+    const heap = new function Heap() {
+        this.heap_table = document.getElementById('heap-body');
+        this.start = STACK_HEAD+1;
+        this.heap = [];
+        this.bins = {};
+
+        this.checkAddr = (idx) => {
+            if(idx < 0 || idx >= this.heap.length) throw new Error("Invalid heap address");
+        }
+        
+        this.set_byte = (addr, val) => {
+            const idx = addr - this.start;
+            this.checkAddr(idx);
+            this.heap[idx] = val;
+            this.update_display();
+        }
+        
+        this.load_byte = (addr) => {
+            const idx = addr - this.start;
+            this.checkAddr(idx);
+            return this.heap[idx];
+        }
+
+        this.malloc = (size) => {
+            const addr = this.heap.length; //this.heap.reduce((acc, cur) => acc + cur.length, this.start);
+            this.heap.push(...Array(size).fill(0));
+            this.bins[addr] = size;
+            this.update_display();
+            return addr + this.start;
+        }
+
+        this.update_display = () => {
+            this.heap_table.innerHTML = Object.entries(this.bins).map(([addr, size]) => {
+               return this.heap.slice(addr, addr+size).map((v, i) => {
+                        return create_mem_row(this.start+parseInt(addr)+i, v)
+                    }).join("")
+            }).join("<hr>");
+        }
+
+        this.reset = () => {
+            this.start = STACK_HEAD+1;
+            this.heap = [];
+            this.bins = {};
+            this.update_display()
+        }
+    }
+
+
+    const stack = new function Stack() {
+        this.stack_table = document.getElementById("stack-body");
+        this.head = STACK_HEAD;
+        this.stack = [];
+
+        this.heap = [];
+        this.heap_start = STACK_HEAD+1;
+        this.bin_size = 100;
+
+        this.checkAddr = (addr) => {
+            if(addr < 0x0 || addr > STACK_HEAD) {
+                throw Error(`SEGMENTATION FAULT: Address '${addr}' out of bounds `);
+                return false;
+            }
+            return true;
+        }
+
+        this.load_byte = (addr) => {
+            if(!this.checkAddr(addr)) return;
+            const r = this.head - addr;
+            return r >= this.stack.length ? 0 : this.stack[r];
+        }
+
+
+        this.set_byte = (addr, val) => {
+            if(!this.checkAddr(addr)) return;
+            const r = this.head - addr;
+            const size_difference = Math.max(r - this.stack.length, 0);
+            this.stack.push(...Array(size_difference).fill(0));
+            this.stack[r] = val;
+            this.update_display();
+        }
+
+        this.update_display = function() {
+            this.stack_table.innerHTML = "";
+            const sp = registers.get('sp');
+            const fp = registers.get('fp');
+            this.stack_table.innerHTML = this.stack.map((v, i) => {
+                const addr = this.head - i;
+                // style="background-color:#${to_hex(v*256,6).substring(2)}
+                return create_mem_row(
+                    this.head-i, 
+                    v, 
+                    addr === sp ? `<td>SP</td>` : "",
+                    addr === fp ? `<td>FP</td>` : "")
+            }).join('');
+        }
+
+        this.getHead = function() {
+            return this.head;
+        }
+
+        this.reset = function() {
+            this.head = STACK_HEAD;
+            this.stack = [];
+            this.heap = [];
+            this.heap_start = STACK_HEAD+1;
+            this.bin_size = 100;
+            this.update_display()
+        }
+        
+    }
+    
+    const memory = new function Memory() {
+
+        this.stack_cutoff = stack.head;
+
+        this.stack = stack;
+        this.heap = heap;
+
+        this.set_byte = function(addr, val) {
+            if(addr <= this.stack_cutoff) {
+                this.stack.set_byte(addr, val);
+            } else {
+                this.heap.set_byte(addr, val);
+            }
+        }
+        this.load_byte = function(addr) {
+            if(addr <= this.stack_cutoff) return this.stack.load_byte(addr)
+            return this.heap.load_byte(addr);
+        }
+
+        this.load_4_bytes = function(addr) {
+            return 0x0 |
+                this.load_byte(addr) << 24 |
+                this.load_byte(addr-1) << 16 |
+                this.load_byte(addr-2) << 8 |
+                this.load_byte(addr-3);
+        }
+
+        this.set_4_bytes = function(addr, val) {
+            const fin = full_twos_c(val);
+            const p1 = (fin & 0xff000000) >>> 24;
+            const p2 = (fin & 0x00ff0000) >>> 16;
+            const p3 = (fin & 0x0000ff00) >>> 8;
+            const p4 = (fin & 0x000000ff);
+
+            this.set_byte(addr,   p1);
+            this.set_byte(addr-1, p2);
+            this.set_byte(addr-2, p3);
+            this.set_byte(addr-3, p4);
+        }
+
+        this.getStackHead = function() {
+            return stack.getHead();
+        }
+
+        this.malloc = function(size) {
+            return this.heap.malloc(size);
+        }
+
+        this.update_displays = function() {
+            this.heap.update_display();
+            this.stack.update_display();
+        }
+
+        this.reset = function() {
+            this.heap.reset()
+            this.stack.reset()
+        }
+    }
+
+    const registers = new function Registers() {
+        this.registers_table = document.getElementById("registers-body");
+        this.registers = new Array(16).fill(0);
+        this.register_lookup = {
+            'r0':0,
+            'r1':1,
+            'r2':2,
+            'r3':3,
+            'r4':4,
+            'r5':5,
+            'r6':6,
+            'r7':7,
+            'r8':8,
+            'r9':9,
+            'r10':10,
+            'fp':11,
+            'r12':12,
+            'sp':13,
+            'lr':14,
+            'pc':15,
+            'r11':11,
+            'r13':13,
+            'r14':14,
+            'r15':15,
+        }
+        this.get = function(register) {
+            return this.registers[this.register_lookup[register]];
+        }
+        this.safe_get = function(possibly_register) { // could be a number value
+            return possibly_register.startsWith('#') ? parseInt(possibly_register.substr(1)) : this.get(possibly_register);
+        }
+        this.set = function(register, value) {
+            this.registers[this.register_lookup[register]] = value;
+            this.update_table();
+        }
+        this.increment = function(){ // incrementing program counter
+            this.registers[15]++;
+            this.update_table();
+        }
+        this.update_table = function() {
+            this.registers_table.innerHTML = Object.keys(this.register_lookup).slice(0,15).map((r, i) => {
+                return `<tr class="code-font">
+                            <td>${r}</td>
+                            <td>${to_hex(full_twos_c(this.registers[i]), 8)}</td>
+                        </tr>`;
+            }).join('');
+        }
+
+        this.reset = function() {
+            this.registers = new Array(16).fill(0);
+            this.update_table()
+        }
+    }
+
+    const flags = new function Flags() {
+        this.flags_table = document.getElementById("flags-body");
+        this.flags = {
+            'Z':0,
+            'N':0,
+            'C':0,
+            'V':0,
+        }
+        this.get = function(flag) {
+            return this.flags[flag.toUpperCase()];
+        }
+        this.set = function(flag, value) {
+            this.flags[flag.toUpperCase()] = value;
+            this.update_table();
+        }
+
+        this.update_table = function() {
+            this.flags_table.innerHTML = Object.entries(this.flags).map(([k, v]) => {
+                return `<tr class="code-font">
+                            <td>${k}</td>
+                            <td>${v}</td>
+                        </tr>`;
+            }).join('');
+        }
+
+        this.reset = function() {
+            this.flags = {
+                'Z':0,
+                'N':0,
+                'C':0,
+                'V':0,
+            }
+            this.update_table()
+        }
+    }
+
+    // create_regex
+    const cr = (...args) => new RegExp(args.join(''), 'i');
+    // regex lookup
+    const rl = {
+        REGISTER:'r[0-9]|r1[0-5]|fp|sp|lr|pc',
+        REGISTER_RANGE:'(?:r[0-9]|r1[0-5]|fp|sp|lr|pc)-(?:r[0-9]|r1[0-5]|fp|sp|lr|pc)',
+        REGISTER_OR_NUM:'r[0-9]|r1[0-5]|fp|sp|lr|pc|#-?\\d+',
+        STRING:'"([^"]*)"',
+        DIRECTIVE:'(\\.asciz|\\.ascii)',
+        COMMA_SEPERATOR:'\\s*,\\s*',
+        COLON_SEPERATOR:'\\s*:\\s*',
+        LABEL:'[a-zA-Z0-9_]+',
+        STARTLINE:'^',
+        ENDLINE:'$',
+        ANY_WHITESPACE:'\\s*',
+        ANY_NUMBER:'\\d+\\s*',
+        GROUP:(...args) => `(?:${args.join('')})`,
+        CAPTURE:(arg) => `(${arg})`,
+        BRACKET:(...args) => `\\[${args.join('')}\\]`,
+        BRACES:(...args) => `\\{${args.join('')}\\}`,
+        OPTIONAL:(...args) => `(?:${args.join('')})?`,
+        MULTIPLE:(...args) => `(?:${args.join('')})*`,
+        OR:(...args) => `${args.join('|')}`,
+    }
+
+    const instruction_regex = {
+        'LABEL':cr(rl.STARTLINE, rl.CAPTURE(rl.LABEL), rl.COLON_SEPERATOR, rl.OPTIONAL(rl.DIRECTIVE, rl.ANY_WHITESPACE, rl.STRING), rl.ENDLINE),
+        'MOV':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+        'ADD':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+        'SUB':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+        'CMP':cr(`(${rl.REGISTER})`, rl.COMMA_SEPERATOR, `(${rl.REGISTER_OR_NUM})`, rl.ENDLINE),
+        'BX':cr(`(${rl.REGISTER})`, rl.ENDLINE),
+        'B':cr(`(${rl.LABEL})`, rl.ENDLINE),
+        'STR':cr(
+            `(${rl.REGISTER})`, 
+            rl.COMMA_SEPERATOR, 
+            rl.BRACKET(
+                rl.ANY_WHITESPACE, 
+                `(${rl.REGISTER})`,
+                rl.OPTIONAL(
+                    rl.COMMA_SEPERATOR,
+                    `(${rl.REGISTER_OR_NUM})`,
+                ),
+                rl.ANY_WHITESPACE,
+            ), 
+            rl.ENDLINE
+        ),
+        'STRB':"", // temp
+        'LDR':cr(
+            `(${rl.REGISTER})`, 
+            rl.COMMA_SEPERATOR,
+            rl.GROUP(
+                rl.OR(
+                    rl.BRACKET(
+                        rl.ANY_WHITESPACE, 
+                        `(${rl.REGISTER})`,
+                        rl.OPTIONAL(
+                            rl.COMMA_SEPERATOR,
+                            `(${rl.REGISTER_OR_NUM})`,
+                        ),
+                        rl.ANY_WHITESPACE,
+                    ),
+                    rl.CAPTURE(
+                        rl.ANY_WHITESPACE+
+                        '='+
+                        rl.LABEL
+                    )
+                )
+            ),
+            rl.ENDLINE
+        ),
+        'PUSH':cr(rl.BRACES("(", 
+            rl.MULTIPLE(
+                rl.OR(
+                    rl.REGISTER.replace('|sp', ''),
+                    rl.ANY_WHITESPACE,
+                    '-',
+                    ','
+                )
+            ),
+        ")")),
+        "POP":"" // temp
+    }
+    instruction_regex.STRB = instruction_regex.STR;
+    instruction_regex.POP = instruction_regex.PUSH;
+    console.log(instruction_regex.LDR);
+
+    const base_labels = {
+        'write':()=>{
+            // arg1: instruction code  STDOUT (1)
+            // arg2: pointer to buffer
+            // arg3: number of bytes to print out
+            // returns: number of bytes printed or -1 if error
+            const arg1 = registers.get('r0');
+            const arg2 = registers.get('r1');
+            const arg3 = registers.get('r2');
+            if(arg1 != 1) throw new Error("Instruction code incorrect");
+            for(let i = 0; i < arg3; i++) {
+                const c = memory.load_byte(arg2+i);
+                out_buf.write(String.fromCharCode(c));
+            }
+            registers.increment();
+        },
+        'read':()=>{
+            // arg1: instruction code STDIN (0)
+            // arg2: pointer to buffer
+            // arg3: bytes to read
+
+            const arg1 = registers.get('r0');
+            const arg2 = registers.get('r1');
+            const arg3 = registers.get('r2');
+            if(arg1 != 0) throw new Error("Instruction code incorrect")
+            
+            out_buf.start_input(()=>{
+                for(let i=0; i<arg3; i++) {
+                    const char = out_buf.get_input_char(i);
+                    memory.set_byte(arg2+i, char.charCodeAt(0));
+                }
+            });
+
+            registers.increment();
+        },
+        'printf':()=>{
+            // arg1: memory location of beginning of string
+            // arg2-argX: printf format string
+            // returns: number of bytes printed or -1 if error
+            const chars = [];
+            while(memory.load_byte(registers.get('r0')) != 0) {
+                chars.push(String.fromCharCode(memory.load_byte(registers.get('r0'))));
+                registers.set('r0', registers.get('r0')+1);             
+            }
+            
+            const s = chars.reduce((acc, cur)=>{
+                const [s, i] = acc;
+                const full = s+cur;
+                const match = full.match(/%(d|c|x)/);
+                const final = (match == null) ? [full,i] : [full.replace(match[0], grv(registers.registers[i], match[0])), i+1];
+                return final;
+            }, ["", 1]);
+
+
+            out_buf.write(s[0]);
+            registers.increment();
+        }
+    };
+
+    var used_labels = {...base_labels};
+
+    const handle_directive = (label, directive, data) => {
+        if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
+        if(directive == '.asciz') {
+            const addr = memory.malloc(data.length+1);
+            used_labels[label] = () => addr;
+            data.replaceAll('\\n', '\n')
+                .replaceAll('\\t', '\t')
+                .split('').map((c, i) => {
+                memory.set_byte(addr+i, c.charCodeAt(0));
+            });
+        }
+        return ()=>registers.increment();
+    }
+
+    const create_label_func = (label, i) => {
+        if(used_labels[label] !== undefined) throw new Error(`Label '${label}' already used`);
+        used_labels[label] = () => {
+            registers.set('pc', i);
+        };
+        console.log(label)
+        return () => registers.increment();
+    }
+
+    const instruction_base = {
+        BRANCH: (condition, op, inst) => {
+            if(condition) {
+                const reg = instruction_regex.B;
+                const [, label] = op.match(reg);
+                if(!used_labels[label]) throw new Error(`Label '${label}' not found`);
+                console.log(inst+' ');
+                used_labels[label]();
+                return;
+            }
+            registers.increment();
+        },
+        STACK: (regs, regFunc) => {
+            regs.split(',').forEach((r) => {
+                if(r.trim() === '') throw new Error('Invalid stack operation');
+                if(r.length <= 3) {
+                    regFunc(registers.register_lookup[r]);
+                } else {
+                    const [r1, r2] = r.split('-');
+                    const start = registers.register_lookup[r1.trim()];
+                    const end = registers.register_lookup[r2.trim()];
+                    if(start >= end) throw new Error("Invalid Range");
+                    registers.registers.slice(start, end+1).forEach((r, i) => {
+                        regFunc(start+i);
+                    });
+                }
+            });
+            memory.update_displays();
+        }
+    }
+
+    const instruction_lookup = {
+        'MOV':(op)=>{
+            const reg = instruction_regex.MOV;
+            const [, dst, src] = op.match(reg);
+            console.log('mov ', dst, src);
+            const src_val = registers.safe_get(src);
+            registers.set(dst, src_val);
+            registers.increment();
+        },
+        'ADD':(op)=>{
+            const reg = instruction_regex.ADD;
+            const [, dst, src1, src2] = op.match(reg);
+            console.log('add ', dst, src1, src2);
+            const src1_val = registers.get(src1); // will always be register
+            const src2_val = registers.safe_get(src2); // could be a literal value
+            registers.set(dst, src1_val + src2_val);
+            registers.increment();
+        },
+        'SUB':(op)=>{
+            const reg = instruction_regex.SUB;
+            const [, dst, src1, src2] = op.match(reg);
+            console.log('sub ', dst, src1, src2);
+            const src1_val = registers.get(src1); // will always be register
+            const src2_val = registers.safe_get(src2); // could be a literal value
+            registers.set(dst, src1_val - src2_val);
+            registers.increment();
+        },
+        'CMP':(op)=>{
+            const reg = instruction_regex.CMP;
+            const [, src1, src2] = op.match(reg);
+            console.log('cmp ', src1, src2);
+            const src1_val = registers.get(src1); // will always be register
+            const src2_val = registers.safe_get(src2); // could be a literal value
+            const s = src1_val - src2_val;
+            // console.log(src1_val.toString(10), src2_val.toString(10), s.toString(10));
+            flags.set('Z', +(s === 0));
+            flags.set('N', +(s < 0));
+            flags.set('C', 0); // hardcode 0 for now
+            flags.set('V', +(s <= RANGE[0] || s >= RANGE[1]));
+            registers.increment();
+        },
+        'STR':(op)=>{
+            const reg = instruction_regex.STR;
+            const [, src, dst, offset] = op.match(reg);
+            console.log('str ', src, dst, offset);
+            const final_dst = registers.get(dst) + 
+                            (offset ? registers.safe_get(offset) : 0);
+            memory.set_4_bytes(final_dst, registers.get(src));
+            registers.increment();
+        },
+        'STRB':(op)=>{
+            const reg = instruction_regex.STRB;
+            const [, src, dst, offset] = op.match(reg);
+            console.log('strb ', src, dst, offset);
+            const final_dst = registers.get(dst) + 
+                            (offset ? registers.safe_get(offset) : 0);
+            memory.set_byte(final_dst, registers.get(src)&0x000000ff);
+            registers.increment();
+        },
+        'LDR':(op)=>{
+            const reg = instruction_regex.LDR;
+            const [, dst, src, offset, directive] = op.match(reg);
+            console.log('ldr ', dst, src, offset, directive);
+            if(directive) {
+                console.log(dst, directive)
+                registers.set(dst, used_labels[directive.slice(1)]());
+            } else {
+                const addr = registers.get(src) + 
+                            (offset ? registers.safe_get(offset) : 0);
+                registers.set(dst, memory.load_4_bytes(addr));
+            }
+
+            registers.increment();
+        },
+        'PUSH':(op)=> {
+            const reg = instruction_regex.PUSH;
+            const [, src] = op.match(reg);
+            instruction_base.STACK(src, (r) => {
+                registers.set('sp', registers.get('sp') - 4);
+                memory.set_4_bytes(registers.get('sp'), registers.registers[r]);
+            });
+            registers.increment();
+        },
+        'POP':(op)=> {
+            const reg = instruction_regex.POP;
+            const [, dst] = op.match(reg);
+            console.log('pop ', dst);
+            instruction_base.STACK(dst, (r) => {
+                const sp = registers.get('sp');
+                registers.registers[r] = memory.load_4_bytes(sp);
+                registers.set('sp', sp + 4);
+            });
+            registers.increment();
+        },
+        'BX':(op)=>{
+            const reg = instruction_regex.BX;
+            const [, src] = op.match(reg);
+            const src_val = registers.get(src);
+            console.log('bx ', src);
+            registers.set('pc', src_val);
+        },
+        'B':(op)=>{
+            instruction_base.BRANCH(true, op, 'b');
+        },
+        'BL':(op)=>{
+            registers.set('lr', registers.get('pc')+1);
+            instruction_base.BRANCH(true, op, 'bl');
+        },
+        'BEQ':(op)=>{
+            instruction_base.BRANCH(flags.get('Z')==1, op, 'beq');
+        },
+        'BNE':(op)=>{
+            instruction_base.BRANCH(flags.get('Z')==0, op, 'bne');
+        },
+        'BGE':(op)=>{
+            instruction_base.BRANCH(flags.get('N')==flags.get('V'), op, 'bge');
+        },
+        'BLT':(op)=>{
+            instruction_base.BRANCH(flags.get('N')!=flags.get('V'), op, 'blt');
+        },
+        'BGT':(op)=>{
+            instruction_base.BRANCH(flags.get('Z')==0 && flags.get('N')==flags.get('V'), op, 'bgt');
+        },
+        'BLE':(op)=>{
+            instruction_base.BRANCH(flags.get('Z')==1 || flags.get('N')!=flags.get('V'), op, 'ble');
+        },
+    }
+    const instruction_set = Object.keys(instruction_lookup);
+    const instruction_reg = new RegExp(`^(${instruction_set.join('|')})\\s(.+)`, 'i');
+
+    console.log(instruction_reg)
+
+    const on_exit = () => {
+        const out_val = registers.get('r0');
+        console.log("done with program", out_val);
+        out_buf.end(`\nfinished with exit status '${out_val}'`)
+        document.getElementById('code-step').hidden = true
+    }
+
+
+    function full_reset(){
+        used_labels = {...base_labels}
+        memory.reset()
+        registers.reset()
+        flags.reset()
+        out_buf.reset()
+    }
+
+    // CODE INPUT SECTION
+
+    const code_input = document.getElementById("code-input")
+    code_input.value = localStorage.getItem('arm-code')
+
+
+    const fib_loop = 'response: .asciz "Fib #%d: %d\\n"\n\nmain: \n    push {lr}\n\nmov r3, #1\nmov r4, #11\n\nmov r5, #1\nmov r6, #1\n\nfib_loop:\n    bl print_num\n\n    mov r7, r6\n    add r6, r5, r6\n    mov r5, r7\n\n    add r3, r3, #1\n    cmp r3, r4\n    blt fib_loop\n \n    mov r0, #0\n    pop {pc}\n\nprint_num:\n    ldr r0, =response\n    mov r1, r3\n    mov r2, r6\n    push {lr}\n    bl printf\n    pop {lr}\n    bx lr'
+
+    if (code_input.value == 0) {
+        code_input.value = fib_loop
+//         code_input.value =`
+// prompt: .asciz "Type a character: "
+// response: .asciz "you said: %c"
+
+// main: 
+//     push {lr}
+
+//     ldr r0, =prompt
+//     bl printf
+
+//     mov r0, #65
+
+//     mov r0, #0
+//     sub r1, sp, #7
+//     mov r2, #1
+//     bl read
+
+//     ldr r0, =response
+//     ldr r1, [sp, #-4]
+//     bl printf
+
+//     mov r0, #1
+
+//     pop {pc}
+// `
+    }
+
+    document.getElementById("code-input").oninput = (e) => {
+        const s = document.getElementById('code-input').value
+        localStorage.setItem('arm-code', s)
+
+    }
+
+    function execute_program(debug){
+        full_reset()
+        const arm_code = document.getElementById("code-input").value
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0)
+            .map((line, i) => { // change this to map later
+                const instruction_match = line.match(instruction_reg);
+                if(instruction_match){
+                    const [,instruction, operand] = instruction_match;
+                    return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+                }
+                const label_match = line.match(instruction_regex.LABEL);
+                if(label_match){
+                    const [,label, directive, data] = label_match;
+                    if(directive && data) return handle_directive(label, directive, data);
+                    return create_label_func(label.trim(), i);
+                }
+                throw new Error(`Invalid instruction: '${line}'`);
+            });
+            run(arm_code, debug)
+    }
+
+    document.getElementById("code-submit__debug").onclick = (e) => {
+        document.getElementById('code-step').hidden = false
+        execute_program(true)
+    }
+
+    document.getElementById("code-submit").onclick = (e) => {
+        // When run button is clicked...
+        document.getElementById('code-step').hidden = true
+        execute_program(false)
+
+        // full_reset()
+        // const arm_code = document.getElementById("code-input").value
+        //     .split('\n')
+        //     .map((line) => line.trim())
+        //     .filter((line) => line.length > 0)
+        //     .map((line, i) => { // change this to map later
+        //         const instruction_match = line.match(instruction_reg);
+        //         if(instruction_match){
+        //             const [,instruction, operand] = instruction_match;
+        //             return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+        //         }
+        //         const label_match = line.match(instruction_regex.LABEL);
+        //         if(label_match){
+        //             const [,label, directive, data] = label_match;
+        //             if(directive && data) return handle_directive(label, directive, data);
+        //             return create_label_func(label.trim(), i);
+        //         }
+        //         throw new Error(`Invalid instruction: '${line}'`);
+        //     });
+        
+        // e.target.disabled = true;
+        // // console.log(arm_code)
+
+        // run(arm_code)
+    };
+    
+
+    // const arm_code = `
+
+    // prompt: .asciz "Type a character: "
+    // response: .asciz "you said: %c"
+
+    // main: 
+    //     push {lr}
+
+    //     ldr r0, =prompt
+    //     bl printf
+
+    //     mov r0, #65
+
+    //     mov r0, #0
+    //     sub r1, sp, #7
+    //     mov r2, #1
+    //     bl read
+
+    //     ldr r0, =response
+    //     ldr r1, [sp, #-4]
+    //     bl printf
+
+    //     mov r0, #1
+
+    //     pop {pc}
+        
+    // `.split('\n')
+    //     .map((line) => line.trim())
+    //     .filter((line) => line.length > 0)
+    //     .map((line, i) => { // change this to map later
+    //         const instruction_match = line.match(instruction_reg);
+    //         if(instruction_match){
+    //             const [,instruction, operand] = instruction_match;
+    //             return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+    //         }
+    //         const label_match = line.match(instruction_regex.LABEL);
+    //         if(label_match){
+    //             const [,label, directive, data] = label_match;
+    //             if(directive && data) return handle_directive(label, directive, data);
+    //             return create_label_func(label.trim(), i);
+    //         }
+    //         throw new Error(`Invalid instruction: '${line}'`);
+
+    //     });
+
+
+    function run(arm_code, debug) {
+
+        const instruction_size = arm_code.length;
+        registers.set('fp', memory.getStackHead()); // setting frame pointer to top of stack
+        registers.set('sp', memory.getStackHead());
+        registers.set('lr', instruction_size); // setting link register to the end of the code
+
+        memory.update_displays();
+        registers.update_table();
+        flags.update_table();
+
+        thread.setOnStart(()=>{
+            const get_pc = () => registers.get('pc');
+
+            if(debug){
+                document.getElementById("code-step").onclick = function(e){
+                    const pc_ = get_pc()
+                    if(pc_ > instruction_size-1) return on_exit();
+                    if(pc_ < 0) throw new Error(`PC out of bounds...`); // weird case
+                    if (!thread.active) return
+                    arm_code[pc_]()
+                    // console.log(e)
+                } 
+            } else {
+                while((get_pc() < instruction_size)){
+                    if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
+                    if(!thread.active) break; // the thread is paused
+                    arm_code[get_pc()]();
+                }
+                if(get_pc() > instruction_size-1) on_exit();
+            }
+
+            // const get_pc = () => registers.get('pc');
+            // document.getElementById("code-step").onclick = function(e){
+            //     const pc_ = get_pc()
+            //     if(pc_ > instruction_size-1) return on_exit();
+            //     if(pc_ < 0) throw new Error(`PC out of bounds...`); // weird case
+            //     if (!thread.active) return
+            //     arm_code[pc_]()
+            //     // console.log(e)
+            // }
+
+            // while((get_pc() < instruction_size)){
+            //     if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
+            //     if(!thread.active) break; // the thread is paused
+            //     arm_code[get_pc()]();
+            // }
+            // if(get_pc() > instruction_size-1) on_exit();
+        });
+
+        thread.start();
+    }
+
+        // run(arm_code);
+
+
+</script>
+
+
+
+
+
+<style>
+    #arm-code {
+        width: 400px;
+        height: 1000px;
+        font-family: monospace;
+        font-size: 14px;
+        background: #f0f0f0;
+    }
+
+    .code-font {
+        font-family: monospace;
+        font-size: 14px;
+    }
+
+    #system-info {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+    }
+
+    .box {
+        margin: 20px;
+    }
+
+    .title {
+        text-align: center;
+    }
+
+    #out-buf-content {
+        width: 300px;
+        height: 400px;
+        border: 1px solid black;
+        padding: 5px;
+    }
+
+    #code-section {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #code-submit {
+        margin-top: 10px;
+    }
+
+    #code-input {
+        width: 300px;
+        height: 400px;
+        border: 1px solid black;
+        padding: 5px;
+    }
+
+</style>
+
+
+</html>
