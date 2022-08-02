@@ -75,6 +75,8 @@
                 <div class="title">ARM Code</div>
                 <textarea id="code-input" spellcheck="false"></textarea>
                 <button id="code-submit">Run</button>
+                <button id="code-submit__debug">Debug</button>
+                <button id="code-step" hidden="true">Step</button>
             </div>
 
         </div>
@@ -792,9 +794,18 @@
             const out_val = registers.get('r0');
             console.log("done with program", out_val);
             out_buf.end(`\nfinished with exit status '${out_val}'`)
+            document.getElementById('code-step').hidden = true
         }
 
   
+        function full_reset(){
+            used_labels = {...base_labels}
+            memory.reset()
+            registers.reset()
+            flags.reset()
+            out_buf.reset()
+        }
+
         // CODE INPUT SECTION
 
         const code_input = document.getElementById("code-input")
@@ -838,14 +849,8 @@
 
         }
 
-        document.getElementById("code-submit").onclick = (e) => {
-
-            used_labels = {...base_labels}
-            memory.reset()
-            registers.reset()
-            flags.reset()
-            out_buf.reset()
-
+        function execute_program(debug){
+            full_reset()
             const arm_code = document.getElementById("code-input").value
                 .split('\n')
                 .map((line) => line.trim())
@@ -864,10 +869,43 @@
                     }
                     throw new Error(`Invalid instruction: '${line}'`);
                 });
-            
-            // console.log(arm_code)
+                run(arm_code, debug)
+        }
 
-            run(arm_code)
+        document.getElementById("code-submit__debug").onclick = (e) => {
+            document.getElementById('code-step').hidden = false
+            execute_program(true)
+        }
+
+        document.getElementById("code-submit").onclick = (e) => {
+            // When run button is clicked...
+            document.getElementById('code-step').hidden = true
+            execute_program(false)
+
+            // full_reset()
+            // const arm_code = document.getElementById("code-input").value
+            //     .split('\n')
+            //     .map((line) => line.trim())
+            //     .filter((line) => line.length > 0)
+            //     .map((line, i) => { // change this to map later
+            //         const instruction_match = line.match(instruction_reg);
+            //         if(instruction_match){
+            //             const [,instruction, operand] = instruction_match;
+            //             return ()=>instruction_lookup[instruction.toUpperCase()](operand.trim());
+            //         }
+            //         const label_match = line.match(instruction_regex.LABEL);
+            //         if(label_match){
+            //             const [,label, directive, data] = label_match;
+            //             if(directive && data) return handle_directive(label, directive, data);
+            //             return create_label_func(label.trim(), i);
+            //         }
+            //         throw new Error(`Invalid instruction: '${line}'`);
+            //     });
+            
+            // e.target.disabled = true;
+            // // console.log(arm_code)
+
+            // run(arm_code)
         };
         
 
@@ -917,7 +955,7 @@
         //     });
 
 
-        function run(arm_code) {
+        function run(arm_code, debug) {
 
             const instruction_size = arm_code.length;
             registers.set('fp', memory.getStackHead()); // setting frame pointer to top of stack
@@ -930,12 +968,41 @@
 
             thread.setOnStart(()=>{
                 const get_pc = () => registers.get('pc');
-                while((get_pc() < instruction_size)){
-                    if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
-                    if(!thread.active) break; // the thread is paused
-                    arm_code[get_pc()]();
+
+                if(debug){
+                    document.getElementById("code-step").onclick = function(e){
+                        const pc_ = get_pc()
+                        if(pc_ > instruction_size-1) return on_exit();
+                        if(pc_ < 0) throw new Error(`PC out of bounds...`); // weird case
+                        if (!thread.active) return
+                        arm_code[pc_]()
+                        // console.log(e)
+                    } 
+                } else {
+                    while((get_pc() < instruction_size)){
+                        if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
+                        if(!thread.active) break; // the thread is paused
+                        arm_code[get_pc()]();
+                    }
+                    if(get_pc() > instruction_size-1) on_exit();
                 }
-                if(get_pc() > instruction_size-1) on_exit();
+
+                // const get_pc = () => registers.get('pc');
+                // document.getElementById("code-step").onclick = function(e){
+                //     const pc_ = get_pc()
+                //     if(pc_ > instruction_size-1) return on_exit();
+                //     if(pc_ < 0) throw new Error(`PC out of bounds...`); // weird case
+                //     if (!thread.active) return
+                //     arm_code[pc_]()
+                //     // console.log(e)
+                // }
+
+                // while((get_pc() < instruction_size)){
+                //     if(get_pc() < 0) throw new Error(`PC out of bounds...`); // weird case
+                //     if(!thread.active) break; // the thread is paused
+                //     arm_code[get_pc()]();
+                // }
+                // if(get_pc() > instruction_size-1) on_exit();
             });
 
             thread.start();
