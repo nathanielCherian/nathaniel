@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Ambigram</title>
+</head>
+<body>
+    
+
+
+    <script>
+        const LETTERS = {
+            "L":[true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,true,true,true,true],
+            "O":[true,true,true,true,true,true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,true,true,true,true,true],  
+            "V":[true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,false,true,false,true,false,false,false,true,false,false],
+            "E":[true,true,true,true,true,true,false,false,false,false,true,true,true,true,false,true,false,false,false,false,true,true,true,true,true],
+            "H":[true,false,false,false,true,true,false,false,false,true,true,true,true,true,true,true,false,false,false,true,true,false,false,false,true],
+            "A":[false,false,true,false,false,false,true,false,true,false,true,true,true,true,true,true,false,false,false,true,true,false,false,false,true],
+            "T":[true,true,true,true,true,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false],
+        }
+
+
+        const print_letter = (letter) => {
+            var s = "";
+            for(var y=0;y<5;y++){
+                for(var x=0; x<5; x++) {
+                    s += letter[5*y + x] ? "*" : " ";
+                }
+                s+="\n"
+            }
+            console.log(s)
+        }
+
+        const word1 = 'LOVE'.toUpperCase();
+        const word2 = 'HATE'.toUpperCase();
+        
+        if (word1.length != word2.length) {
+            throw new Error("words should be the same length")
+        }
+
+        word1.split("").map((l1, i) => {
+            const l2 = word2.charAt(i);
+            const letter = LETTERS[l1];            
+            print_letter(letter);
+        })
+
+        
+    </script>
+
+
+    <!-- <div class="box" id="box">
+        
+    </div>
+    <input type="text" id="letter">
+    <button id="submit">Submit</button>
+
+    <script>
+        for (var i=0; i<25; i++) {
+            const checkBox = document.createElement("input")
+            checkBox.setAttribute("type", "checkbox")
+            checkBox.id = "check-"+i;
+            document.getElementById("box").appendChild(checkBox);
+        }
+
+        document.getElementById("submit").onclick = (e) => {
+            const arr = []
+            for (var i=0; i<25; i++) {
+                const b = document.getElementById("check-"+i).checked
+                arr.push(b);
+            }
+            const letter = document.getElementById("letter").value.toUpperCase();
+            const d = new Object();
+            d[letter] = arr;
+            console.log(JSON.stringify(d).substring(1, JSON.stringify(d).length-1)+",")
+        }
+
+    </script> -->
+    <style>
+        .box {
+            display: grid;
+            grid-template-columns: repeat(5, 100px);
+            grid-template-rows: repeat(5, 100px);           
+        }
+    </style>
+</body>
+</html>
