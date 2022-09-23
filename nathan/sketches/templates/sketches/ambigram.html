@@ -20,13 +20,31 @@
         const GRID_SIZE = 5;
         
         const LETTERS = {
-            "L":[true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,true,true,true,true],
-            "O":[true,true,true,true,true,true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,true,true,true,true,true],  
-            "V":[true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,false,true,false,true,false,false,false,true,false,false],
-            "E":[true,true,true,true,true,true,false,false,false,false,true,true,true,true,false,true,false,false,false,false,true,true,true,true,true],
-            "H":[true,false,false,false,true,true,false,false,false,true,true,true,true,true,true,true,false,false,false,true,true,false,false,false,true],
             "A":[false,false,true,false,false,false,true,false,true,false,true,true,true,true,true,true,false,false,false,true,true,false,false,false,true],
+            "B":[true,true,true,true,false,true,false,false,false,true,true,true,true,true,false,true,false,false,false,true,true,true,true,true,false],
+            "C":[false,true,true,true,false,true,false,false,false,true,true,false,false,false,false,true,false,false,false,true,false,true,true,true,false],
+            "D":[true,true,true,true,false,true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,true,true,true,true,false],
+            "E":[true,true,true,true,true,true,false,false,false,false,true,true,true,true,false,true,false,false,false,false,true,true,true,true,true],
+            "F":[true,true,true,true,true,true,false,false,false,false,true,true,true,true,false,true,false,false,false,false,true,false,false,false,false],
+            "G":[true,true,true,true,true,true,false,false,false,false,true,false,true,true,true,true,false,false,false,true,true,true,true,true,true],
+            "H":[true,false,false,false,true,true,false,false,false,true,true,true,true,true,true,true,false,false,false,true,true,false,false,false,true],            "I":[true,true,true,true,true,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,true,true,true,true,true],
+            "J":[true,true,true,true,true,false,false,false,true,false,false,false,false,true,false,true,false,false,true,false,true,true,true,true,false],
+            "K":[true,false,false,false,true,true,false,false,true,false,true,true,true,false,false,true,false,true,false,false,true,false,false,true,false],
+            "L":[true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,true,true,true,true],
+            "M":[true,false,false,false,true,true,true,false,true,true,true,false,true,false,true,true,false,true,false,true,true,false,true,false,true],
+            "N":[true,false,false,false,true,true,true,false,false,true,true,false,true,false,true,true,false,false,true,true,true,false,false,false,true],
+            "O":[true,true,true,true,true,true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,true,true,true,true,true],  
+            "P":[true,true,true,true,false,true,false,false,false,true,true,true,true,true,false,true,false,false,false,false,true,false,false,false,false],
+            "Q":[false,true,true,true,false,true,false,false,false,true,true,false,true,false,true,true,false,false,true,false,false,true,true,false,true],
+            "R":[true,true,true,true,false,true,false,false,false,true,true,true,true,true,false,true,false,true,false,false,true,false,false,true,false],
+            "S":[true,true,true,true,true,true,false,false,false,false,true,true,true,true,true,false,false,false,false,true,true,true,true,true,true],
             "T":[true,true,true,true,true,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false],
+            "U":[true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,false,true,true,true,false],
+            "V":[true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,false,true,false,true,false,false,false,true,false,false],
+            "W":[true,false,false,false,true,true,false,false,false,true,true,false,true,false,true,true,false,true,false,true,true,true,true,true,true],
+            "X":[true,false,false,false,true,false,true,false,true,false,false,false,true,false,false,false,true,false,true,false,true,false,false,false,true],
+            "Y":[true,false,false,false,true,true,true,false,true,true,false,true,true,true,false,false,false,true,false,false,false,false,true,false,false],
+            "Z":[true,true,true,true,true,false,false,false,false,true,false,true,true,true,false,true,false,false,false,false,true,true,true,true,true],
         }
 
 
@@ -73,8 +91,8 @@
         }
 
 
-        const word1 = 'OVET'.toUpperCase();
-        const word2 = 'TAEH'.toUpperCase();
+        const word1 = 'nathan'.toUpperCase();
+        const word2 = 'coolio'.toUpperCase();
         
         if (word1.length != word2.length) {
             throw new Error("words should be the same length")
@@ -222,11 +240,6 @@
 
     </script> -->
     <style>
-        .box {
-            display: grid;
-            grid-template-columns: repeat(5, 100px);
-            grid-template-rows: repeat(5, 100px);           
-        }
 
         #c {
             width: 100%;

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambigram Helper</title>
+</head>
+<body>
+
+    
+    <div class="box" id="box">
+        
+    </div>
+    <input type="text" id="letter">
+    <button id="submit">Submit</button>
+
+    <script>
+        for (var i=0; i<25; i++) {
+            const checkBox = document.createElement("input")
+            checkBox.setAttribute("type", "checkbox")
+            checkBox.id = "check-"+i;
+            document.getElementById("box").appendChild(checkBox);
+        }
+
+        document.getElementById("submit").onclick = (e) => {
+            const arr = []
+            for (var i=0; i<25; i++) {
+                const b = document.getElementById("check-"+i).checked
+                arr.push(b);
+            }
+            const letter = document.getElementById("letter").value.toUpperCase();
+            const d = new Object();
+            d[letter] = arr;
+            console.log(JSON.stringify(d).substring(1, JSON.stringify(d).length-1)+",")
+        }
+
+    </script>
+    
+    <style>
+        .box {
+            display: grid;
+            grid-template-columns: repeat(5, 100px);
+            grid-template-rows: repeat(5, 100px);           
+        }
+    </style>
+</body>
+</html>
