@@ -4,13 +4,21 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.122.0/examples/js/controls/OrbitControls.js"></script>
     <title>3D Ambigram</title>
 </head>
 <body>
     
+    <canvas id="c" style="width: fi"></canvas>
+
+
 
 
     <script>
+
+        const GRID_SIZE = 5;
+        
         const LETTERS = {
             "L":[true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,false,false,false,false,true,true,true,true,true],
             "O":[true,true,true,true,true,true,false,false,false,true,true,false,false,false,true,true,false,false,false,true,true,true,true,true,true],  
@@ -24,17 +32,49 @@
 
         const print_letter = (letter) => {
             var s = "";
-            for(var y=0;y<5;y++){
-                for(var x=0; x<5; x++) {
-                    s += letter[5*y + x] ? "*" : " ";
+            for(var y=0;y<GRID_SIZE;y++){
+                for(var x=0; x<GRID_SIZE; x++) {
+                    s += letter[GRID_SIZE*y + x] ? "*" : " ";
                 }
                 s+="\n"
             }
             console.log(s)
         }
 
-        const word1 = 'LOVE'.toUpperCase();
-        const word2 = 'HATE'.toUpperCase();
+        // Displays the letter on level 5
+        const create_simple_block = (letter) => {
+            return (new Array(GRID_SIZE*GRID_SIZE*4).fill(false)).concat(letter);
+        }
+
+        const get_vert = (letter, x) => {
+            const vert = new Array(GRID_SIZE).fill(false);
+            for (var y=0; y<GRID_SIZE; y++) {
+                if (letter[y*GRID_SIZE + x]) {
+                    vert[y] = true;
+                }
+            }
+            return vert;
+        }
+        const merge_letters = (l1, l2) => {
+            const block = new Array(125).fill(false);
+            for(var y=0; y<GRID_SIZE;y++){
+                for(var x=0; x<GRID_SIZE; x++) {
+                    const i = GRID_SIZE*y + x;
+                    if (l1[i]) {
+                        const vert = get_vert(l2, x)
+                        for(var z=0; z<vert.length; z++) {
+                            const rev_z = GRID_SIZE-1-z;
+                            block[x + y*GRID_SIZE + rev_z*GRID_SIZE*GRID_SIZE] = vert[z]; 
+                        }
+                    }
+                }
+            }
+            return block;
+        }
+
+
+        const word1 = 'OVET'.toUpperCase();
+        const word2 = 'TAEH'.toUpperCase();
         
         if (word1.length != word2.length) {
             throw new Error("words should be the same length")
@@ -48,6 +88,110 @@
 
         
     </script>
+
+
+<script>
+    function main() {
+        const canvas = document.querySelector('#c');
+        const renderer = new THREE.WebGLRenderer({canvas});
+
+        const fov = 75;
+        const aspect = 2;  // the canvas default
+        const near = 0.1;
+        const far = 30;
+        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+        camera.position.y = 10;
+
+        const controls = new THREE.OrbitControls( camera, renderer.domElement );
+        controls.update();
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x76caf5)
+
+        {
+            const color = 0xFFFFFF;
+            const intensity = 1;
+            const light = new THREE.DirectionalLight(color, intensity);
+            light.position.set(-1, 2, 4);
+            scene.add(light);
+        }
+
+        const boxWidth = 1;
+        const boxHeight = 1;
+        const boxDepth = 1;
+        const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+
+        const placeCube = (x, y, z) => {
+            const material = new THREE.MeshPhongMaterial({color:'red'});
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x, y, z);
+            scene.add(cube);
+        }
+
+        const placeEmpty = (x, y, z) => {
+            const material = new THREE.MeshPhongMaterial({color:'white'});
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x, y, z);
+            scene.add(cube);
+        }
+
+        const render_block = (block, pos) => {
+            for (var z=0; z < GRID_SIZE; z++) {
+                for(var y=0; y < GRID_SIZE;y++){
+                    for(var x=0; x<GRID_SIZE; x++) {
+                        if (block[x + y*GRID_SIZE + z*GRID_SIZE*GRID_SIZE]) {
+                            placeCube(pos*GRID_SIZE + pos + x, z, y);
+                        } else {
+                            // placeEmpty(pos*GRID_SIZE + pos + x, z, y)
+                        }
+                    }
+                }
+            }
+        }
+
+        word1.split("").map((l1, i) => {
+            const l2 = word2.charAt(i);
+            const letter1 = LETTERS[l1];    
+            const letter2 = LETTERS[l2];        
+            // const block = create_simple_block(letter);
+            const block = merge_letters(letter1, letter2)
+            render_block(block, i)
+        })
+        // placeCube(0,0,0)
+
+
+        function resizeRendererToDisplaySize(renderer) {
+            const canvas = renderer.domElement;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const needResize = canvas.width !== width || canvas.height !== height;
+            if (needResize) {
+            renderer.setSize(width, height, false);
+            }
+            return needResize;
+        }
+
+        function render(time) {
+            time *= 0.001;
+
+            if (resizeRendererToDisplaySize(renderer)) {
+            const canvas = renderer.domElement;
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+            }
+
+            renderer.render(scene, camera);
+            controls.update();
+            requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+    }
+
+        main();
+
+</script>
+
 
 
     <!-- <div class="box" id="box">
@@ -83,6 +227,13 @@
             grid-template-columns: repeat(5, 100px);
             grid-template-rows: repeat(5, 100px);           
         }
+
+        #c {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
     </style>
 </body>
 </html>
