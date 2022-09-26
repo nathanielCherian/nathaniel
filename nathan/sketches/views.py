@@ -118,3 +118,11 @@ def arm(request):
         "image":"sketches/arm.png"
     }
     return render(request, "sketches/arm_p.html", context=meta)
+
+def ambigram(request):
+    meta = {
+        "title":"3D Ambigram Generator",
+        "description":"This will generate an 3D ambigram given two different words. From the top view the first word will be seen. From the side the second. It's all about the perspective",
+        "image":"sketches/ambigram.png"
+    }
+    return render(request, "sketches/ambigram.html", context=meta)
