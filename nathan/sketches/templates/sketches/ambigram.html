@@ -10,9 +10,15 @@
 </head>
 <body>
     
-    <canvas id="c" style="width: fi"></canvas>
+    <canvas id="c" ></canvas>
 
-
+    <div class="controls__box">
+        <div class="controls">
+            <input type="text" id="word1" placeholder="word 1" class="input">
+            <input type="text" id="word2" placeholder="word 2" class="input">
+            <button id="submit" class="input">Submit</button>
+        </div>
+    </div>
 
 
     <script>
@@ -45,6 +51,7 @@
             "X":[true,false,false,false,true,false,true,false,true,false,false,false,true,false,false,false,true,false,true,false,true,false,false,false,true],
             "Y":[true,false,false,false,true,true,true,false,true,true,false,true,true,true,false,false,false,true,false,false,false,false,true,false,false],
             "Z":[true,true,true,true,true,false,false,false,false,true,false,true,true,true,false,true,false,false,false,false,true,true,true,true,true],
+            " ": new Array(25).fill(true),
         }
 
 
@@ -91,19 +98,6 @@
         }
 
 
-        const word1 = 'nathan'.toUpperCase();
-        const word2 = 'coolio'.toUpperCase();
-        
-        if (word1.length != word2.length) {
-            throw new Error("words should be the same length")
-        }
-
-        word1.split("").map((l1, i) => {
-            const l2 = word2.charAt(i);
-            const letter = LETTERS[l1];            
-            print_letter(letter);
-        })
-
         
     </script>
 
@@ -112,71 +106,162 @@
     function main() {
         const canvas = document.querySelector('#c');
         const renderer = new THREE.WebGLRenderer({canvas});
+        renderer.shadowMap.enabled = true;
 
         const fov = 75;
-        const aspect = 2;  // the canvas default
+        const aspect = .5;  // the canvas default
         const near = 0.1;
-        const far = 30;
+        const far = 100;
         const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-        camera.position.y = 10;
+        camera.position.y = 30;
+        camera.position.z = -20;
+
+        const PLANE_SIZE = 100;
+        const PLANE_HEIGHT = 50;
+        const l_max = 7;
+        const center = PLANE_SIZE/2;
+        camera.position.x = -center;
 
         const controls = new THREE.OrbitControls( camera, renderer.domElement );
+        controls.target.set( camera.position.x, GRID_SIZE/2, GRID_SIZE/2 );
+        controls.maxDistance = 50;
+        controls.minZoom = 3;
         controls.update();
 
         const scene = new THREE.Scene();
+        scene.rotation.y = Math.PI
         scene.background = new THREE.Color(0x76caf5)
 
-        {
+        function create_light() {
             const color = 0xFFFFFF;
             const intensity = 1;
             const light = new THREE.DirectionalLight(color, intensity);
-            light.position.set(-1, 2, 4);
-            scene.add(light);
+            light.castShadow = true;
+            var side = 100;
+            light.shadow.camera.top = side;
+            light.shadow.camera.bottom = -side;
+            light.shadow.camera.left = side;
+            light.shadow.camera.right = -side;
+            light.lookAt(camera.position.x, GRID_SIZE/2, GRID_SIZE/2)
+            scene.add(light)
+            return light
         }
 
-        const boxWidth = 1;
-        const boxHeight = 1;
-        const boxDepth = 1;
-        const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+        { // top facing light
+            const light = create_light();
+            light.position.set(camera.position.x, 200, 0);
+        }
 
-        const placeCube = (x, y, z) => {
+        {
+            const light = create_light();
+            light.position.set(camera.position.x, 0, 200);
+        }
+
+
+        const space = new THREE.Object3D();
+        scene.add(space)
+
+
+        function create_plane() {
+            const planeSize = PLANE_SIZE;
+
+            const loader = new THREE.TextureLoader();
+            const texture = loader.load('https://r105.threejsfundamentals.org/threejs/resources/images/checker.png');
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.magFilter = THREE.NearestFilter;
+            const repeats = planeSize / 4;
+            texture.repeat.set(repeats, repeats);
+
+            const planeGeo = new THREE.PlaneBufferGeometry(planeSize, PLANE_HEIGHT);
+            const planeMat = new THREE.MeshPhongMaterial({
+                map: texture,
+                side: THREE.DoubleSide,
+            });
+            const mesh = new THREE.Mesh(planeGeo, planeMat);
+            mesh.receiveShadow = true;
+            mesh.receiveShadow = true;
+            scene.add( mesh );
+            return mesh;
+        }
+
+        { // vertical one
+            const plane = create_plane();
+            plane.position.set(center, 0, -PLANE_HEIGHT/2);
+        }
+
+        { // horizontal one
+            const plane = create_plane();
+            plane.position.set(center, -PLANE_HEIGHT/2, 0);
+            plane.rotation.x = Math.PI/2
+        }
+
+
+        const cubes = [];
+        var ind = 0;
+
+        const remove_cubes = () => {
+            while (cubes.length > 0) {
+                const cube = cubes.shift();
+                space.remove(cube);
+            }
+            ind = 0;
+        }
+
+        const generate_cube = (x, y, z) => {
+            const boxWidth = 1;
+            const boxHeight = 1;
+            const boxDepth = 1;
+            const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
             const material = new THREE.MeshPhongMaterial({color:'red'});
             const cube = new THREE.Mesh(geometry, material);
             cube.position.set(x, y, z);
-            scene.add(cube);
+            cube.castShadow = true;
+            cubes.push(cube);
         }
 
         const placeEmpty = (x, y, z) => {
             const material = new THREE.MeshPhongMaterial({color:'white'});
             const cube = new THREE.Mesh(geometry, material);
             cube.position.set(x, y, z);
-            scene.add(cube);
+            space.add(cube);
         }
 
-        const render_block = (block, pos) => {
+        const render_block = (block, pos, offset) => {
             for (var z=0; z < GRID_SIZE; z++) {
                 for(var y=0; y < GRID_SIZE;y++){
                     for(var x=0; x<GRID_SIZE; x++) {
                         if (block[x + y*GRID_SIZE + z*GRID_SIZE*GRID_SIZE]) {
-                            placeCube(pos*GRID_SIZE + pos + x, z, y);
-                        } else {
-                            // placeEmpty(pos*GRID_SIZE + pos + x, z, y)
+                            generate_cube(pos*GRID_SIZE + pos + x + offset, z, y);
                         }
                     }
                 }
             }
         }
 
-        word1.split("").map((l1, i) => {
-            const l2 = word2.charAt(i);
-            const letter1 = LETTERS[l1];    
-            const letter2 = LETTERS[l2];        
-            // const block = create_simple_block(letter);
-            const block = merge_letters(letter1, letter2)
-            render_block(block, i)
-        })
-        // placeCube(0,0,0)
+        function run(word1, word2) {
+            const l_max = Math.max(word1.length, word2.length);
+            const w1 = word1.toUpperCase().padEnd(l_max, ' ');
+            const w2 = word2.toUpperCase().padEnd(l_max, ' ');
 
+            const offset = center - (l_max*GRID_SIZE + l_max)/2
+            w1.split("").map((l1, i) => {
+                const l2 = w2.charAt(i);
+                const letter1 = LETTERS[l1];    
+                const letter2 = LETTERS[l2];        
+                const block = merge_letters(letter1, letter2)
+                render_block(block, i, offset)
+            })
+        }
+
+        document.getElementById("submit").onclick = (e) => {
+            remove_cubes();
+            const word1 = document.getElementById("word1").value.toUpperCase();
+            const word2 = document.getElementById("word2").value.toUpperCase();
+            run(word1, word2)
+        }
+
+        run("world", "hello")
 
         function resizeRendererToDisplaySize(renderer) {
             const canvas = renderer.domElement;
@@ -189,8 +274,15 @@
             return needResize;
         }
 
+        
         function render(time) {
             time *= 0.001;
+
+            if (ind < cubes.length) {
+                const cube = cubes[ind]
+                space.add(cube);
+                ind++
+            }
 
             if (resizeRendererToDisplaySize(renderer)) {
             const canvas = renderer.domElement;
@@ -206,46 +298,34 @@
         requestAnimationFrame(render);
     }
 
-        main();
+    main();
 
 </script>
 
-
-
-    <!-- <div class="box" id="box">
-        
-    </div>
-    <input type="text" id="letter">
-    <button id="submit">Submit</button>
-
-    <script>
-        for (var i=0; i<25; i++) {
-            const checkBox = document.createElement("input")
-            checkBox.setAttribute("type", "checkbox")
-            checkBox.id = "check-"+i;
-            document.getElementById("box").appendChild(checkBox);
-        }
-
-        document.getElementById("submit").onclick = (e) => {
-            const arr = []
-            for (var i=0; i<25; i++) {
-                const b = document.getElementById("check-"+i).checked
-                arr.push(b);
-            }
-            const letter = document.getElementById("letter").value.toUpperCase();
-            const d = new Object();
-            d[letter] = arr;
-            console.log(JSON.stringify(d).substring(1, JSON.stringify(d).length-1)+",")
-        }
-
-    </script> -->
     <style>
 
-        #c {
+        html, body {
+            padding: 0;
+            margin: 0;
+        }
+        
+        #c{
             width: 100%;
             height: 100%;
             display: block;
+            position: absolute;
         }
+
+        .controls__box {
+            position: absolute;
+            bottom: 10px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
 
     </style>
 </body>
