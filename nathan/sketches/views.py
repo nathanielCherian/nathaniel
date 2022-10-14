@@ -1,4 +1,5 @@
 from django.shortcuts import render
+import requests as r
 
 # Create your views here.
 
@@ -40,7 +41,7 @@ def rush_hour(request):
         "image":"sketches/rush_hour.png"
     }
     return render(request, "sketches/rush_hour.html", context=meta)
-    
+
 def tetris(request):
     meta = {
         "title":"3D Tetris"
@@ -57,8 +58,13 @@ def kuramoto(request):
 
 
 def spotify(request):
+    res = r.get("https://open.spotify.com/get_access_token")
+    access_token = res.json()['accessToken']
     meta = {
-        "title":"Spotify Collage Generator"
+        "title":"Spotify Collage Generator",
+        "description":"Create a collage of the different songs that are in your favorite playlist.",
+        "accessToken":access_token,
+        "image":"sketches/spotify.png"
     }
     return render(request, "sketches/spotify.html", context=meta)
 

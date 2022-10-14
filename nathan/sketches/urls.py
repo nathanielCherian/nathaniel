@@ -18,7 +18,6 @@ urlpatterns = [
     path('field-lines/', views.field_lines, name="field-lines"),
     path('arm/', views.arm, name='arm'),
     path('ambigram/', views.ambigram, name='ambigram'),
-
     path('spotify/', views.spotify, name="spotify"),
 ]
 
