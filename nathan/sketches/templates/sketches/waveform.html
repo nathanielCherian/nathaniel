@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Spectrum Visualizer</title>
+</head>
+<body>
+    
+    <canvas id="c" width="5000" height="100px" style="border: 1px solid black"></canvas>
+
+
+<script>
+
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+
+    // ctx.fillStyle = "red";
+    // ctx.fillRect(0,0,1000,100);
+
+
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ac = new AudioContext();
+    var currentBuffer = null;
+
+    const SONG_URL = "/sample-6s.mp3";
+    fetch(SONG_URL)
+        .then(res => res.arrayBuffer())
+        .then(arrayBuffer => ac.decodeAudioData(arrayBuffer))
+        .then(audioBuffer => {
+            console.log(audioBuffer);
+            start(audioBuffer);
+        })
+
+
+    const drawPoint = (x, y) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 1, 0, 2 * Math.PI)
+        ctx.stroke();
+    }
+
+
+    drawPoint(50,50)
+
+    function start(audioBuffer) {
+        const rawData = audioBuffer.getChannelData(0);
+        const SAMPLE_SIZE = 5;
+        for (let i = 0; i < canvas.width; i++) {
+            var avg = 0;
+            for (let j = 0; j < SAMPLE_SIZE; j++) {
+                const v = rawData[i*SAMPLE_SIZE + j];
+                avg += v;
+            }
+            const avg_v = avg / SAMPLE_SIZE;
+            drawPoint(i, avg_v*50 + 50)
+            // rawData[]
+        }
+        console.log(rawData);
+    }
+
+
+
+</script>
+
+</body>
+</html>
