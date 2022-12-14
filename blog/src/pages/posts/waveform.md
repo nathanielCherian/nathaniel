@@ -12,7 +12,7 @@ Recently, I updated to ios16 and noticed that when I play music, a little wavefo
 
 ![waveform visualizer in ios16](/blog/audio/ios16.png)
 
-I thought it would be cool to make this. The following is my journey in doing so.
+I thought it would be cool to make this. The following is my journey in doing so. It's like an annotated bibliography of sorts. 
 
 # Research
 Honestly, I didn't even know the terminology for those bouncing bars but I guess they are called "audio waveform visualizers." Something like [this](https://www.youtube.com/watch?v=QBdsQBoAUc4).
