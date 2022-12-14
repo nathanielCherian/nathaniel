@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Game</title>
+</head>
+<body>
+    
+    <div id="container">
+        <div class="horizontal-box">
+            <input type="text" id="artist-text-field" onkeyup="onTextInput(this)" placeholder="artist name">
+            <button id="start-button" disabled>Start</button>
+        </div>
+        <div id="dropdown"></div>
+    
+    </div>
+    
+    <script>
+
+        const START_BUTTON = document.getElementById("start-button");
+        const ARTIST_TEXT_FIELD = document.getElementById("artist-text-field")
+        const DROPDOWN = document.getElementById("dropdown");
+        const clearDropdown = () => {
+            DROPDOWN.innerHTML = "";
+        }        
+        const createDropdownElement = (text, specialClass) => {
+            const item = document.createElement("p");
+            item.innerHTML = text;
+            if (specialClass == "") {
+                item.onclick = () => {
+                    clearDropdown();
+                    ARTIST_TEXT_FIELD.value = text;
+                    START_BUTTON.disabled = false;
+                }
+            }
+            item.className = ["dropdown-item", specialClass].join(" ");
+            return item;
+        }
+
+        function onTextInput(element) {
+            fetch(`https://www.music-map.com/typeahead?query=${element.value}`)
+                .then(res => res.text())
+                .then(data => {
+                    clearDropdown();
+                    const artists = data.split("\n")
+                    if (artists[0] == '') {
+                        DROPDOWN.appendChild(createDropdownElement("no artists found", "error-item"));
+                    } else {
+                        artists.forEach(artist => {
+                        DROPDOWN.appendChild(createDropdownElement(artist, ""))
+                    }); 
+                    }
+                });
+        }
+        
+    </script>
+
+    <style>
+        .dropdown-item {
+            width: 200px;
+            border: 2px solid black;
+            cursor:pointer;
+        }
+
+        .error-item {
+            cursor: default;
+        }
+    </style>
+
+</body>
+</html>
