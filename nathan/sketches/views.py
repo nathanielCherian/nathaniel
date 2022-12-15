@@ -134,4 +134,4 @@ def ambigram(request):
     return render(request, "sketches/ambigram.html", context=meta)
 
 def artistmatch(request):
-    return render(request, "sketches/musicmap.html")
+    return render(request, "sketches/music_game.html")
