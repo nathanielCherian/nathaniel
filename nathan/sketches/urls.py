@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import api
 
 urlpatterns = [
     path('', views.index, name="sketch-index"),
@@ -19,5 +20,7 @@ urlpatterns = [
     path('arm/', views.arm, name='arm'),
     path('ambigram/', views.ambigram, name='ambigram'),
     path('spotify/', views.spotify, name="spotify"),
+
+    path('api/musicmap/<str:name>', api.musicmap, name="api_musicmap")
 ]
 
