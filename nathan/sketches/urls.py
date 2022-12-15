@@ -20,6 +20,7 @@ urlpatterns = [
     path('arm/', views.arm, name='arm'),
     path('ambigram/', views.ambigram, name='ambigram'),
     path('spotify/', views.spotify, name="spotify"),
+    path('artistmatch/', views.artistmatch, name="artistmatch"),
 
     path('api/musicmap/<str:name>', api.musicmap, name="api_musicmap")
 ]

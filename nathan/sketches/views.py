@@ -132,3 +132,6 @@ def ambigram(request):
         "image":"sketches/ambigram.png"
     }
     return render(request, "sketches/ambigram.html", context=meta)
+
+def artistmatch(request):
+    return render(request, "sketches/musicmap.html")

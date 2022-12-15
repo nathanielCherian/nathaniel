@@ -47,7 +47,7 @@
 
 
         async function getRelatedArtists(artistName) {
-            const res = await fetch(`https://www.music-map.com/${artistName}`);
+            const res = await fetch(`https://nathanielc.com/sketches/api/musicmap/${artistName}`);
             const data = await res.text();
             console.log(data)
         }
