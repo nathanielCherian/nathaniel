@@ -80,17 +80,18 @@
             const artists = await getRelatedArtists(artist)
             const chosenArtists = Math.round((artists.length)*difficultyScale[window.difficulty]);
             const randomArtists = artists.sort( () => Math.random() - 0.5).slice(0, chosenArtists);
-            if (artists.includes(window.endArtist)) {
-                randomArtists.pop(); 
-                randomArtists.push(window.endArtist)
+            if (artists.includes(window.endArtist) && !randomArtists.includes(window.endArtist)) {
+                randomArtists[Math.floor(Math.random()*randomArtists.length)] = window.endArtist;
             }
             const artistOptions = document.getElementById("artist-options"); artistOptions.innerHTML = "";
             randomArtists.forEach((artist) => {
                 const item = document.createElement("p");
                 item.innerHTML = artist;
                 item.className = "item"
+                if (artist == window.endArtist) item.className += " special-item"
                 item.onclick = () => {
-                    chooseArtist(artist)
+                    artistOptions.innerHTML = "";
+                    chooseArtist(artist);
                 }
                 artistOptions.append(item);
             });
@@ -111,7 +112,7 @@
 
         window.startArtist = "Meek Mill";
         window.endArtist = "Kanye West";
-        window.difficulty = 1;
+        window.difficulty = 0;
         startStep2();
 
         async function validateAristName(name) {
@@ -210,10 +211,22 @@
             width: 200px;
             border: 2px solid black;
             cursor:pointer;
+            padding: 3px;
+            margin: 3px;
         }
 
         .error-item {
             cursor: default;
+        }
+
+        .special-item {
+            border: 2px solid red;
+        }
+
+        #artist-options {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
         }
 
 </style>
