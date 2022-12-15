@@ -8,52 +8,147 @@
 </head>
 <body>
     
+    <button onclick="getRelatedArtists('The Beatles')">CLICK</button>
     <div id="container">
-        <div class="horizontal-box">
-            <input type="text" id="artist-text-field" onkeyup="onTextInput(this)" placeholder="artist name">
-            <button id="start-button" disabled>Start</button>
+        <div id="step-1">
+            <div id="start-artist"></div>
+            <div id="end-artist"></div>
+
+            <div id="difficulty-box">
+                <input type="radio" id="easy-button" name="difficulty" value="EASY" checked>
+                <label for="easy-button">easy</label><br>
+                <input type="radio" id="css" name="difficulty" value="HARD">
+                <label for="hard-button">hard</label><br>
+            </div>
+
+            <button id="start-button" onclick="start()" disabled>Start</button>
         </div>
-        <div id="dropdown"></div>
-    
+        
+        <div id="step-2" style="display: none">
+            <p>Start at: <b><span id="start-artist-span" class="artist-name-text"></span></b></p>
+            <p>End at: <b><span id="end-artist-span" class="artist-name-text"></span></b></p>
+            <p>Difficulty: <span id="difficulty-span" class="artist-name-text"></span></p>
+
+        </div>
+
     </div>
     
     <script>
 
-        const START_BUTTON = document.getElementById("start-button");
-        const ARTIST_TEXT_FIELD = document.getElementById("artist-text-field")
-        const DROPDOWN = document.getElementById("dropdown");
-        const clearDropdown = () => {
-            DROPDOWN.innerHTML = "";
-        }        
-        const createDropdownElement = (text, specialClass) => {
-            const item = document.createElement("p");
-            item.innerHTML = text;
-            if (specialClass == "") {
-                item.onclick = () => {
-                    clearDropdown();
-                    ARTIST_TEXT_FIELD.value = text;
-                    START_BUTTON.disabled = false;
-                }
-            }
-            item.className = ["dropdown-item", specialClass].join(" ");
-            return item;
+        const queryURL = (query) => `https://www.music-map.com/typeahead?query=${query}`;
+        const difficultyTranslator = {
+            0: "easy",
+            1: "hard"
         }
 
-        function onTextInput(element) {
-            fetch(`https://www.music-map.com/typeahead?query=${element.value}`)
-                .then(res => res.text())
-                .then(data => {
-                    clearDropdown();
-                    const artists = data.split("\n")
-                    if (artists[0] == '') {
-                        DROPDOWN.appendChild(createDropdownElement("no artists found", "error-item"));
-                    } else {
-                        artists.forEach(artist => {
-                        DROPDOWN.appendChild(createDropdownElement(artist, ""))
-                    }); 
-                    }
-                });
+        function displayError(msg) {
+            console.error(msg);
         }
+
+
+        async function getRelatedArtists(artistName) {
+            const res = await fetch(`https://www.music-map.com/${artistName}`);
+            const data = await res.text();
+            console.log(data)
+        }
+
+        function startStep2() {
+            document.getElementById('step-2').style.display = "block";
+            document.getElementById("start-artist-span").innerHTML = window.startArtist;
+            document.getElementById("end-artist-span").innerHTML = window.endArtist;
+            document.getElementById("difficulty-span").innerHTML = difficultyTranslator[window.difficulty];
+
+
+        }
+
+        async function validateAristName(name) {
+            const res = await fetch(queryURL(name))
+            const data = (await res.text()).trim();
+            if (data.length == 0) return false;
+            return data.split('\n')[0] == name;
+        }        
+
+        async function start() {
+            const startArtist = document.getElementById("start-artist-input").value;
+            const endArtist = document.getElementById("end-artist-input").value;
+            if (!(await validateAristName(startArtist) && await validateAristName(endArtist))) {
+                displayError("Artist names are not valid");
+                return;
+            }
+            window.startArtist = startArtist;
+            window.endArtist = endArtist;
+
+            if (document.getElementById('easy-button').checked) {
+                window.difficulty = 0;
+            } else if (document.getElementById('hard-button').checked) {
+                window.difficulty = 1;
+            }
+
+            document.getElementById("step-1").style.display = "none";
+            startStep2();
+        }
+        
+        function updateStartButton() {
+            const startArtistName = document.getElementById("start-artist-input").value.trim();
+            const endArtistName = document.getElementById("end-artist-input").value.trim();
+            const startButton = document.getElementById("start-button");
+            if (startArtistName.length != 0 && endArtistName.length != 0) {
+                startButton.disabled = false;
+            } else {
+                startButton.disabled = true;
+            }
+        }
+
+        function artistSelectionButton(containerID, placeholder){
+            const container = document.getElementById(containerID);
+            const inputField = document.createElement("input");
+            const dropdown = document.createElement("div")
+            inputField.type = "text";
+            inputField.id = `${containerID}-input`;
+            inputField.placeholder = placeholder;
+            inputField.className = "artist-name"
+            dropdown.className = "dropdown"
+
+            const createDropdownElement = (text, specialClass) => {
+                const item = document.createElement("p");
+                item.innerHTML = text;
+                if (specialClass == "") {
+                    item.onclick = () => {
+                        dropdown.innerHTML = "";
+                        inputField.value = text;
+                    }
+                }
+                item.className = ["dropdown-item", specialClass].join(" ");
+                return item;
+            }
+
+            inputField.onkeyup = () => {
+                fetch(queryURL(inputField.value))
+                    .then(res => res.text())
+                    .then(data => {
+                        dropdown.innerHTML = "";
+                        const artists = data.split("\n")
+                        if (artists[0] == '') {
+                            if (inputField.value.trim().length != 0) {
+                                dropdown.appendChild(createDropdownElement("no artists found", "error-item"));
+                            }
+                        } else {
+                            artists.forEach(artist => {
+                                dropdown.appendChild(createDropdownElement(artist, ""))
+                            }); 
+                        }
+                    });
+                    updateStartButton();
+            };
+
+            container.appendChild(inputField);
+            container.appendChild(dropdown);
+        }
+
+        artistSelectionButton("start-artist", "starting artist")
+        artistSelectionButton("end-artist", "ending artist")
+
+        const START_BUTTON = document.getElementById("start-button");
         
     </script>
 
@@ -67,7 +162,8 @@
         .error-item {
             cursor: default;
         }
-    </style>
+
+</style>
 
 </body>
 </html>
