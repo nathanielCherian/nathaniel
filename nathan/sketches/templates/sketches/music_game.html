@@ -8,9 +8,9 @@
 </head>
 <body>
     
-    <button onclick="getRelatedArtists('The Beatles')">CLICK</button>
+    <button onclick="getRelatedArtists('Kings of leon')">CLICK</button>
     <div id="container">
-        <div id="step-1">
+        <div id="step-1" style="display: none;">
             <div id="start-artist"></div>
             <div id="end-artist"></div>
 
@@ -24,11 +24,12 @@
             <button id="start-button" onclick="start()" disabled>Start</button>
         </div>
         
-        <div id="step-2" style="display: none">
+        <div id="step-2" style="display: block">
             <p>Start at: <b><span id="start-artist-span" class="artist-name-text"></span></b></p>
             <p>End at: <b><span id="end-artist-span" class="artist-name-text"></span></b></p>
             <p>Difficulty: <span id="difficulty-span" class="artist-name-text"></span></p>
-
+            <p id="artist-chain"></p>
+            <div id="artist-options"></div>
         </div>
 
     </div>
@@ -41,25 +42,77 @@
             1: "hard"
         }
 
+        const difficultyScale = {
+            0: .5,
+            1: .15
+        }
+
+
         function displayError(msg) {
             console.error(msg);
         }
 
 
         async function getRelatedArtists(artistName) {
-            const res = await fetch(`https://nathanielc.com/sketches/api/musicmap/${artistName}`);
+            const res = await fetch(`/sketches/api/musicmap/${artistName}`);
             const data = await res.text();
-            console.log(data)
+            const parser = new DOMParser();
+            const parsedDocument = parser.parseFromString(data, "text/html");
+            const gnodMap = parsedDocument.getElementById("gnodMap")
+            const artists = Array.from(gnodMap.querySelectorAll("a")).slice(1).map((artistElement) => artistElement.text);
+            console.log(artists);
+            return artists;
         }
 
-        function startStep2() {
+        async function chooseArtist(artist) {
+            artistChain.push(artist);
+            document.getElementById("artist-chain").innerHTML = window.artistChain.reduce((prev, cur, i) => {
+                return prev + cur + " -> "
+            }, "");
+            if (artist == window.endArtist) {
+                const artistChain = document.getElementById("artist-chain");
+                const chain = artistChain.innerHTML;
+                artistChain.innerHTML = chain.substring(0, chain.length - 7)
+                const artistOptions = document.getElementById("artist-options"); artistOptions.innerHTML = "";
+                return;
+            }
+
+            const artists = await getRelatedArtists(artist)
+            const chosenArtists = Math.round((artists.length)*difficultyScale[window.difficulty]);
+            const randomArtists = artists.sort( () => Math.random() - 0.5).slice(0, chosenArtists);
+            if (artists.includes(window.endArtist)) {
+                randomArtists.pop(); 
+                randomArtists.push(window.endArtist)
+            }
+            const artistOptions = document.getElementById("artist-options"); artistOptions.innerHTML = "";
+            randomArtists.forEach((artist) => {
+                const item = document.createElement("p");
+                item.innerHTML = artist;
+                item.className = "item"
+                item.onclick = () => {
+                    chooseArtist(artist)
+                }
+                artistOptions.append(item);
+            });
+            console.log(randomArtists);
+        }
+
+        async function startStep2() {
             document.getElementById('step-2').style.display = "block";
             document.getElementById("start-artist-span").innerHTML = window.startArtist;
             document.getElementById("end-artist-span").innerHTML = window.endArtist;
             document.getElementById("difficulty-span").innerHTML = difficultyTranslator[window.difficulty];
+            window.artistChain = []
 
+            chooseArtist(window.startArtist);
 
         }
+
+
+        window.startArtist = "Meek Mill";
+        window.endArtist = "Kanye West";
+        window.difficulty = 1;
+        startStep2();
 
         async function validateAristName(name) {
             const res = await fetch(queryURL(name))
@@ -153,7 +206,7 @@
     </script>
 
     <style>
-        .dropdown-item {
+        .dropdown-item, .item {
             width: 200px;
             border: 2px solid black;
             cursor:pointer;
