@@ -9,7 +9,7 @@
 <body>
     
     <div id="container" class="centered">
-        <div id="step-1" class="centered" style="display: none;">
+        <div id="step-1" class="centered" style="display: block;">
 
             <div class="info centered">
                 <h1>The Music Matching Game</h1>
@@ -19,21 +19,25 @@
 
 
 
-            <div class="input-box">
+            <div class="input-box centered">
                 <div id="start-artist"></div>
                 <div id="end-artist"></div>
             </div>
 
 
-            <div id="difficulty-box">
-                <input type="radio" id="easy-button" name="difficulty" value="EASY" checked>
-                <label for="easy-button">easy</label><br>
-                <input type="radio" id="css" name="difficulty" value="HARD">
-                <label for="hard-button">hard</label><br>
+            <div id="difficulty-box" class="centered">
+                <div>
+                    <input type="radio" id="easy-button" name="difficulty" value="EASY" checked>
+                    <label for="easy-button">easy</label><br>
+                </div>
+                <div>
+                    <input type="radio" id="hard-button" name="difficulty" value="HARD">
+                    <label for="hard-button">hard</label><br>
+                </div>
             </div>
 
             <div class="input-box">
-                <button id="start-button" onclick="start()" disabled style="padding-left: 30px; padding-right: 30px;">Start</button>                
+                <button id="start-button" onclick="start()" disabled style="padding-left: 10px; padding-right: 10px;">Start</button>                
             </div>
         </div>
         
@@ -69,6 +73,7 @@
                 <div class="input-box">
                     <button id="play-again-button" onclick="playAgain()" style="padding-left: 30px; padding-right: 30px;">Play Again</button>
                     <button id="share-button" onclick="share()" style="padding-left: 30px; padding-right: 30px;">Share</button>                
+                    <p id="copy-notification" style="display: none;">Copied to clipboard!</p>
                 </div>
 
             </div>
@@ -98,6 +103,20 @@
             return prev + cur + " → "
         }, "");
 
+        const timeGenerator = (seconds) => {
+            const secs = seconds % 60;
+            const mins = Math.floor(seconds/60);
+            return mins.toString().padStart(1, '0') + ":" + secs.toString().padStart(2, '0');
+        }
+
+        const scorer = (raw_score, max_raw) => {
+            if (raw_score > max_raw) return 0;
+            const scaled_x = (raw_score/max_raw) * 4
+            const exp = (x) => 2 - Math.pow(Math.E, (x-3)*.69)
+            const y = exp(scaled_x)
+            return y * 1000 / exp(0)
+        }
+
         function startStep1() {
             document.getElementById('step-1').style.display = "block";
             document.getElementById('step-2').style.display = "none";
@@ -109,12 +128,17 @@
             window.endArtist = "";
             window.difficulty = 0;
             window.artistChain = [];
+            window.time = 0;
+            window.timer = null;
             startStep1()
         }
 
         function share() {
             if (document.getElementById('step-3').style.display !== "block") return;
-            console.log("will copy to clipboard")
+            const chain = chainGenerator(artistChain)
+            const text = "🎵The Music Game🎵\n" + chain.slice(0, chain.length - 3) + "\n🏆" + Math.floor(window.score) + "🏆"
+            navigator.clipboard.writeText(text)
+            document.getElementById("copy-notification").style.display = "block";
         }
 
         function startStep3() {
@@ -122,10 +146,15 @@
             document.getElementById('step-3').style.display = "block";
 
             document.getElementById("total-steps-span").innerHTML = window.artistChain.length - 1;
-            document.getElementById("total-time-span").innerHTML = "0:0";
+            document.getElementById("total-time-span").innerHTML = timeGenerator(window.time);
             document.getElementById("difficulty1-span").innerHTML = difficultyTranslator[window.difficulty];
 
-            document.getElementById('score-span').innerHTML = 100;
+            const MAX_SCORE = 10000;
+            // higher is worse for raw score
+            const raw_score = window.time * (window.artistChain.length - 1) * difficultyScale[window.difficulty];
+            const worst = 60 * 7 * .5;
+            window.score = scorer(raw_score, worst);
+            document.getElementById('score-span').innerHTML = Math.floor(window.score);
 
             const chain = chainGenerator(artistChain);
             document.getElementById("artist-chain1").innerHTML = chain.slice(0, chain.length - 3);
@@ -140,7 +169,6 @@
             const parsedDocument = parser.parseFromString(data, "text/html");
             const gnodMap = parsedDocument.getElementById("gnodMap")
             const artists = Array.from(gnodMap.querySelectorAll("a")).slice(1).map((artistElement) => artistElement.text);
-            console.log(artists);
             return artists;
         }
 
@@ -153,6 +181,7 @@
                 const chain = artistChain.innerHTML;
                 artistChain.innerHTML = chain.substring(0, chain.length - 7)
                 const artistOptions = document.getElementById("artist-options"); artistOptions.innerHTML = "";
+                clearInterval(window.timer);
                 startStep3();
                 return;
             }
@@ -175,24 +204,29 @@
                 }
                 artistOptions.append(item);
             });
-            console.log(randomArtists);
         }
 
         async function startStep2() {
+            document.getElementById('step-1').style.display = "none";
             document.getElementById('step-2').style.display = "block";
             document.getElementById("start-artist-span").innerHTML = window.startArtist;
             document.getElementById("end-artist-span").innerHTML = window.endArtist;
             document.getElementById("difficulty-span").innerHTML = difficultyTranslator[window.difficulty];
             window.artistChain = []
 
+            window.time = 0;
+            window.timer = setInterval(() => {
+                window.time++;
+                document.getElementById("running-time-span").innerHTML = timeGenerator(window.time);
+            }, 1000)
             chooseArtist(window.startArtist);
         }
 
 
-        window.startArtist = "The Strokes";
-        window.endArtist = "The Beatles";
-        window.difficulty = 0;
-        startStep2();
+        // window.startArtist = "The Strokes";
+        // window.endArtist = "The Beatles";
+        // window.difficulty = 0;
+        // startStep2();
 
         async function validateAristName(name) {
             const res = await fetch(queryURL(name))
@@ -217,6 +251,8 @@
                 window.difficulty = 1;
             }
 
+            document.getElementById("start-artist-input").innerHTML = "";
+            document.getElementById("end-artist-input").innerHTML = "";
             document.getElementById("step-1").style.display = "none";
             startStep2();
         }
@@ -310,7 +346,7 @@
         }
 
         #container {
-            background-color: purple;
+            /* background-color: purple; */
             padding-top: 10vh;
             padding-bottom: 10vh;
         }
