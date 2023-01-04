@@ -19,75 +19,85 @@
     ctx.fillStyle = "red";
     // ctx.fillRect(0,0,100,100);
 
+    function fft(samples) {
+        const length = samples.length;
+        if (length == 1) {
+            return samples
+        }
+        const even = fft(samples.filter((_, i) => i % 2 == 0))
+        const odd = fft(samples.filter((_, i) => i % 2 == 1))
+        
 
-    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    const ac = new AudioContext();
-    var currentBuffer = null;
-
-    const SONG_URL = "/sample-6s.mp3";
-    fetch(SONG_URL)
-        .then(res => res.arrayBuffer())
-        .then(arrayBuffer => ac.decodeAudioData(arrayBuffer))
-        .then(audioBuffer => {
-            console.log(audioBuffer);
-            amplitudeVisualizer(audioBuffer);
-            // start(audioBuffer);
-        })
-
-
-    const drawPoint = (x, y) => {
-        ctx.beginPath();
-        ctx.arc(x, y, 1, 0, 2 * Math.PI)
-        ctx.stroke();
     }
 
+    // window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    // const ac = new AudioContext();
+    // var currentBuffer = null;
+
+    // const SONG_URL = "/sample-6s.mp3";
+    // fetch(SONG_URL)
+    //     .then(res => res.arrayBuffer())
+    //     .then(arrayBuffer => ac.decodeAudioData(arrayBuffer))
+    //     .then(audioBuffer => {
+    //         console.log(audioBuffer);
+    //         amplitudeVisualizer(audioBuffer);
+    //         // start(audioBuffer);
+    //     })
 
 
-    function amplitudeVisualizer(audioBuffer) {
-        const rawData = audioBuffer.getChannelData(0);
-        canvas.width = 25;
-        canvas.height = 200;
+    // const drawPoint = (x, y) => {
+    //     ctx.beginPath();
+    //     ctx.arc(x, y, 1, 0, 2 * Math.PI)
+    //     ctx.stroke();
+    // }
 
-        let n = 0;
-        const SAMPLE_SIZE = 100;
-        const timer = setInterval(() => {
-            ctx.fillStyle = "white";
-            ctx.fillRect(0,0,25,200);
 
-            if (n*SAMPLE_SIZE >= rawData.length) clearInterval(timer);
-            var avg = 0;
-            for (let i = 0; i < SAMPLE_SIZE; i++) {
-                avg += Math.abs(rawData[n*SAMPLE_SIZE + i])
-            }
-            avg /= SAMPLE_SIZE;
-            console.log(avg);
 
-            ctx.fillStyle = "red";
-            ctx.fillRect(0,0,25,avg * 200);
+    // function amplitudeVisualizer(audioBuffer) {
+    //     const rawData = audioBuffer.getChannelData(0);
+    //     canvas.width = 25;
+    //     canvas.height = 200;
 
-            n++;
-        }, 100)
-    }
+    //     let n = 0;
+    //     const SAMPLE_SIZE = 100;
+    //     const timer = setInterval(() => {
+    //         ctx.fillStyle = "white";
+    //         ctx.fillRect(0,0,25,200);
+
+    //         if (n*SAMPLE_SIZE >= rawData.length) clearInterval(timer);
+    //         var avg = 0;
+    //         for (let i = 0; i < SAMPLE_SIZE; i++) {
+    //             avg += Math.abs(rawData[n*SAMPLE_SIZE + i])
+    //         }
+    //         avg /= SAMPLE_SIZE;
+    //         console.log(avg);
+
+    //         ctx.fillStyle = "red";
+    //         ctx.fillRect(0,0,25,avg * 200);
+
+    //         n++;
+    //     }, 100)
+    // }
     
 
 
-    drawPoint(50,50)
+    // drawPoint(50,50)
 
-    function start(audioBuffer) {
-        const rawData = audioBuffer.getChannelData(0);
-        const SAMPLE_SIZE = 5;
-        for (let i = 0; i < canvas.width; i++) {
-            var avg = 0;
-            for (let j = 0; j < SAMPLE_SIZE; j++) {
-                const v = rawData[i*SAMPLE_SIZE + j];
-                avg += v;
-            }
-            const avg_v = avg / SAMPLE_SIZE;
-            drawPoint(i, avg_v*50 + 50)
-            // rawData[]
-        }
-        console.log(rawData);
-    }
+    // function start(audioBuffer) {
+    //     const rawData = audioBuffer.getChannelData(0);
+    //     const SAMPLE_SIZE = 5;
+    //     for (let i = 0; i < canvas.width; i++) {
+    //         var avg = 0;
+    //         for (let j = 0; j < SAMPLE_SIZE; j++) {
+    //             const v = rawData[i*SAMPLE_SIZE + j];
+    //             avg += v;
+    //         }
+    //         const avg_v = avg / SAMPLE_SIZE;
+    //         drawPoint(i, avg_v*50 + 50)
+    //         // rawData[]
+    //     }
+    //     console.log(rawData);
+    // }
 
 
 

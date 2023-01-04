@@ -8,11 +8,22 @@
 </head>
 <body>
     
-    <button onclick="getRelatedArtists('Kings of leon')">CLICK</button>
-    <div id="container">
-        <div id="step-1" style="display: none;">
-            <div id="start-artist"></div>
-            <div id="end-artist"></div>
+    <div id="container" class="centered">
+        <div id="step-1" class="centered" style="display: none;">
+
+            <div class="info centered">
+                <h1>The Music Matching Game</h1>
+                <p>Test your knowledge of music by connecting different artists together</p>
+                <p>Choose a starting and ending artist to get started</p>    
+            </div>
+
+
+
+            <div class="input-box">
+                <div id="start-artist"></div>
+                <div id="end-artist"></div>
+            </div>
+
 
             <div id="difficulty-box">
                 <input type="radio" id="easy-button" name="difficulty" value="EASY" checked>
@@ -21,15 +32,46 @@
                 <label for="hard-button">hard</label><br>
             </div>
 
-            <button id="start-button" onclick="start()" disabled>Start</button>
+            <div class="input-box">
+                <button id="start-button" onclick="start()" disabled style="padding-left: 30px; padding-right: 30px;">Start</button>                
+            </div>
         </div>
         
-        <div id="step-2" style="display: block">
-            <p>Start at: <b><span id="start-artist-span" class="artist-name-text"></span></b></p>
-            <p>End at: <b><span id="end-artist-span" class="artist-name-text"></span></b></p>
-            <p>Difficulty: <span id="difficulty-span" class="artist-name-text"></span></p>
-            <p id="artist-chain"></p>
-            <div id="artist-options"></div>
+        <div id="step-2" class="centered" style="display: none">
+            <div class="info centered">
+                <h1>The Music Matching Game</h1>
+                <p>Starting at: <b><span id="start-artist-span" class="artist-name-text"></span></b></p>
+                <p>Ending at: <b><span id="end-artist-span" class="artist-name-text"></span></b></p>
+                <p>Difficulty: <span id="difficulty-span" class="artist-name-text"></span></p>
+                <p>Time: <b><span id="running-time-span" class="artist-name-text"></span></b></p>
+            </div>
+
+            <div class="info centered" style="margin: 25px">
+                <p id="artist-chain"></p>
+            </div>
+
+
+            <div id="artist-options" class="centered"></div>
+        </div>
+
+        <div id="step-3" style="display: none">
+            <div class="info centered">
+                <h1 id="congrats">Amazing!</h1>
+                <p>Steps: <b><span id="total-steps-span" class="artist-name-text"></span></b></p>
+                <p>Time: <b><span id="total-time-span" class="artist-name-text"></span></b></p>
+                <p>Difficulty: <span id="difficulty1-span" class="artist-name-text"></span></p>
+                <p>Score: <span id="score-span" class="artist-name-text"></span></p>
+
+                <div class="info centered" style="margin: 25px">
+                    <p id="artist-chain1"></p>
+                </div>`
+
+                <div class="input-box">
+                    <button id="play-again-button" onclick="playAgain()" style="padding-left: 30px; padding-right: 30px;">Play Again</button>
+                    <button id="share-button" onclick="share()" style="padding-left: 30px; padding-right: 30px;">Share</button>                
+                </div>
+
+            </div>
         </div>
 
     </div>
@@ -52,6 +94,44 @@
             console.error(msg);
         }
 
+        const chainGenerator = (chain) => chain.reduce((prev, cur, i) => {
+            return prev + cur + " → "
+        }, "");
+
+        function startStep1() {
+            document.getElementById('step-1').style.display = "block";
+            document.getElementById('step-2').style.display = "none";
+            document.getElementById('step-3').style.display = "none";
+        }
+
+        function playAgain() {
+            window.startArtist = "";
+            window.endArtist = "";
+            window.difficulty = 0;
+            window.artistChain = [];
+            startStep1()
+        }
+
+        function share() {
+            if (document.getElementById('step-3').style.display !== "block") return;
+            console.log("will copy to clipboard")
+        }
+
+        function startStep3() {
+            document.getElementById('step-2').style.display = "none";
+            document.getElementById('step-3').style.display = "block";
+
+            document.getElementById("total-steps-span").innerHTML = window.artistChain.length - 1;
+            document.getElementById("total-time-span").innerHTML = "0:0";
+            document.getElementById("difficulty1-span").innerHTML = difficultyTranslator[window.difficulty];
+
+            document.getElementById('score-span').innerHTML = 100;
+
+            const chain = chainGenerator(artistChain);
+            document.getElementById("artist-chain1").innerHTML = chain.slice(0, chain.length - 3);
+
+
+        }
 
         async function getRelatedArtists(artistName) {
             const res = await fetch(`/sketches/api/musicmap/${artistName}`);
@@ -64,16 +144,16 @@
             return artists;
         }
 
+
         async function chooseArtist(artist) {
             artistChain.push(artist);
-            document.getElementById("artist-chain").innerHTML = window.artistChain.reduce((prev, cur, i) => {
-                return prev + cur + " -> "
-            }, "");
+            document.getElementById("artist-chain").innerHTML = chainGenerator(window.artistChain);
             if (artist == window.endArtist) {
                 const artistChain = document.getElementById("artist-chain");
                 const chain = artistChain.innerHTML;
                 artistChain.innerHTML = chain.substring(0, chain.length - 7)
                 const artistOptions = document.getElementById("artist-options"); artistOptions.innerHTML = "";
+                startStep3();
                 return;
             }
 
@@ -106,12 +186,11 @@
             window.artistChain = []
 
             chooseArtist(window.startArtist);
-
         }
 
 
-        window.startArtist = "Meek Mill";
-        window.endArtist = "Kanye West";
+        window.startArtist = "The Strokes";
+        window.endArtist = "The Beatles";
         window.difficulty = 0;
         startStep2();
 
@@ -158,6 +237,7 @@
             const inputField = document.createElement("input");
             const dropdown = document.createElement("div")
             inputField.type = "text";
+            inputField.autocomplete = "off";
             inputField.id = `${containerID}-input`;
             inputField.placeholder = placeholder;
             inputField.className = "artist-name"
@@ -207,6 +287,20 @@
     </script>
 
     <style>
+
+        html, body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .centered {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
         .dropdown-item, .item {
             width: 200px;
             border: 2px solid black;
@@ -214,6 +308,30 @@
             padding: 3px;
             margin: 3px;
         }
+
+        #container {
+            background-color: purple;
+            padding-top: 10vh;
+            padding-bottom: 10vh;
+        }
+
+        .info {
+            margin: 10px;
+        }
+        .info > h1 {
+            margin: 10px;
+        }
+        .info > p{
+            margin: 2px;
+        }
+
+        .input-box {
+            margin: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
 
         .error-item {
             cursor: default;
