@@ -19,16 +19,71 @@
     ctx.fillStyle = "red";
     // ctx.fillRect(0,0,100,100);
 
-    function fft(samples) {
-        const length = samples.length;
-        if (length == 1) {
-            return samples
-        }
-        const even = fft(samples.filter((_, i) => i % 2 == 0))
-        const odd = fft(samples.filter((_, i) => i % 2 == 1))
-        
+    // Function to calculate the FFT of an array of complex numbers
+    function fft(x) {
+    // Get the length of the input array
+    const n = x.length;
 
+    // Base case: if the length of the input array is 1, return the input array
+    if (n === 1) {
+        return x;
     }
+
+    // Divide the input array into two subsequences: the even-indexed elements and the odd-indexed elements
+    const even = x.filter((_, i) => i % 2 === 0);
+    const odd = x.filter((_, i) => i % 2 === 1);
+
+    // Calculate the FFTs of the two subsequences using the FFT function recursively
+    const fftEven = fft(even);
+    const fftOdd = fft(odd);
+
+    // Initialize an array to hold the results of combining the FFTs of the two subsequences
+    const fftCombined = [];
+
+    // Iterate over the indices of the FFTs of the two subsequences
+    for (let k = 0; k < n / 2; k++) {
+        // Calculate the k-th term of the FFT of the original sequence using the FFTs of the two subsequences
+        const term = Math.exp(-2 * Math.PI * k / n) * fftOdd[k];
+        // Add the k-th term to the array of combined FFTs
+        fftCombined.push(fftEven[k] + term, fftEven[k] - term);
+    }
+
+    // Return the combined FFTs
+    return fftCombined;
+    }
+
+
+    const drawPoint = (x, y, c) => {
+        ctx.beginPath();
+        ctx.strokeStyle = c
+        ctx.arc(x, y, 1, 0, 2 * Math.PI)
+        ctx.stroke();
+    }
+
+    
+    const arr = [];
+    for (let t = 0; t < 100; t++) {
+        const y = Math.sin(1*t*2*Math.PI/100);
+        arr.push(y)
+        drawPoint(t, (y*30)+50, "black")
+    }
+
+    const fft_arr = fft(arr)
+    console.log(fft(arr))
+    fft_arr.map((y, t) => {
+        drawPoint(t, (y*10)+50, "red")
+    })
+
+
+    {
+        const fake = [0, 0.707, 1, 0.707, 0, -0.707, -1, -0.707]
+        const f = fft(fake)
+        console.log(f)
+    }
+
+
+
+
 
     // window.AudioContext = window.AudioContext || window.webkitAudioContext;
     // const ac = new AudioContext();
@@ -40,44 +95,40 @@
     //     .then(arrayBuffer => ac.decodeAudioData(arrayBuffer))
     //     .then(audioBuffer => {
     //         console.log(audioBuffer);
-    //         amplitudeVisualizer(audioBuffer);
-    //         // start(audioBuffer);
+    //         // amplitudeVisualizer(audioBuffer);
+    //         // // start(audioBuffer);
     //     })
 
 
-    // const drawPoint = (x, y) => {
-    //     ctx.beginPath();
-    //     ctx.arc(x, y, 1, 0, 2 * Math.PI)
-    //     ctx.stroke();
-    // }
 
 
 
-    // function amplitudeVisualizer(audioBuffer) {
-    //     const rawData = audioBuffer.getChannelData(0);
-    //     canvas.width = 25;
-    //     canvas.height = 200;
 
-    //     let n = 0;
-    //     const SAMPLE_SIZE = 100;
-    //     const timer = setInterval(() => {
-    //         ctx.fillStyle = "white";
-    //         ctx.fillRect(0,0,25,200);
+    function amplitudeVisualizer(audioBuffer) {
+        const rawData = audioBuffer.getChannelData(0);
+        canvas.width = 25;
+        canvas.height = 200;
 
-    //         if (n*SAMPLE_SIZE >= rawData.length) clearInterval(timer);
-    //         var avg = 0;
-    //         for (let i = 0; i < SAMPLE_SIZE; i++) {
-    //             avg += Math.abs(rawData[n*SAMPLE_SIZE + i])
-    //         }
-    //         avg /= SAMPLE_SIZE;
-    //         console.log(avg);
+        let n = 0;
+        const SAMPLE_SIZE = 100;
+        const timer = setInterval(() => {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0,0,25,200);
 
-    //         ctx.fillStyle = "red";
-    //         ctx.fillRect(0,0,25,avg * 200);
+            if (n*SAMPLE_SIZE >= rawData.length) clearInterval(timer);
+            var avg = 0;
+            for (let i = 0; i < SAMPLE_SIZE; i++) {
+                avg += Math.abs(rawData[n*SAMPLE_SIZE + i])
+            }
+            avg /= SAMPLE_SIZE;
+            console.log(avg);
 
-    //         n++;
-    //     }, 100)
-    // }
+            ctx.fillStyle = "red";
+            ctx.fillRect(0,0,25,avg * 200);
+
+            n++;
+        }, 100)
+    }
     
 
 
