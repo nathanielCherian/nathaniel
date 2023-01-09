@@ -135,3 +135,24 @@ def ambigram(request):
 
 def artistmatch(request):
     return render(request, "sketches/music_game.html")
+
+pages = [
+    ['', index, 'sketch-index'],
+    ['motm2/', kid_cudi_motm2, 'kid_cudi_motm2'],
+    ['chaos/', chaos, 'chaos'],
+    ['starry-night/', starry_night, 'starry-night'],
+    ['marbles/', marbles, 'marbles'],
+    ['rush-hour/', rush_hour, 'rush-hour'],
+    ['tetris/', tetris, 'tetris'],
+    ['kuramoto/', kuramoto, 'kuramoto'],
+    ['hungarian/', hungarian_beads, 'hungarian'],
+    ['ascii/', ascii, 'ascii'],
+    ['modular/', modular, 'modular'],
+    ['spirograph/', spirograph, 'spirograph'],
+    ['matrix/', matrix, 'matrix'],
+    ['field-lines/', field_lines, 'field-lines'],
+    ['arm/', arm, 'arm'],
+    ['ambigram/', ambigram, 'ambigram'],
+    ['spotify/', spotify, 'spotify'],
+    ['artistmatch/', artistmatch, 'artistmatch'],
+]
