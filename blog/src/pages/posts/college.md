@@ -34,15 +34,16 @@ I spent $45,000 this year to take a course in basic level Java and C (they were 
 
 To add salt to my wound, I haven't worked on any side projects the entire academic year. In the past I was averaging 1200 commits a year, I would be happy with just 100 this year. 
 
-I had all these projects done in high school, but no companies wanted to talk to me until I started at Purude.
+I had all these projects done in high school, but no internships came until I started at Purude.
 
 Did the @purdue.edu email change that much. Was it worth $45,000?
 
 Not doing projects is my own fault, and I take full responsibility for that. However, with the amount of stupid work I'm being assigned in school it just feels pointless to work on my own stuff.
 
-I get caught in a cycle of studying for tests, taking a week break, and then jumping back at it.
+I get caught in a cycle of studying for tests, taking a week break to spend time with friends or doing something else, and then jumping back into it.
 
+And its not that I don't have ideas. My backlog is only growing. I just don't feel like working on fun projects. It feels like there is always something more important to attend to.
 
-
-
-
+### My plan moving forward
+1. Take advantage of the resources Purdue actually offers
+2. Force myself to code every week
