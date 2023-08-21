@@ -1,0 +1,95 @@
+<html>
+<head>
+    <title>???</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+
+<body>
+
+    <video id="video" controls autoplay></video>
+</body>
+
+<script>
+
+    const BEACHES = {
+        "Del Mar": "wc-delmar",
+        "Del Mar 15th": "wc-delmar15th",
+        "Del Mar 25th": "wc-delmar25th",
+        "Del Mar Beach Break": "wc-delmarbeachbreak",
+        "La Jolla Shores": "wc-lajollashores",
+        "Tourmoline": "wc-oldmanstourmaline",
+    }
+    const DEFAULT = "Del Mar"
+    const PLAYLIST_GEN = (wc) => `https://cams.cdn-surfline.com/cdn-wc/${wc}/chunklist.m3u8`
+    // Get a reference to the video element
+
+
+    var video = document.getElementById('video');
+
+    const hls_conf = {
+      "debug": true,
+      "enableWorker": true,
+      "lowLatencyMode": true,
+      "backBufferLength": 30
+    }
+
+    function start_stream(playlist) {
+        // Initialize an HLS.js instance
+            if (Hls.isSupported()) {
+            var hls = new Hls(hls_conf);
+            hls.loadSource(playlist);  // Replace with your M3U8 playlist URL
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play();
+            });
+        }
+        else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // For Safari
+            video.src = PLAYLIST;
+            video.addEventListener('loadedmetadata', function() {
+                video.play();
+            });
+        }
+    }
+
+    function createDropdown() {
+        // Create a select element
+        const dropdown = document.createElement('select');
+
+        for (const key of Object.keys(BEACHES)) {
+            const beach_option = document.createElement("option");
+            beach_option.text = key;
+            dropdown.add(beach_option);
+            console.log(key)
+        }
+        
+
+        // Add options to the dropdown
+        const option1 = document.createElement('option');
+        option1.text = 'Option 1';
+        dropdown.add(option1);
+
+        const option2 = document.createElement('option');
+        option2.text = 'Option 2';
+        dropdown.add(option2);
+
+        // Add an event listener to handle selection change
+        dropdown.addEventListener('change', function () {
+            const selectedOption = dropdown.options[dropdown.selectedIndex].text;
+            console.log(`Selected: ${selectedOption}`);
+            start_stream(PLAYLIST_GEN(BEACHES[selectedOption]))
+        });
+
+        // Append the dropdown to the body
+        document.body.appendChild(dropdown);
+    }
+
+    // Call the function to create the dropdown
+    createDropdown();
+
+    start_stream(PLAYLIST_GEN(BEACHES[DEFAULT]))
+
+
+</script>
+
+</html>

@@ -136,6 +136,9 @@ def ambigram(request):
 def artistmatch(request):
     return render(request, "sketches/music_game.html")
 
+def surf(request):
+    return render(request, "sketches/surf.html")
+
 pages = [
     ['', index, 'sketch-index'],
     ['motm2/', kid_cudi_motm2, 'kid_cudi_motm2'],
@@ -155,4 +158,5 @@ pages = [
     ['ambigram/', ambigram, 'ambigram'],
     ['spotify/', spotify, 'spotify'],
     ['artistmatch/', artistmatch, 'artistmatch'],
+    ['surf/', surf, 'surf'],
 ]
