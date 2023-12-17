@@ -4,11 +4,11 @@ export default function App(props) {
 
     return (
         <div>   
-            <div style={{display:'flex', backgroundColor:'red', top:0}}>
-                <span style={{fontWeight:'bold', margin:'10px'}}>Nathan's Blog</span>
+            <div style={{display:'flex'}}>
+                <span style={{fontWeight:'bold', marginLeft:'20px', marginTop:'15px', fontSize:'20px', cursor:'pointer'}} onClick={()=>window.location = '/'}>Nathan's Blog</span>
             </div>
 
-            <main>
+            <main> 
                 <Component {...pageProps} />
             </main>
 
