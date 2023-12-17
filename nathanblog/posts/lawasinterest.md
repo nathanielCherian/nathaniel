@@ -1,7 +1,7 @@
 ---
 path: "/law-as-the-interest-of-the-stronger"
 date: 2023-10-1
-title: "Law as the Interest of the Stringer"
+title: "Law as the Interest of the Stronger"
 summary: "What truly is a law? In 'The Republic', Thrasycamus claims that law is none other than 'the interest of the stronger'. In this paper I will explore this concept of law further. Written for PHIL 206 at Purdue."
 status: published
 tags: 'philosophy'
