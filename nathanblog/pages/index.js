@@ -30,6 +30,7 @@ const CreateTags = (tags) => {
 
 export default function Home( { allPostsData }) {
   console.log(allPostsData)
+
   return (
     <div>
       <Head>
@@ -48,7 +49,7 @@ export default function Home( { allPostsData }) {
               allPostsData.map((post_data) => (
                 <div style={{border: '1px solid black', borderRadius:'10px', display:'flex', flexDirection:'column', gap:'5px', padding:'13px'}}>
                   <div style={{width:'100%'}}>
-                    <h3 style={{margin:'0', padding:'0'}}>{post_data.title}</h3>
+                    <h3 style={{margin:'0', padding:'0', cursor:'pointer'}} onClick={()=>window.location = post_data.path}>{post_data.title}</h3>
                   </div>
                   {CreateTags(post_data.tags.split(','))}
                   <div>
