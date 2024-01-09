@@ -10,9 +10,7 @@ status: published
 tags: 'high-school'
 ---
 
-<figure class="centered big-image">
-    <img src = "/blog/learning/code.jpg">
-</figure>
+![/blog/learning/code.jpg](/blog/learning/code.jpg)
 
 
 Project based learning gets students ready for a career by exposing them to their future field. It's amazing. The one weakness: standardized testing.
@@ -26,9 +24,8 @@ In contrast, PBL encourages students to build real-world applications ***right o
 Modern frameworks and tools have made it incredibly easy for students to dive straight into the deep end without fear of being drowned in documentation (at least right away). The two best examples of this are XCode and Flask. Both close the gap between products (apps & websites) and what students can make with little to no experience.
 
 ## Problems with PBL
-<figure class="centered big-image">
-    <img src = "/blog/learning/cheese.jpg">
-</figure>
+![/blog/learning/cheese.jpg](/blog/learning/cheese.jpg)
+
 Project based learning takes a "swiss cheese" approach to coding. Through self-exploration, student gain a vast amount of knowledge over a short period of time, but this comes at the cost of leaving "holes" in their knowledge — fundamentals that haven't been uncovered.
 
 In a professional setting, these gaps are for the most part harmless. Time and experience will slowly patch the holes. In school, however, these benign holes become dangerous.
@@ -44,9 +41,6 @@ These "gotchas" (that's what I'll refer to them as now) weren't neccesarily diff
 
 In the end, I was able to save precious review time during AP week, by quickly going over the list rather than re-study everything.
 
-<figure class="centered big-image">
-    <img src = "/blog/learning/jar.jpg">
-    <figcaption>PBL is the rocks, We need to fill in the gaps.</figcaption>
-</figure>
+![/blog/learning/jar.jpg](/blog/learning/jar.jpg)
 
 Gotchas are not taught with the curriculum. The only way to find them is by working through problems until one pops out. What Project based learning really needs is a simple tool that will quickly and efficently cover the missing fundamentals of PBL while skipping through basic topics.

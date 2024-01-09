@@ -74,9 +74,7 @@ never undermine the authority of the stronger.
 1. The function of a ruler is to make laws.
 2. Laws can only be considered “laws” if backed up by punishment. Otherwise, they are
 merely obligations (“you ought to follow this law because it is the right thing to do”)
-3. A ruler without the ability to enforce laws has essentially nullified all of their laws (from
-Cherian 4
-2)
+3. A ruler without the ability to enforce laws has essentially nullified all of their laws (from 2)
 4. A ruler cannot be called a ruler if their laws are nullified. Thus, A ruler should prioritize
 their ability to enforce laws, lest lose the title of “ruler” (from 3 & 1)
 5. A ruler can protect their ability to enforce laws, through their laws

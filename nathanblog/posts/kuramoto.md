@@ -11,10 +11,8 @@ tags: high-school
 ---
 
 
-<figure class="centered big-image">
-    <img src = "/blog/kuramoto/fireflies.webp">
-    <figcaption> An enchanted forest and the Fireflies of Malaysia <small><a href="https://timesofindia.indiatimes.com/blogs/incessant-musings/an-enchanted-forest-and-the-fireflies-of-malaysia/">(Times of India)</a></small></figcaption>
-</figure>
+
+![/blog/kuramoto/fireflies.webp](/blog/kuramoto/fireflies.webp)
 
 <b>The Kuramoto model is truly a wonder of nature</b> Multiple independent objects can synchronize themselves with nothing more than a simple means of communication. Whether it be pendulums oscillating on a mobile table or fireflies blinking in the trees, this phenomenon can be seen in nature all around us. Check out the simulation <a href="https://nathanielc.com/sketches/kuramoto/">here</a>
 
@@ -59,15 +57,7 @@ The steps to code the math behind this model is very straightforward.
 
 This will look something like this ...
 
-<iframe 
-    width="100%"
-    height="800px"
-    scrolling="no" seamless="seamless"
-    src="data:text/html;charset=utf-8,
-    <head><base target='_blank' /></head>
-    <body><script src='https://gist.github.com/nathanielCherian/dcbbb8245f3f9cc35d2586e54a1fb467.js'></script>
-    </body>">
-</iframe>
+<Gist id="dcbbb8245f3f9cc35d2586e54a1fb467"></Gist>
 
 
 It can be confusing to see what's happening by reading the values in the console so I'll display the values as dots moving around a unit circle with a Canvas.
@@ -86,3 +76,4 @@ Because a metronome's motion is sinusoidal, we can simply take the cosine of eac
 As I am now using THREE.JS to model the code, I will use the built-in renderer timer instead of the native ```setInterval()```, but the rest of the code can be kept exactly the same. THREE.JS allows us to create and rotate planes so for each metronome we'll create a new bar and place it on its own plane. These planes store their own rotation values so we can simply plug those values into our Kuramoto function.
 
 Now all that's left to do is to model the movement of the board that is holding the metronomes. This can be done easily by adding up the cosines of all of the individual oscillators and mapping that position to the block object. Now the block will accurately represent the motion of all the metronomes.
+

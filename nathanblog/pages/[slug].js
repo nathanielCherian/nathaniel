@@ -2,8 +2,9 @@ import Head from "next/head";
 import styles from '../styles/Home.module.css';
 import { findPostBySlug } from "../utils/posts";
 import { CreateTags } from ".";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
+import Markdown from 'markdown-to-jsx'
+import { useEffect, useState } from "react";
+import Gist from 'react-gist';
 
 export function getServerSideProps(context) {
     const { slug } = context.query;
@@ -18,9 +19,32 @@ export function getServerSideProps(context) {
     }
 }
 
+const MyImg = (props) => {
+    console.log(props)
+    return (
+        <div style={{width:'100%', textAlign:'center'}}>
+            <img src={props.src} width={'100%'} style={{maxWidth:'400px'}}/>
+        </div>
+    )
+}
+
+const MyGist = (props) => {
+    return (
+        <div>
+            <Gist id={props.id}/>
+        </div>
+    );
+}
+
 export default function Post(props) {
     const { pageData } = props;
-    console.log(pageData.content)
+
+    const [content, setContent] = useState("");
+
+    useEffect(() => {
+        setContent(pageData.content)
+    }, [])
+
     return (
         <div>
             <Head>
@@ -37,8 +61,19 @@ export default function Post(props) {
                         <p style={{margin:'0',padding:'0'}}>{pageData.data.date}</p>
                     </div>
                 </div>
-                <div>
-                    <ReactMarkdown escapeHtml={false}>{"<p>Hello</p>"}</ReactMarkdown>
+                <div style={{width:'100%'}}>
+                    <Markdown options={{
+                        overrides: {
+                            img: {
+                                component: MyImg
+                            },
+                            Gist: {
+                                component: MyGist
+                            }
+                        }
+                    }}>
+                        {content}
+                    </Markdown>
                 </div>
             </div>
         </div>
