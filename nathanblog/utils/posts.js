@@ -18,6 +18,9 @@ export function getSortedPostsData() {
     // Use gray-matter to parse the post metadata section
     const matterResult = matter(fileContents);
 
+    if (typeof matterResult.data.date == "string") {
+      matterResult.data.date = new Date(matterResult.data.date)
+    }
     // Combine the data with the id
     return {
       id,

@@ -28,9 +28,13 @@ export const CreateTags = (tags) => {
 }
 
 
-export default function Home( { allPostsData }) {
-  console.log(allPostsData)
+const convert_date = (date_str) => {
+  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  const d = new Date(date_str).toLocaleDateString(undefined, options).split(',').map((dd) => dd.trim())
+  return d.join(' ')
+}
 
+export default function Home( { allPostsData }) {
   return (
     <div>
         <Head>
@@ -50,7 +54,7 @@ export default function Home( { allPostsData }) {
                     <p style={{margin:0, padding:0}}>{post_data.summary}</p>
                   </div>
                   <div>
-                    <p style={{fontSize:'small', fontStyle:'italic', margin:'0', padding:'0'}}>{post_data.date}</p>
+                    <p style={{fontSize:'small', fontStyle:'italic', margin:'0', padding:'0'}}>{convert_date(post_data.date)}</p>
                   </div>
                 </div>
               ))

@@ -19,6 +19,12 @@ export function getServerSideProps(context) {
     }
 }
 
+const convert_date = (date_str) => {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const d = new Date(date_str).toLocaleDateString(undefined, options).split(',').map((dd) => dd.trim())
+    return d.join(' ')
+  }
+
 const MyImg = (props) => {
     console.log(props)
     return (
@@ -58,7 +64,7 @@ export default function Post(props) {
                         {CreateTags(pageData.data.tags.split(','))}
                     </div>
                     <div>
-                        <p style={{margin:'0',padding:'0'}}>{pageData.data.date}</p>
+                        <p style={{margin:'0',padding:'0'}}>{convert_date(pageData.data.date)}</p>
                     </div>
                 </div>
                 <div style={{width:'100%'}}>
