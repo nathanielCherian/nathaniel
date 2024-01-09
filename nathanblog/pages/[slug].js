@@ -2,6 +2,8 @@ import Head from "next/head";
 import styles from '../styles/Home.module.css';
 import { findPostBySlug } from "../utils/posts";
 import { CreateTags } from ".";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 
 export function getServerSideProps(context) {
     const { slug } = context.query;
@@ -17,7 +19,8 @@ export function getServerSideProps(context) {
 }
 
 export default function Post(props) {
-    const { pageData } = props
+    const { pageData } = props;
+    console.log(pageData.content)
     return (
         <div>
             <Head>
@@ -35,7 +38,7 @@ export default function Post(props) {
                     </div>
                 </div>
                 <div>
-                    <p>Test content here.</p>
+                    <ReactMarkdown escapeHtml={false}>{"<p>Hello</p>"}</ReactMarkdown>
                 </div>
             </div>
         </div>
