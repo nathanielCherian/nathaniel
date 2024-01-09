@@ -1,13 +1,26 @@
 import Head from "next/head";
 import styles from '../styles/Home.module.css';
-import { findPostBySlug } from "../utils/posts";
+import { findPostBySlug, getSortedPostsData } from "../utils/posts";
 import { CreateTags } from ".";
 import Markdown from 'markdown-to-jsx'
 import { useEffect, useState } from "react";
 import Gist from 'react-gist';
 
-export function getServerSideProps(context) {
-    const { slug } = context.query;
+
+export function getStaticPaths() {
+    const allPostsData = JSON.parse(JSON.stringify(getSortedPostsData()));
+    const paths = allPostsData.map((post) => (
+        {
+            params: {
+                slug: post.path.slice(1)
+            }
+        }
+    ));
+    return {paths, fallback:false}
+}
+
+export function getStaticProps( { params }) {
+    const { slug } = params;
     const pageData = findPostBySlug(slug);
     if (pageData) {
         return {
@@ -54,7 +67,7 @@ export default function Post(props) {
     return (
         <div>
             <Head>
-                <title>Nathan's Blog | {pageData.data.title}</title>
+                <title>{"Nathan's Blog | " + pageData.data.title}</title>
                 <link rel="icon" href="/favicon.ico" />
             </Head>
             <div style={{maxWidth:'650px', minWidth:'300px', display:'flex', flexDirection:'column', gap:'15px'}}>

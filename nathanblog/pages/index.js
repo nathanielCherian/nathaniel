@@ -45,7 +45,7 @@ export default function Home( { allPostsData }) {
           <div style={{display:'flex', flexDirection:'column', gap:'10px', maxWidth:'600px', minWidth:'300px'}}>
             {
               allPostsData.map((post_data) => (
-                <div style={{border: '1px solid black', borderRadius:'10px', display:'flex', flexDirection:'column', gap:'5px', padding:'13px'}}>
+                <div key={post_data.title} style={{border: '1px solid black', borderRadius:'10px', display:'flex', flexDirection:'column', gap:'5px', padding:'13px'}}>
                   <div style={{width:'100%'}}>
                     <h3 style={{margin:'0', padding:'0', cursor:'pointer'}} onClick={()=>window.location = post_data.path}>{post_data.title}</h3>
                   </div>
