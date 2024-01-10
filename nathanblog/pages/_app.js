@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import { useMediaQuery } from 'react-responsive';
 
@@ -9,14 +10,20 @@ export default function App(props) {
       setLoaded(true)
     }, []);
 
-    console.log({isMobile})
-
     return !loaded ? <></> : (
         <div style={{display:'flex', flexDirection:(isMobile ? 'column' : 'row')}}>
-            <div style={{display:'flex', padding:'15px', borderRight:'1px solid black'}}>
+            <Head>
+              <link rel="icon" href="/logo.png" />
+            </Head>
+            <div style={{display:'flex', padding:'15px', borderRight:'1px solid black', justifyContent:'center'}}>
                 <div style={{fontWeight:'bold', marginLeft:'20px', marginTop:'15px', fontSize:'20px', cursor:'pointer', display:'flex', flexDirection:'column'}} onClick={()=>window.location = '/'}> 
-                  <span style={{fontSize:'40px'}}>phantasia</span> 
-                  <span style={{fontSize:'15px', color:'gray', fontWeight:'1px', fontStyle:'italic'}}>... a blog of sorts </span>
+                  <div style={{display:'flex', flexDirection:(isMobile ? 'row' : 'column')}}>
+                    <div style={{display:'flex', flexDirection:'column'}}>
+                      <span style={{fontSize:'30px'}}>phantasia</span> 
+                      <span style={{fontSize:'15px', color:'gray', fontWeight:'1px', fontStyle:'italic'}}>... a blog of sorts </span>
+                    </div>
+                    <img src='/logo.png' width={isMobile ? '75px' : '200px'}/>
+                  </div>
                 </div>
             </div>
 

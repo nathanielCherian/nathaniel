@@ -2,13 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
 <url>
+  <loc>https://blog.nathanielc.com/jury-nullification-the-last-line-of-defense-against-injustice</loc>
+</url>
+<url>
   <loc>https://blog.nathanielc.com/kuramoto-model</loc>
 </url>
-<url>
-  <loc>https://blog.nathanielc.com/law-as-the-interest-of-the-stronger</loc>
-</url>
+
 <url>
   <loc>https://blog.nathanielc.com/pbl-the-next-steps</loc>
+</url>
+<url>
+  <loc>https://blog.nathanielc.com/in-defense-of-paternalistic-laws</loc>
 </url>
 
 </urlset>

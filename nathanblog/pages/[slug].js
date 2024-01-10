@@ -67,8 +67,8 @@ export default function Post(props) {
     return (
         <div>
             <Head>
-                <title>{"Nathan's Blog | " + pageData.data.title}</title>
-                <link rel="icon" href="/favicon.ico" />
+                <title>{"phantasia | " + pageData.data.title}</title>
+                <meta name="description" content={pageData.data.summary + " | phantasia is a sort of blog by Nathaniel Cherian where I write about random stuff."} />
             </Head>
             <div style={{maxWidth:'650px', minWidth:'300px', display:'flex', flexDirection:'column', gap:'15px'}}>
                 <h1 style={{margin:'0', padding:'0'}}>{pageData.data.title}</h1>
@@ -77,7 +77,7 @@ export default function Post(props) {
                         {CreateTags(pageData.data.tags.split(','))}
                     </div>
                     <div>
-                        <p style={{margin:'0',padding:'0'}}>{convert_date(pageData.data.date)}</p>
+                        <p style={{margin:'0',padding:'0'}}> {convert_date(pageData.data.date)}</p>
                     </div>
                 </div>
                 <div style={{width:'100%'}}>
@@ -94,6 +94,9 @@ export default function Post(props) {
                         {content}
                     </Markdown>
                 </div>
+                <p>
+                    <p>By <a href="https://nathanielc.com">Nathaniel Cherian</a></p>
+                </p>
             </div>
         </div>
     )
