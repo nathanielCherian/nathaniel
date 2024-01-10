@@ -1,26 +1,38 @@
+import { useEffect, useState } from 'react';
+import { useMediaQuery } from 'react-responsive';
 
 export default function App(props) {
     const {Component, pageProps} = props;
+    const isMobile = useMediaQuery({ maxWidth: 768 });
+    const [loaded, setLoaded] = useState(false)
+    useEffect(() => {
+      setLoaded(true)
+    }, []);
 
-    return (
-        <div>   
-            <div style={{display:'flex'}}>
-                <span style={{fontWeight:'bold', marginLeft:'20px', marginTop:'15px', fontSize:'20px', cursor:'pointer'}} onClick={()=>window.location = '/'}>Nathan's Blog</span>
+    console.log({isMobile})
+
+    return !loaded ? <></> : (
+        <div style={{display:'flex', flexDirection:(isMobile ? 'column' : 'row')}}>
+            <div style={{display:'flex', padding:'15px', borderRight:'1px solid black'}}>
+                <div style={{fontWeight:'bold', marginLeft:'20px', marginTop:'15px', fontSize:'20px', cursor:'pointer', display:'flex', flexDirection:'column'}} onClick={()=>window.location = '/'}> 
+                  <span style={{fontSize:'40px'}}>phantasia</span> 
+                  <span style={{fontSize:'15px', color:'gray', fontWeight:'1px', fontStyle:'italic'}}>... a blog of sorts </span>
+                </div>
             </div>
 
-            <main> 
+            <main style={{width:'100%', padding:(isMobile ? '25px' : '50px'), display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center'}}> 
                 <Component {...pageProps} />
             </main>
 
             <style jsx>{`
-        main {
-          padding: 5rem 0;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-        }
+        // main {
+        //   padding: 5rem 0;
+        //   flex: 1;
+        //   display: flex;
+        //   flex-direction: column;
+        //   justify-content: center;
+        //   align-items: center;
+        // }
         footer {
           width: 100%;
           height: 100px;

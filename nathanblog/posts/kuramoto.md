@@ -26,7 +26,7 @@ The idea is that each of the individual objects, let us call them oscillators (f
 
 If that didn't make sense here's a more visual explanation:
 <figure class="centered">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/T58lGKREubo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <iframe src="https://www.youtube.com/embed/T58lGKREubo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </figure>
 
 Whenever the mass on one of these metronomes swings to one side, the board (which is not fixed to the earth) moves in an opposite and equal way. If all of the pendulums are swinging in the same direction, the board simply mirrors their actions. When the initial positions are staggered the board begins to jerk irregularly, to maintain the position of the center of mass. This irregularity either delays or shortens the pendulum's motion, and over time will adjust until their motion is regular.
