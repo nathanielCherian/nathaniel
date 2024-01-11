@@ -4,8 +4,8 @@ date: 2021-04-10
 title: "Spontaneous Synchronization with the Kuramoto Model"
 summary: "Simulating the Kuramoto model with metronome oscillators using THREE.js"
 image: "/blog/kuramoto/card.jpg"
-twitterImage: "/blog/kuramoto/card.jpg"
-ogImage: "/blog/kuramoto/card.jpg"
+twitter_image: "/blog/kuramoto/card.jpg"
+og_image: "/blog/kuramoto/card.jpg"
 status: published
 tags: high-school
 ---

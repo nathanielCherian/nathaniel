@@ -4,8 +4,8 @@ date: 2021-05-24
 title: "Project-based learning and standardized testing: How to mix water and oil"
 summary: "Project based learning gets students ready for a career by exposing them to their future field. It's amazing. The one weakness: standardized testing"
 image: "/blog/learning/code.jpg"
-twitterImage: "/blog/learning/code.jpg"
-ogImage: "/blog/learning/code.jpg"
+twitter_image: "/blog/learning/code.jpg"
+og_image: "/blog/learning/code.jpg"
 status: published
 tags: 'high-school'
 ---
