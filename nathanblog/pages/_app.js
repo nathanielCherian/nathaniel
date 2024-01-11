@@ -10,12 +10,13 @@ export default function App(props) {
       setLoaded(true)
     }, []);
 
-    return !loaded ? <></> : (
+    return false ? <></> : (
         <div style={{display:'flex', flexDirection:(isMobile ? 'column' : 'row')}}>
             <Head>
               <link rel="icon" href="/logo.png" />
               <meta property="og:type" content="website" />
-            <meta property="og:locale" content="en_US" />
+              <meta property="og:locale" content="en_US" />
+              <meta property='og:site_name' content='phantasia - a blog of sorts' />
             </Head>
             <div style={{display:'flex', padding:'15px', borderRight:'1px solid black', justifyContent:'center'}}>
                 <div style={{fontWeight:'bold', marginLeft:'20px', marginTop:'15px', fontSize:'20px', cursor:'pointer', display:'flex', flexDirection:'column'}} onClick={()=>window.location = '/'}> 

@@ -80,7 +80,7 @@ export default function Post(props) {
                 }
             </Head>
 
-            <div style={{maxWidth:'650px', minWidth:'300px', display:'flex', flexDirection:'column', gap:'15px'}}>
+            <div style={{maxWidth:'650px', minWidth:'300px', display:'flex', flexDirection:'column', gap:'15px'}} >
                 <h1 style={{margin:'0', padding:'0'}}>{pageData.data.title}</h1>
                 <div style={{display:'flex', flexDirection:'row', justifyContent:'space-between'}}>
                     <div>
@@ -104,9 +104,7 @@ export default function Post(props) {
                         {content}
                     </Markdown>
                 </div>
-                <p>
-                    <p>By <a href="https://nathanielc.com">Nathaniel Cherian</a></p>
-                </p>
+                <p>By <a href="https://nathanielc.com">Nathaniel Cherian</a></p>
             </div>
         </div>
     )
