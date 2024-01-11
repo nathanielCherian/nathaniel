@@ -71,12 +71,12 @@ export default function Post(props) {
                 <meta name="description" content={pageData.data.summary + " | phantasia is a sort of blog by Nathaniel Cherian where I write about random stuff."} />
             
                 <meta property="og:url" content={"https://blog.nathanielc.com"+pageData.data.path} />
-                <meta property="og:title" content={"phantasia | " + pageData.data.title} />
+                <meta property="og:title" content={pageData.data.title + " | phantasia"} />
                 <meta property="og:description" content={pageData.data.summary + " | phantasia is a sort of blog by Nathaniel Cherian where I write about random stuff."} />
                 {'og_image' in pageData.data ? 
                     <meta property="og:image" content={pageData.data.og_image} />
                     :
-                    <meta property="og:image" content="logo.png" />
+                    <meta property="og:image" content="/logo.png" />
                 }
             </Head>
 

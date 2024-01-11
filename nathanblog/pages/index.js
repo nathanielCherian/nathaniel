@@ -47,7 +47,7 @@ export default function Home( { allPostsData }) {
           <meta property="og:url" content="https://blog.nathanielc.com" />
           <meta property="og:title" content="phantasia - a blog of sorts" />
           <meta property="og:description" content="phantasia, a sort of blog created by Nathaniel Cherian. Hopefully, there is interesting stuff on here. If not it will be cool to look back on this in the future. Warning, the writing may be terrible, proceed at your own risk." />
-          <meta property="og:image" content="logo.png" />
+          <meta property="og:image" content="/logo.png" />
         </Head>
 
           <h1 style={{marginBottom:'20px', marginTop:0, padding:'0'}}>Recent Posts</h1>
