@@ -26,7 +26,7 @@ export default function App(props) {
 
     return false ? <></> : (
         <div style={{display:'flex', flexDirection:(isMobile ? 'column' : 'row')}}>
-            <Script async src="https://www.googletagmanager.com/gtag/js?id=G-269095479" />
+            <Script async src="https://www.googletagmanager.com/gtag/js?id=G-72HVMVR7Q3" />
             <Script>{injectGA()}</Script>
             <Head>
               <link rel="icon" href="/logo.png" />
