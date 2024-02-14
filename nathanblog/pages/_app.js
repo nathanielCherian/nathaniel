@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Script from 'next/script'
 import { useEffect, useState } from 'react';
 import { useMediaQuery } from 'react-responsive';
 
@@ -10,8 +11,23 @@ export default function App(props) {
       setLoaded(true)
     }, []);
 
+    const injectGA = () => {
+      if (typeof window == 'undefined') {
+        return;
+      }
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        window.dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+    
+      gtag('config', 'YOUR_TRACKING_ID');
+    };
+
     return false ? <></> : (
         <div style={{display:'flex', flexDirection:(isMobile ? 'column' : 'row')}}>
+            <Script async src="https://www.googletagmanager.com/gtag/js?id=G-269095479" />
+            <Script>{injectGA()}</Script>
             <Head>
               <link rel="icon" href="/logo.png" />
               <meta property="og:type" content="website" />
