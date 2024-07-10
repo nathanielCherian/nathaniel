@@ -68,6 +68,13 @@ def spotify(request):
     }
     return render(request, "sketches/spotify.html", context=meta)
 
+def smith_waterman(request):
+    meta = {
+        "title":"Smith-Waterman Example",
+        "description":"Try out the smith-waterman genome sequencing algorithm with step-by-step explanations. Smith-waterman computes the optimal alignment between two sequences that you can configure.",
+    }
+    return render(request, "sketches/smith_waterman.html", context=meta)
+
 def hungarian_beads(request):
     meta = {
         "title":"Hungarian Beads Online",
@@ -157,6 +164,7 @@ pages = [
     ['arm/', arm, 'arm'],
     ['ambigram/', ambigram, 'ambigram'],
     ['spotify/', spotify, 'spotify'],
+    ['smith-waterman/', smith_waterman, 'smith_waterman'],
     ['artistmatch/', artistmatch, 'artistmatch'],
     ['surf/', surf, 'surf'],
 ]
