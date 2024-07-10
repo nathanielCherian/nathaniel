@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smith-Waterman Example</title>
+</head>
+<body>
+    
+    <div class="centered">
+        <h1>Smith-Waterman Example</h1>
+    </div>
+
+    <div class="centered" style="margin: 10px;">
+        <div id="gridContainer" style="margin: 0;"></div>
+        <h2 id="alignment1" style="font-family: monospace; margin: 0;"></h2>
+        <h2 id="alignment2" style="font-family: monospace; margin: 0;"></h2>
+    </div>
+
+    <div class="centered">
+        <div class="centered row">
+            <p style="margin: 0;">sequence 1: </p>
+            <input type="text" placeholder="sequence 1" id="sequence1" value="ACAGGTAG"/>
+        </div>
+        <div class="centered row">
+            <p style="margin: 0;">sequence 2: </p>
+            <input type="text" placeholder="sequence 2" id="sequence2" value="ACTGTTAG"/>
+        </div>
+        <div class="centered row">
+            <p style="margin: 0;">gap penalty: </p>
+            <input type="number" placeholder="gap penalty" id="gap_penalty" value="1"/>
+        </div>
+        <div class="centered row">
+            <p style="margin: 0;">match score</p>
+            <input type="number" placeholder="match score" id="match_score" value="2"/>
+        </div>
+        <div class="centered row">
+            <p style="margin: 0;">mismatch score</p>
+            <input type="number" placeholder="mismatch score" id="mismatch_score" value="-2"/>
+        </div>
+        <button onclick="start_smith_waterman()">Start</button>
+
+    </div>
+</body>
+
+<style>
+    .centered {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .row {
+        flex-direction: row;
+    }
+
+    table {
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 18px;
+        text-align: left;
+        font-family: monospace;
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+    }
+
+    th {
+        background-color: #f2f2f2;
+    }
+
+
+    th, td {
+        text-align: center;
+    }
+
+    .state_diag {
+        background-color: red;
+    }
+
+    .state_up {
+        background-color: green;
+    }
+
+    .state_left {
+        background-color: blue;
+    }
+
+    .state_done {
+        background-color: gray;
+    }
+
+</style>
+
+<script>
+    function createTableWithLabels(containerId, rows, cols) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            throw new Error("Container not found");
+        }
+
+        const topLabels = [];
+        const leftLabels = [];
+        const tableCells = [];
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        const table = document.createElement('table');
+        container.appendChild(table);
+
+        // Create top row with labels
+        const topRow = document.createElement('tr');
+        table.appendChild(topRow);
+
+        // Empty top-left cell
+        topRow.appendChild(document.createElement('th'));
+
+        for (let col = 0; col < cols; col++) {
+            const th = document.createElement('th');
+            th.innerText = `Top ${col + 1}`;
+            topRow.appendChild(th);
+            topLabels.push(th);
+        }
+
+        // Create table with left labels
+        for (let row = 0; row < rows; row++) {
+            const tr = document.createElement('tr');
+            table.appendChild(tr);
+
+            const th = document.createElement('th');
+            th.innerText = `Left ${row + 1}`;
+            tr.appendChild(th);
+            leftLabels.push(th);
+
+            const rowCells = [];
+            for (let col = 0; col < cols; col++) {
+                const td = document.createElement('td');
+                // td.innerText = `${row + 1}, ${col + 1}`;
+                tr.appendChild(td);
+                rowCells.push(td);
+            }
+            tableCells.push(rowCells);
+        }
+
+        return {
+            topLabels,
+            leftLabels,
+            tableCells
+        };
+    }
+
+    function start_smith_waterman() {
+        // Usage example:
+        const sequence1 = ("-"+document.getElementById('sequence1').value).split('');
+        const sequence2 = ("-"+document.getElementById('sequence2').value).split('');
+        const gap_penalty = parseFloat(document.getElementById('gap_penalty').value);
+        const match_score = parseFloat(document.getElementById('match_score').value);
+        const mismatch_score = parseFloat(document.getElementById('mismatch_score').value);
+        const calculate_match_score = (i, j) => {
+            if (sequence1[i] == sequence2[j]) {
+                return match_score;
+            }
+            return mismatch_score;
+        }
+
+        console.log({sequence1, sequence2, gap_penalty, match_score, mismatch_score})
+
+        // Sequence 1 is on the left, sequence 2 is on the top
+        const matrix = Array(sequence1.length).fill().map(()=>Array(sequence2.length).fill(0))
+        const NUM_ROWS = sequence1.length;
+        const NUM_COLS = sequence2.length;
+        const gridReferences = createTableWithLabels('gridContainer', NUM_ROWS, NUM_COLS);
+        const update_matrix = (i, j, v) => {
+            matrix[i][j] = v;
+            gridReferences.tableCells[i][j].innerHTML = `${v}`;
+        }
+
+        const set_gridbox_state = (i, j, state) => {
+            gridReferences.tableCells[i][j].className += ` ${state} `;
+        }
+
+        const set_alignment_labels = (alignment1, alignment2) => {
+            document.getElementById('alignment1').innerHTML = "seq1: "+alignment1.join(' ');
+            document.getElementById('alignment2').innerHTML = "seq2: "+alignment2.join(' ');
+        }
+
+        // Add labels to the grid
+        gridReferences.leftLabels.forEach((th, i) => {
+            th.innerHTML = sequence1[i]
+        });
+        gridReferences.topLabels.forEach((th, i) => {
+            th.innerHTML = sequence2[i]
+        });
+
+        const INITIALIZE = () => {
+            // Set the first column and first row to be 0
+            for (let i = 0; i < NUM_COLS; i++) {
+                update_matrix(0, i, 0);
+            }
+            for (let i = 0; i < NUM_ROWS; i++) {
+                update_matrix(i, 0, 0);
+            }
+        }
+
+        const SIMILARITIES = () => {
+            const funcs = [];
+            for (let i = 1; i < NUM_ROWS; i++) {
+                for (let j = 1; j < NUM_COLS; j++) {
+                    funcs.push(() => {
+                        const diag = matrix[i-1][j-1] + calculate_match_score(i, j);
+                        const left = matrix[i][j-1] - gap_penalty;
+                        const top = matrix[i-1][j] - gap_penalty;
+                        const max_val = Math.max(...[diag, left, top, 0]);
+                        update_matrix(i, j, max_val);
+                    });
+                }
+            }
+            return funcs;
+        }
+        
+        const TRACEBACK = () => {
+            const max_pos = {val:-1, i:-1, j:-1};
+            for (let i = 1; i < NUM_ROWS; i++) {
+                for (let j = 1; j < NUM_COLS; j++) {
+                    if (matrix[i][j] >= max_pos.val) {
+                        max_pos.val = matrix[i][j]
+                        max_pos.i = i;
+                        max_pos.j = j;
+                    }
+                }
+            }
+            console.log({max_pos})
+            const funcs = []
+            const pos = {i:max_pos.i, j:max_pos.j};
+            const alignment1 = [];
+            const alignment2 = [];
+            while (matrix[pos.i][pos.j] != 0) {
+                const old_i = pos.i;
+                const old_j = pos.j
+                const diag_val = matrix[pos.i-1][pos.j-1];
+                const up_val = matrix[pos.i-1][pos.j];
+                const left_val = matrix[pos.i][pos.j-1];
+                let largest_val = diag_val;
+                let state = 'state_diag';
+                pos.i = old_i-1;
+                pos.j = old_j-1;
+                if (up_val > largest_val) {
+                    largest_val = up_val;
+                    state = 'state_up';
+                    pos.i = old_i-1;
+                    pos.j = old_j;
+                }
+                if (left_val > largest_val) {
+                    largest_val = left_val;
+                    state = 'state_left';
+                    pos.i = old_i;
+                    pos.j = old_j-1;
+                }
+
+                if (state == 'state_diag') {
+                    alignment1.push(sequence1[old_i]);
+                    alignment2.push(sequence2[old_j]);
+                } else if (state == 'state_up') {
+                    alignment1.push(sequence1[old_i]);
+                    alignment2.push('-')
+                } else if (state == 'state_left') {
+                    alignment1.push('-');
+                    alignment2.push(sequence2[old_j]);
+                }
+                
+                funcs.push(()=>{
+                    set_gridbox_state(old_i, old_j, state);
+                    set_alignment_labels([...alignment1.reverse()], [...alignment2.reverse()]);
+                })
+                console.log(`${state} at ${old_i} ${old_j} with ${largest_val}`, {...pos})
+            }
+            funcs.push(()=>set_gridbox_state(pos.i, pos.j, "state_done"))
+            return funcs;
+        }
+
+        INITIALIZE()
+        SIMILARITIES().forEach((f) => {
+            f()
+        })
+        TRACEBACK().forEach((f) => {
+            f()
+        })
+    }
+
+</script>
+
+</html>
