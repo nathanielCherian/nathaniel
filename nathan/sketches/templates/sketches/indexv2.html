@@ -1,0 +1,282 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Responsive Split Layout</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  />
+
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: white;
+    }
+
+    /* Centered container with bounded width */
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .top {
+      margin-top: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: row;
+      justify-content: left;
+      align-items: center;
+      gap: 10px;
+    }
+
+
+    /* Two-column layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .section {
+      margin-top: 20px;
+      padding: 100px;
+      padding-top: 0;
+    }
+
+    .first-section {
+      margin-top: 0px;
+    }
+
+    .section h1 {
+      margin: 0;
+    }
+
+    .section p {
+      margin-top: 0px;
+      margin-bottom: 10px;
+    }
+
+    .small-option {
+      font-style: italic;
+    }
+
+    .small-option:hover {
+      color: gray;
+      cursor: pointer;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    /* Fixed aspect ratio container */
+    .gallery-item {
+      aspect-ratio: 1 / 1; /* square */
+      overflow: hidden;
+      background: #f2f2f2;
+      border-radius: 6px;
+      overflow: hidden; /* required for zoom crop */
+      position: relative;
+    }
+
+    .gallery-item:hover {
+      cursor: pointer;
+    }
+
+    /* Image fills box without distortion */
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.25s ease; 
+    }
+
+
+    /* Gray overlay */
+    .gallery-item::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25); /* gray tint */
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .gallery-item:hover::after {
+      opacity: 1;
+    }
+
+    .gallery-item img:hover {
+      transform: scale(1.06); /* subtle, tasteful zoom */
+    }
+
+    .footer {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 50px;
+    }
+
+    .footer p {
+      margin: 0;
+    }
+
+    /* Mobile layout */
+    @media (max-width: 768px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <div class="top">
+      <a href="{% url 'v2_index_home' %}">
+        <img src="{% static 'home/home/also_me.png' %}" width="75px"/>
+      </a>
+      <h1>Sketches</h1>
+    </div>
+
+    <div class="layout">
+        <div class="full">
+        <!-- Right Side -->
+        <div class="section">
+          <div class="gallery" id="sketch-gallery">
+            <div class="gallery-item">
+              <a href="{% url 'ascii' %}" target="_blank">
+                <img src="{% static 'sketches/ascii.png' %}" alt="ASCII Art" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'hungarian' %}" target="_blank">
+                <img src="{% static 'sketches/hungarian.png' %}" alt="Hungarian Algorithm" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'ambigram' %}" target="_blank">
+                <img src="{% static 'sketches/ambigram.png' %}" alt="Ambigram Generator" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'kuramoto' %}" target="_blank">
+                <img src="{% static 'sketches/kuramoto.png' %}" alt="Kuramoto Model" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'chaos' %}" target="_blank">
+                <img src="{% static 'sketches/lorenz.png' %}" alt="Lorenz Attractor" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'rush-hour' %}" target="_blank">
+                <img src="{% static 'sketches/rush_hour.png' %}" alt="Rush Hour Simulation" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'arm' %}" target="_blank">
+                <img src="{% static 'sketches/arm.png' %}" alt="Robotic Arm" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'field-lines' %}" target="_blank">
+                <img src="{% static 'sketches/field_lines.png' %}" alt="Field Lines" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'starry-night' %}" target="_blank">
+                <img src="{% static 'sketches/starrynight.png' %}" alt="Starry Night" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'spotify' %}" target="_blank">
+                <img src="{% static 'sketches/spotify.png' %}" alt="Spotify Visualization" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'spirograph' %}" target="_blank">
+                <img src="{% static 'sketches/spirograph.png' %}" alt="Spirograph" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'marbles' %}" target="_blank">
+                <img src="{% static 'sketches/marbles.png' %}" alt="Marble Simulation" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'modular' %}" target="_blank">
+                <img src="{% static 'sketches/modular.png' %}" alt="Modular Art" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'kid_cudi_motm2' %}" target="_blank">
+                <img src="{% static 'sketches/cudi.png' %}" alt="Kid Cudi MOTM2" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'matrix' %}" target="_blank">
+                <img src="{% static 'sketches/matrix.png' %}" alt="Matrix Effect" />
+              </a>
+            </div>
+
+            <div class="gallery-item">
+              <a href="{% url 'tetris' %}" target="_blank">
+                <img src="{% static 'sketches/tetris.png' %}" alt="Tetris" />
+              </a>
+            </div>
+          </div>
+        </div>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+      <p style="font-style: italic;">The woods are lovely, dark and deep, But I have promises to keep, And miles to go before I sleep, And miles to go before I sleep.</p>
+      <p>© <span id="year"></span> Nathaniel Cherian</p>    
+    </footer>
+
+  </div>
+
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("year").innerHTML = new Date().getFullYear();
+  });
+</script>
+
+
+
+</body>
+</html>

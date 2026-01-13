@@ -9,6 +9,12 @@ def index(request):
     }
     return render(request, "sketches/index.html", context=meta)
 
+def indexv2(request):
+    meta = {
+        "title":"sketches"
+    }
+    return render(request, "sketches/indexv2.html", context=meta)
+
 def kid_cudi_motm2(request):
     meta = {
         "title":"kid cudi MOTM2"
@@ -147,6 +153,7 @@ def surf(request):
     return render(request, "sketches/surf.html")
 
 pages = [
+    ['', indexv2, 'sketch-index-v2'],
     ['v1/', index, 'sketch-index'],
     ['motm2/', kid_cudi_motm2, 'kid_cudi_motm2'],
     ['chaos/', chaos, 'chaos'],

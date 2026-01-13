@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.newindex, name="v2_index"),
+    path('', views.newindex, name="v2_index_home"),
 
     # v1 stuff
     path('v1/', views.index, name="index"),
