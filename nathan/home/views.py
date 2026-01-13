@@ -10,6 +10,13 @@ def index(request):
     }
     return render(request, "home/index.html", context=meta)
 
+def newindex(request):
+    meta = {
+        "title":"home"
+    }
+    return render(request, "home/new_index.html", context=meta)
+
+
 def portfolio(request):
     meta = {
         "title":"portfolio"

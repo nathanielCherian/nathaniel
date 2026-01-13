@@ -1,0 +1,505 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Responsive Split Layout</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  />
+
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: white;
+    }
+
+    /* Centered container with bounded width */
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .top {
+      margin-top: 32px;
+      margin-bottom: 16px;
+    }
+
+
+    /* Two-column layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 3fr;
+      gap: 24px;
+    }
+
+    /* Left panel */
+    .left {
+      background: #ffffff;
+    }
+
+    .photo-placeholder {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      margin-bottom: 16px;
+      margin-left: 0;   /* ensure left alignment */
+    }
+
+    #headshot:hover {
+      content: url("{% static 'home/home/also_me.png' %}");
+    }
+
+    .socials {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      gap: 25px;
+      margin: 12px 0 20px;
+      font-size: 2rem;
+    }
+
+    .socials a {
+      color: black;
+    }
+
+    .socials a:hover {
+      color: gray;
+    }
+
+    .listed {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .links a {
+      display: block;
+      margin-bottom: 8px;
+      text-decoration: none;
+      color: #0066cc;
+    }
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    /* Right panel */
+    .right {
+      border-radius: 8px;
+    }
+
+    .section {
+      margin-top: 20px;
+    }
+
+    .first-section {
+      margin-top: 0px;
+    }
+
+    .section h1 {
+      margin: 0;
+    }
+
+    .section p {
+      margin-top: 0px;
+      margin-bottom: 10px;
+    }
+
+    .small-option {
+      font-style: italic;
+    }
+
+    .small-option:hover {
+      color: gray;
+      cursor: pointer;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    /* Fixed aspect ratio container */
+    .gallery-item {
+      aspect-ratio: 1 / 1; /* square */
+      overflow: hidden;
+      background: #f2f2f2;
+      border-radius: 6px;
+      overflow: hidden; /* required for zoom crop */
+      position: relative;
+    }
+
+    .gallery-item:hover {
+      cursor: pointer;
+    }
+
+    /* Image fills box without distortion */
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.25s ease; 
+    }
+
+
+    /* Gray overlay */
+    .gallery-item::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25); /* gray tint */
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .gallery-item:hover::after {
+      opacity: 1;
+    }
+
+    .gallery-item img:hover {
+      transform: scale(1.06); /* subtle, tasteful zoom */
+    }
+
+    .footer {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 50px;
+    }
+
+    .footer p {
+      margin: 0;
+    }
+
+    /* Mobile layout */
+    @media (max-width: 768px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      /* Move left content below right content */
+      .left {
+        order: 1;
+      }
+
+      .right {
+        order: 2;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <div class="top">
+      <h1>Nathaniel Cherian</h1>
+    </div>
+
+    <div class="layout">
+
+      <!-- Left Side -->
+      <aside class="left">
+        <div class="photo-placeholder">
+           <img id="headshot" src="{% static 'home/home/me.jpg' %}" width="100%"/>
+        </div>
+
+        <nav class="socials">
+          <a href="https://www.linkedin.com/in/nathanielcherian" aria-label="LinkedIn"><i class="fa-brands fa-linkedin"></i></a>
+          <a href="https://github.com/nathanielCherian" aria-label="GitHub"><i class="fa-brands fa-github"></i></a>
+          <a href="https://x.com/nathanielCheria" aria-label="X"><i class="fa-brands fa-x-twitter"></i></a>          
+        </nav>
+
+        <nav class="listed">
+          <a href="mailto:me@nathanielc.com">me@nathanielc.com</a>
+          <p>Computer Science, Philosophy, Math @ Purdue University</p>
+        </nav>
+
+        <!-- <nav class="links">
+          <a href="#">me@nathanielc.com</a>
+          <a href="#">phantasia</a>
+        </nav>
+         -->
+
+      </aside>
+
+      <!-- Right Side -->
+      <main class="right">
+        <div class="section first-section">
+          <p>just exploring. some ideas here: <a href="https://blog.nathanielc.com/">phantasia</a></p>
+          <p>Any thoughts? questions? ideas? email <a href="mailto:me@nathanielc.com">me@nathanielc.com</a></p>
+        </div>
+
+        <div class="section">
+          <h1>Portfolio</h1>
+          <div class="gallery">
+            <div class="gallery-item">
+              <a href="https://wheretolivedc.com/">
+                <img src="{% static 'home/portfolio/wheretolive.png' %}" alt="Sketch 1" />
+              </a>
+            </div>
+            <div class="gallery-item">
+              <a href="https://www.youtube.com/watch?v=c0kRji86-RA">
+                <img src="{% static 'home/portfolio/trackscout.png' %}" alt="Sketch 2" />
+              </a>
+              </div>
+            <div class="gallery-item">
+              <a href="https://resistance.sylicia.com/">
+                <img src="{% static 'home/portfolio/resistance.png' %}" alt="Sketch 3" />
+              </a>
+            </div>
+            <div class="gallery-item">
+              <a href="https://www.youtube.com/watch?v=R9XeJoNL2kU">
+                <img src="{% static 'home/portfolio/3dworld.png' %}" alt="Sketch 4" />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0;">
+            <h1 style="margin: 0;">Sketches</h1>
+            <div style="display: flex; gap: 10px;">
+              <small class="small-option">what are sketches?</small> <small>|</small>
+              <small class="small-option" id="randomize-sketches">randomize!</small> <small>|</small>
+              <small class="small-option">view all</small>
+            </div>
+          </div>
+
+          <div class="gallery" id="sketch-gallery">
+          </div>
+        </div>
+
+        <div class="section">
+          <h1>Publications</h1>
+          <p>Akhil Prasad, <b>Nathaniel Cherian</b>, Sonia Fahmy, "Poster: A Case for Modeling Video Conferencing Applications," In Proceedings of the 2025 ACM Internet Measurement Conference (IMC '25), pp. 1066-1067, October 28-31, 2025, Madison, WI, USA <a href="https://dl.acm.org/doi/10.1145/3730567.3768598">[WEB]</a></p>
+        </div>
+
+      </main>
+
+    </div>
+
+    <footer class="footer">
+      <p style="font-style: italic;">The woods are lovely, dark and deep, But I have promises to keep, And miles to go before I sleep, And miles to go before I sleep.</p>
+      <p>© <span id="year"></span> Nathaniel Cherian</p>    
+    </footer>
+
+  </div>
+
+
+
+<script>
+  const galleryProjects = [
+    {
+      slug: "ascii",
+      url: "{% url 'ascii' %}",
+      image: "{% static 'sketches/ascii.png' %}",
+      alt: "ASCII Art",
+    },
+    {
+      slug: "hungarian",
+      url: "{% url 'hungarian' %}",
+      image: "{% static 'sketches/hungarian.png' %}",
+      alt: "Hungarian Algorithm",
+    },
+    {
+      slug: "ambigram",
+      url: "{% url 'ambigram' %}",
+      image: "{% static 'sketches/ambigram.png' %}",
+      alt: "Ambigram Generator",
+    },
+    {
+      slug: "kuramoto",
+      url: "{% url 'kuramoto' %}",
+      image: "{% static 'sketches/kuramoto.png' %}",
+      alt: "Kuramoto Model",
+    },
+    {
+      slug: "chaos",
+      url: "{% url 'chaos' %}",
+      image: "{% static 'sketches/lorenz.png' %}",
+      alt: "Lorenz Attractor",
+    },
+    {
+      slug: "rush-hour",
+      url: "{% url 'rush-hour' %}",
+      image: "{% static 'sketches/rush_hour.png' %}",
+      alt: "Rush Hour Simulation",
+    },
+    {
+      slug: "arm",
+      url: "{% url 'arm' %}",
+      image: "{% static 'sketches/arm.png' %}",
+      alt: "Robotic Arm",
+    },
+    {
+      slug: "field-lines",
+      url: "{% url 'field-lines' %}",
+      image: "{% static 'sketches/field_lines.png' %}",
+      alt: "Field Lines",
+    },
+    {
+      slug: "starry-night",
+      url: "{% url 'starry-night' %}",
+      image: "{% static 'sketches/starrynight.png' %}",
+      alt: "Starry Night",
+    },
+    {
+      slug: "spotify",
+      url: "{% url 'spotify' %}",
+      image: "{% static 'sketches/spotify.png' %}",
+      alt: "Spotify Visualization",
+    },
+    {
+      slug: "spirograph",
+      url: "{% url 'spirograph' %}",
+      image: "{% static 'sketches/spirograph.png' %}",
+      alt: "Spirograph",
+    },
+    {
+      slug: "marbles",
+      url: "{% url 'marbles' %}",
+      image: "{% static 'sketches/marbles.png' %}",
+      alt: "Marble Simulation",
+    },
+    {
+      slug: "modular",
+      url: "{% url 'modular' %}",
+      image: "{% static 'sketches/modular.png' %}",
+      alt: "Modular Art",
+    },
+    {
+      slug: "kid_cudi_motm2",
+      url: "{% url 'kid_cudi_motm2' %}",
+      image: "{% static 'sketches/cudi.png' %}",
+      alt: "Kid Cudi MOTM2",
+    },
+    {
+      slug: "matrix",
+      url: "{% url 'matrix' %}",
+      image: "{% static 'sketches/matrix.png' %}",
+      alt: "Matrix Effect",
+    },
+    {
+      slug: "tetris",
+      url: "{% url 'tetris' %}",
+      image: "{% static 'sketches/tetris.png' %}",
+      alt: "Tetris",
+    },
+  ];
+
+
+  function getRandomItems(arr, n) {
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, n);
+  }
+
+  function populateSketchGallery() {
+    const gallery = document.getElementById("sketch-gallery");
+    gallery.innerHTML = ""
+    const randomProjects = getRandomItems(galleryProjects, 3);
+
+    randomProjects.forEach(project => {
+      const itemDiv = document.createElement("div");
+      itemDiv.className = "gallery-item";
+
+      const link = document.createElement("a");
+      link.href = project.url;
+      link.target = "_blank";
+
+      const img = document.createElement("img");
+      img.src = project.image;
+      img.alt = project.alt;
+
+      link.appendChild(img);
+      itemDiv.appendChild(link);
+      gallery.appendChild(itemDiv);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    populateSketchGallery();
+    document.getElementById("year").innerHTML = new Date().getFullYear();
+  });
+
+  document.getElementById("randomize-sketches").addEventListener("click", (e) => populateSketchGallery())
+
+</script>
+
+
+
+</body>
+</html>
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nathaniel cherian</title>
+</head>
+
+<body>
+  
+  <div class="page">
+    <main class="center-sec">
+      <div class="left">
+        <h1>hi</h1>
+      </div>
+      <div class="right">
+        <h1>hi</h1>
+      </div>
+    </main>
+  </div>
+
+</body>
+
+<style>
+  @font-face {
+    font-family: "gilroy-bold";
+    src: url("../fonts/Gilroy-Bold.woff");  
+  } 
+
+  @font-face {
+      font-family: "gilroy-light";
+      src: url("../fonts/Gilroy-Light.woff");
+  }
+
+  html, body {
+    font-family: "gilroy-light", sans-serif;
+    margin: 0;
+    width: 100%;
+    background-color: red;
+  }
+
+  .page {
+    background-color: green;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .center-sec {
+    background-color: purple;
+    width: 1500px;
+    display: flex;
+    flex-direction: row;
+  }
+
+</style>
+</html> -->

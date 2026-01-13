@@ -147,7 +147,7 @@ def surf(request):
     return render(request, "sketches/surf.html")
 
 pages = [
-    ['', index, 'sketch-index'],
+    ['v1/', index, 'sketch-index'],
     ['motm2/', kid_cudi_motm2, 'kid_cudi_motm2'],
     ['chaos/', chaos, 'chaos'],
     ['starry-night/', starry_night, 'starry-night'],

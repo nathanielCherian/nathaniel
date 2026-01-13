@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossword</title>
+</head>
+<body>
+    
+
+
+</body>
+
+
+<script>
+
+    const words = [
+        "apple",
+        "orange",
+        "poison",
+        "computer",
+        "nate",
+        "wow",
+        "anita",
+        "mommy",
+        "elephant",
+        "hard",
+        ]
+
+    // What letters are shared between words
+    const letterMap = {};
+    for (const word of words) {
+        for (let i = 0; i < word.length; i++) {
+            const letter = word[i];
+            if (!(letter in letterMap)) {
+                letterMap[letter] = [];
+            }
+            letterMap[letter].push([word, i]);
+        }
+    }
+    
+    // Add this word to the grid
+    //  - pos: the starting position, (x, y) dict
+    //  - orient: "hor" is left to right, "ver" is up down
+    const placeWord = (word, pos, orient) => {
+        for (let i = 0; i < word.length; i++) {
+            const x = pos.x + (orient === "hor" ? i : 0);
+            const y = pos.y + (orient === "ver" ? -i : 0);
+            const pos_str = String(x)+","+String(y);
+            const letter = word[i];
+            // adding a new position to the grid
+            if (!(pos_str in grid)) {
+                grid[pos_str] = { letter, words: [] }
+            }
+            // If it already exists the letters need to match
+            if (letter !== grid[pos_str].letter) {
+                throw Error("overwriting letter.");
+            }
+            // add the word to this grid position
+            grid[pos_str].words.push(word);
+        }
+        wordData[word] = pos;
+    }
+
+    const pos_to_str = (pos) => {
+        return `${pos[0]},${pos[1]}`;
+    }
+
+    function getRandomElement(arr) {
+    const randomIndex = Math.floor(Math.random() * arr.length);
+    return arr[randomIndex];
+    }
+
+    class Grid {
+        grid = {};
+
+        writeToPos(pos, letter, word) {
+            const pos_str = `${pos[0]},${pos[1]}`;
+            if (!(pos_str in this.grid)) {
+                this.grid[pos_str] = {
+                    letter: letter,
+                    words: []
+                }
+            }
+            if (letter !== this.grid[pos_str].letter) {
+                throw Error("overwriting letter.");
+            }
+            this.grid[pos_str].words.push(word);
+        }
+
+        getLetterAtPos(pos) {
+            const pos_str = `${pos[0]},${pos[1]}`;
+            if (!(pos_str in this.grid)) {
+                return null;
+            }
+            return this.grid[pos_str].letter;
+        }
+
+        isEmptyAtPos(pos) {
+            return this.getLetterAtPos(pos) == null;
+        }
+
+        clone() {
+            const new_grid = new Grid();
+            Object.keys(this.grid).forEach((pos_key) => {
+                new_grid.grid[pos_key] = {
+                    letter: this.grid[pos_key].letter,
+                    words: [...this.grid[pos_key].words]
+                }
+            });
+            return new_grid;
+        }
+
+        addWord(pos, word, orient) {
+            for (let i = 0; i < word.length; i += 1) {
+                const x = pos[0] + (orient === "hor" ? i : 0);
+                const y = pos[1] + (orient === "ver" ? -i : 0);
+                const letter = word[i];
+                this.writeToPos([x,y], letter, word);
+            }
+        }
+
+        addWordAllowed(pos, word, orient) {
+            for (let i = 0; i < word.length; i += 1) {
+                const x = pos[0] + (orient === "hor" ? i : 0);
+                const y = pos[1] + (orient === "ver" ? -i : 0);
+                const letter = word[i];
+
+                const adjacent_positions = [];
+
+                // If there is an existing letter in this position...
+                //  - we can still add word, the letters need to match
+                //  - it is okay if there is a letter directly above/below or left/right of us
+                //  - If there is no existing letter then we need to monitor adjacents
+                const existing_letter = this.getLetterAtPos([x,y]);
+                if (existing_letter) {
+                    if (existing_letter !== letter) {
+                        return false;
+                    }
+                } else {
+                    if (orient === "hor") { // horizontal
+                        adjacent_positions.push([x, y-1])
+                        adjacent_positions.push([x, y+1])
+                    }
+                    if (orient == "ver"){ // vertical
+                        adjacent_positions.push([x-1, y])
+                        adjacent_positions.push([x+1, y])
+                    }
+                }
+                
+                // Regardless of if we are overwriting a letter, we need to check the head/tail
+                if (i == 0) {
+                    adjacent_positions.push([x-1, y])
+                    adjacent_positions.push([x, y+1])
+                }
+                if (i == word.length-1) {
+                    adjacent_positions.push([x+1, y])
+                    adjacent_positions.push([x, y-1])
+                }
+
+                const neighborsFree = adjacent_positions
+                                    .map((pos) => this.isEmptyAtPos(pos))
+                                    .every((v) => v === true);
+
+                if (neighborsFree == false) {
+                    return false;
+                }
+                
+            }
+            return true;
+        }
+
+        print() {
+            const bounds = Object.keys(this.grid).map((pos) => {
+                const pos_vars = pos.split(",");
+                const x = parseInt(pos_vars[0], 10);
+                const y = parseInt(pos_vars[1], 10);
+                return [x, y];
+            }).reduce((acc, cval) => {
+                return {
+                    xmax: Math.max(acc.xmax, cval[0]),
+                    xmin: Math.min(acc.xmin, cval[0]),
+                    ymax: Math.max(acc.ymax, cval[1]),
+                    ymin: Math.min(acc.ymin, cval[1]),
+                }
+            }, {xmax:-100, xmin:100, ymax:-100, ymin:100});
+            console.log(bounds);
+
+            for (let y = bounds.ymax; y >= bounds.ymin; y -= 1) {
+                const s = [String(y).padStart(3) + ":"];
+                for (let x = bounds.xmin; x <= bounds.xmax; x += 1) {
+                    const pos_str = `${x},${y}`;
+                    if (pos_str in this.grid) {
+                        s.push(this.grid[pos_str].letter);
+                    } else {
+                        s.push('.');
+                    }
+                }
+                console.log(s.join(' '));
+            }
+        }
+    }
+
+
+    // Word we want to insert
+    // Position of the new word
+    // horizontal or vertical
+    // words that have been played already (to branch off)\
+    // return: null if we cannot play these words, the game board if so
+    function insertNewWord(grid, word, pos, orient, played_words) {
+        // 1. Check if we can add this word to this position. If no, return false.
+        const valid_add = grid.addWordAllowed(pos, word, orient);
+        if (!valid_add) {
+            return false;
+        }
+        
+        const new_grid = grid.clone();
+        // 2. Add this word to the grid
+        new_grid.addWord(pos, word, orient);
+        played_words[word] = {pos:pos, orient:orient}
+        console.log(`adding ${word} to the grid.`)
+
+        if (Object.keys(played_words).length == words.length) {
+            console.log("finished adding all words.")
+            return new_grid;
+        }
+
+        // 3. Search through all of the letters in the played words (randomly?)
+        for (const rand_word of Object.keys(played_words)) { // played words
+            for (let i = 0; i < rand_word.length; i+=1) {
+                const letter = rand_word[i];
+                const connectedWords = letterMap[letter];
+                for (const connectedWord of connectedWords) {
+                    const w = connectedWord[0];
+                    if (w in played_words) {
+                        continue;
+                    }
+
+                    // 4. If a letter has overlap with a new word not already played, we should try inserting it
+                    const offset = connectedWord[1];
+                    const new_orient = played_words[rand_word].orient === "hor" ? "ver" : "hor";
+                    const new_x = played_words[rand_word].pos[0] + (new_orient == "hor" ? -offset : i);
+                    const new_y = played_words[rand_word].pos[1] + (new_orient == "hor" ? -i : offset);
+
+                    console.log(`trying to connect '${w}'(${offset}) to '${rand_word}' (${i}) `);
+                    console.log(`\t orig pos: ${pos}, new_pos: ${new_x}, ${new_y}`)
+                    const worked = insertNewWord(new_grid, w, [new_x, new_y], new_orient, played_words);
+                    if (worked) {
+                        return worked;
+                    }
+                }
+            }
+        }
+
+        delete played_words[word];
+
+        console.log("FAILURE COND. from ", word)
+        return null
+    }
+
+
+    const g = new Grid();
+    const ng = insertNewWord(g, words[0], [0,0], "hor", []);
+    ng.print();
+
+    // g.writeToPos([0,0], "n", "nathan")
+    // g.writeToPos([1,0], "a", "nathan")
+    // g.writeToPos([2,0], "t", "nathan")
+    // g.writeToPos([3,0], "h", "nathan")
+    // g.writeToPos([4,0], "a", "nathan")
+    // g.writeToPos([5,0], "n", "nathan")
+
+    // console.log(g.addWordAllowed([2,2], "catoasdsa", "ver"))
+    // g.addWord([2,2], "cato", "ver");
+    // g.print();
+
+    // g.writeToPos([0,0], "n", "nathan")
+    // g.writeToPos([1,0], "a", "nathan")
+    // g.writeToPos([2,0], "t", "nathan")
+    // g.writeToPos([3,0], "h", "nathan")
+    // g.writeToPos([4,0], "a", "nathan")
+    // g.writeToPos([5,0], "n", "nathan")
+
+    // const new_g = g.clone();
+    // new_g.writeToPos([0,2], "n", "nun");
+    // new_g.writeToPos([0,1], "u", "nun");
+    // new_g.writeToPos([0,0], "n", "nun");
+    // g.print()
+    // new_g.print();
+
+
+
+    // Convinience function to print the grid
+    // const printGrid = (g) => {
+    //     const bounds = Object.keys(g).map((pos) => {
+    //         const pos_vars = pos.split(",");
+    //         const x = parseInt(pos_vars[0], 10);
+    //         const y = parseInt(pos_vars[1], 10);
+    //         return [x, y];
+    //     }).reduce((acc, cval) => {
+    //         return {
+    //             xmax: Math.max(acc.xmax, cval[0]),
+    //             xmin: Math.min(acc.xmin, cval[0]),
+    //             ymax: Math.max(acc.ymax, cval[1]),
+    //             ymin: Math.min(acc.ymin, cval[1]),
+    //         }
+    //     }, {xmax:-100, xmin:100, ymax:-100, ymin:100});
+    //     console.log(bounds);
+
+    //     for (let y = bounds.ymax; y >= bounds.ymin; y -= 1) {
+    //         const s = [String(y) + ":"];
+    //         for (let x = bounds.xmin; x <= bounds.xmax; x += 1) {
+    //             const pos_str = `${x},${y}`;
+    //             if (pos_str in g) {
+    //                 s.push(g[pos_str].letter);
+    //             } else {
+    //                 s.push('.');
+    //             }
+    //         }
+    //         console.log(s.join(' '));
+    //     }
+    // }
+
+
+</script>
+
+</html>
