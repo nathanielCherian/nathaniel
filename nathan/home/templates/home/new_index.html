@@ -61,7 +61,6 @@
       justify-content: center;
       align-items: center;
       gap: 25px;
-      margin: 12px 0 20px;
       font-size: 2rem;
     }
 
@@ -76,6 +75,8 @@
     .listed {
       display: flex;
       flex-direction: column;
+      margin: 0;
+      padding: 0;
     }
 
     .links a {
@@ -185,18 +186,81 @@
 
     /* Mobile layout */
     @media (max-width: 768px) {
+
+      .page {
+        padding: 25px;
+      }
+
       .layout {
         grid-template-columns: 1fr;
       }
 
-      /* Move left content below right content */
       .left {
+        display: flex;
+        flex-direction: row;       /* image + info side by side */
+        align-items: flex-start;   /* top aligned */
+        gap: 16px;                 /* space between image and info */
         order: 1;
+      }
+
+      .photo-placeholder {
+        flex-shrink: 0;            /* keep image size */
+        height: 150px;
+        width: 150px;
+      }
+
+      .below-photo {
+        display: flex;
+        flex-direction: column-reverse;    /* listed above socials */
+        justify-content: flex-start;
+        align-items: flex-start;
+      }
+
+      .listed {
+        margin-top: 0px;
+        margin-bottom: 10px;        /* small gap between listed and socials */
+      }
+
+      .listed p {
+        margin: 0px;
+      }
+
+      .socials {
+        justify-content: flex-start; /* left-align icons */
       }
 
       .right {
         order: 2;
       }
+
+      /* Move left content below right content */
+      /* .left {
+        order: 1;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .below-photo {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: center;
+        justify-content: start;
+        height: 100%;
+        padding: 10px;
+      }
+
+      .listed {
+        margin-top: 0;
+      }
+      .listed p {
+        margin-top: 0;
+      }
+
+      .right {
+        order: 2;
+      } */
     }
   </style>
 </head>
@@ -216,17 +280,18 @@
            <img id="headshot" src="{% static 'home/home/me.jpg' %}" width="100%"/>
         </div>
 
-        <nav class="socials">
-          <a href="https://www.linkedin.com/in/nathanielcherian" aria-label="LinkedIn"><i class="fa-brands fa-linkedin"></i></a>
-          <a href="https://github.com/nathanielCherian" aria-label="GitHub"><i class="fa-brands fa-github"></i></a>
-          <a href="https://x.com/nathanielCheria" aria-label="X"><i class="fa-brands fa-x-twitter"></i></a>          
-        </nav>
+        <div class="below-photo">
+          <nav class="socials">
+            <a href="https://www.linkedin.com/in/nathanielcherian" aria-label="LinkedIn"><i class="fa-brands fa-linkedin"></i></a>
+            <a href="https://github.com/nathanielCherian" aria-label="GitHub"><i class="fa-brands fa-github"></i></a>
+            <a href="https://x.com/nathanielCheria" aria-label="X"><i class="fa-brands fa-x-twitter"></i></a>          
+          </nav>
 
-        <nav class="listed">
-          <p>Computer Science, Philosophy, Math @ Purdue University</p>
-          <a href="mailto:me@nathanielc.com">me@nathanielc.com</a>
-        </nav>
-
+          <nav class="listed">
+            <p>Computer Science, Philosophy, Math @ Purdue University</p>
+            <!-- <a href="mailto:me@nathanielc.com">me@nathanielc.com</a> -->
+          </nav>
+        </div>
         <!-- <nav class="links">
           <a href="#">me@nathanielc.com</a>
           <a href="#">phantasia</a>
@@ -238,8 +303,8 @@
       <!-- Right Side -->
       <main class="right">
         <div class="section first-section">
-          <p>just exploring. some ideas here: <a href="https://blog.nathanielc.com/">phantasia</a></p>
-          <p>Any thoughts? questions? ideas? email <a href="mailto:me@nathanielc.com">me@nathanielc.com</a></p>
+          <p>exploring, learning, thinking. some ideas here: <a href="https://blog.nathanielc.com/">phantasia</a></p>
+          <p>To get in touch, email <a href="mailto:me@nathanielc.com">me@nathanielc.com</a></p>
         </div>
 
         <div class="section">
@@ -272,7 +337,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0;">
             <h1 style="margin: 0;">Sketches</h1>
             <div style="display: flex; gap: 10px;">
-              <small class="small-option">what are sketches?</small> <small>|</small>
+              <!-- <small class="small-option">what are sketches?</small> <small>|</small> -->
               <small class="small-option" id="randomize-sketches">randomize!</small> <small>|</small>
               <small class="small-option"><a href="{% url 'sketch-index-v2' %}" style="color: inherit; text-decoration: inherit;">view all</a></small>
             </div>
@@ -284,7 +349,9 @@
 
         <div class="section">
           <h1>Publications</h1>
-          <p>Akhil Prasad, <b>Nathaniel Cherian</b>, Sonia Fahmy, "Poster: A Case for Modeling Video Conferencing Applications," In Proceedings of the 2025 ACM Internet Measurement Conference (IMC '25), pp. 1066-1067, October 28-31, 2025, Madison, WI, USA <a href="https://dl.acm.org/doi/10.1145/3730567.3768598">[WEB]</a></p>
+          <div style="margin-top: 16px;">
+            <p>Akhil Prasad, <b>Nathaniel Cherian</b>, Sonia Fahmy, "Poster: A Case for Modeling Video Conferencing Applications," In Proceedings of the 2025 ACM Internet Measurement Conference (IMC '25), pp. 1066-1067, October 28-31, 2025, Madison, WI, USA <a href="https://dl.acm.org/doi/10.1145/3730567.3768598">[WEB]</a></p>
+          </div>
         </div>
 
       </main>
@@ -292,7 +359,7 @@
     </div>
 
     <footer class="footer">
-      <p style="font-style: italic;">The woods are lovely, dark and deep, But I have promises to keep, And miles to go before I sleep, And miles to go before I sleep.</p>
+      <p style="font-style: italic; text-align: center;">The woods are lovely, dark and deep, But I have promises to keep, And miles to go before I sleep, And miles to go before I sleep.</p>
       <p>© <span id="year"></span> Nathaniel Cherian</p>    
     </footer>
 
