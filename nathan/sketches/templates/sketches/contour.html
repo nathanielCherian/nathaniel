@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contour Map</title>
+</head>
+
+<body>
+    <canvas id="canvas" width="500px" height="500px" style="border: 1px solid black;"></canvas>
+</body>
+
+
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    let isDrawing = false;
+    
+    const saved_contours = [];
+    const points = [];
+    
+    let lastX = 0;
+    let lastY = 0;
+
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+        const { x, y } = getMousePos(e);
+        points.push([x,y]);
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        if (points.length == 0) return;
+        const [lastX, lastY] = points[points.length - 1];
+        const { x, y } = getMousePos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.stroke();
+        points.push([x,y])
+    });
+
+    canvas.addEventListener("mouseup", () => {
+        if (points.length > 2) {
+            // Check if the first and the last are near each other
+            const [fx, fy] = points[0];
+            const [lx, ly] = points[points.length - 1];
+            const dist = Math.sqrt((fx - lx)**2 + (fy - ly)**2);
+            console.log(dist)
+            if (dist < 15) {
+                saved_contours.push([...points]);
+                convolute(saved_contours[0])
+                points.length = 0;
+                return;
+            }
+        }
+        points.length = 0;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+        points.length = 0;
+    });
+
+
+    function convolute(pts) {
+        const n = 10;
+        const new_points = [];
+        let [sum_x, sum_y] = pts.slice(0, n)
+                                .reduce((acc, cval) => [acc[0]+cval[0], acc[1]+cval[1]], [0,0]);
+
+        for (let i = 10; i < pts.length; i++) {
+            new_points.push([sum_x/n, sum_y/n]);
+            sum_x -= pts[i-10][0];
+            sum_y -= pts[i-10][1];
+            sum_x += pts[i][0];
+            sum_y += pts[i][1];
+        }
+
+
+        console.log(new_points)
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 1; i < new_points.length; i++) {
+            ctx.beginPath();
+            ctx.moveTo(new_points[i-1][0], new_points[i-1][1]);
+            ctx.lineTo(new_points[i][0], new_points[i][1]);
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+            ctx.stroke();
+        }
+    }
+
+</script>
+
+
+</html>
