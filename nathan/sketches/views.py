@@ -152,6 +152,13 @@ def artistmatch(request):
 def surf(request):
     return render(request, "sketches/surf.html")
 
+def wordhunt(request):
+    meta = {
+        "title":"Wordhunt Solver",
+        "description":"This tool allows you to input your gamepigeon wordhunt board and will allows you to rapidly solve the highest scoring words in each board. Never lose again.",
+    }
+    return render(request, "sketches/wordhunt.html", context=meta)
+
 pages = [
     ['', indexv2, 'sketch-index-v2'],
     ['v1/', index, 'sketch-index'],
@@ -174,4 +181,5 @@ pages = [
     ['smith-waterman/', smith_waterman, 'smith_waterman'],
     ['artistmatch/', artistmatch, 'artistmatch'],
     ['surf/', surf, 'surf'],
+    ['wordhunt-solver/', wordhunt, 'wordhunt'],
 ]
