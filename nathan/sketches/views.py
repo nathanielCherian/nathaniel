@@ -163,6 +163,7 @@ def rubiks(request):
     meta = {
         "title":"Rubik's Cube State Graph",
         "description":"Turn an interactive 3D Rubik's Cube and watch graph theory happen: 54 stickers as a planar graph, and every cube state a vertex on the shortest path home.",
+        "image":"meta/rubiks.png"
     }
     return render(request, "sketches/rubiks.html", context=meta)
 
