@@ -1,0 +1,1317 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    {% include 'snippets/meta.html'%}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rubik's Cube State Graph</title>
+<meta name="description" content="Turn an interactive 3D Rubik's Cube and watch graph theory happen: 54 stickers as a planar graph, and every cube state a vertex on the shortest path home.">
+<meta name="keywords" content="Rubik's Cube, graph theory, state graph, Cayley graph, God's number, shortest path, breadth-first search, group theory, planar graph, interactive 3D Rubik's Cube, math visualization">
+<meta name="author" content="Nathaniel Cherian">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#f2f3f0">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e3e5e0'/%3E%3Crect x='3' y='3' width='8' height='8' rx='2' fill='%232456c9'/%3E%3Crect x='12' y='3' width='8' height='8' rx='2' fill='%23f08a24'/%3E%3Crect x='21' y='3' width='8' height='8' rx='2' fill='%23fdfdfa'/%3E%3Crect x='3' y='12' width='8' height='8' rx='2' fill='%23d93a2f'/%3E%3Crect x='12' y='12' width='8' height='8' rx='2' fill='%231f8f57'/%3E%3Crect x='21' y='12' width='8' height='8' rx='2' fill='%23f6c52e'/%3E%3Crect x='3' y='21' width='8' height='8' rx='2' fill='%23f6c52e'/%3E%3Crect x='12' y='21' width='8' height='8' rx='2' fill='%232456c9'/%3E%3Crect x='21' y='21' width='8' height='8' rx='2' fill='%23d93a2f'/%3E%3C/svg%3E">
+
+<!-- Social sharing (Open Graph / Twitter). Once the page has a public address, uncomment the three
+     URL lines below and point them at it; link previews need absolute URLs and a 1200x630 image. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Rubik's Cube State Graph">
+<meta property="og:title" content="Rubik's Cube State Graph: the cube as a graph theory problem">
+<meta property="og:description" content="Twist a 3D Rubik's Cube and see it two ways at once: 54 stickers riding on 9 rings, and a walk through the graph of 43 quintillion states where solving means finding the shortest path.">
+<meta property="og:locale" content="en_US">
+<!-- <link rel="canonical" href="https://YOUR-DOMAIN/"> -->
+<!-- <meta property="og:url" content="https://YOUR-DOMAIN/"> -->
+<!-- <meta property="og:image" content="https://YOUR-DOMAIN/og-image.png"> -->
+<meta property="og:image:alt" content="A 3D Rubik's Cube beside the same state drawn as 54 coloured dots on 9 rings, and a graph of cube states with the path back to Solved.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Rubik's Cube State Graph: the cube as a graph theory problem">
+<meta name="twitter:description" content="Twist a 3D Rubik's Cube and see it two ways at once: 54 stickers riding on 9 rings, and a walk through the graph of 43 quintillion states where solving means finding the shortest path.">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["WebApplication", "LearningResource"],
+  "name": "Rubik's Cube State Graph",
+  "description": "Turn an interactive 3D Rubik's Cube and watch graph theory happen: 54 stickers as a planar graph, and every cube state a vertex on the shortest path home.",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Any",
+  "browserRequirements": "Requires JavaScript and WebGL2",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Nathaniel" },
+  "learningResourceType": "Interactive simulation",
+  "educationalUse": "Demonstration",
+  "teaches": [
+    "How a Rubik's Cube can be modelled as a graph whose vertices are states and whose edges are quarter turns",
+    "Why solving the cube is a shortest-path problem, and what God's number means as the graph's diameter",
+    "How the 54 stickers of one state form a planar graph of 9 intersecting rings"
+  ],
+  "about": [
+    { "@type": "Thing", "name": "Rubik's Cube", "sameAs": "https://en.wikipedia.org/wiki/Rubik%27s_Cube" },
+    { "@type": "Thing", "name": "Graph theory", "sameAs": "https://en.wikipedia.org/wiki/Graph_theory" },
+    { "@type": "Thing", "name": "Cayley graph", "sameAs": "https://en.wikipedia.org/wiki/Cayley_graph" },
+    { "@type": "Thing", "name": "God's number", "sameAs": "https://en.wikipedia.org/wiki/Optimal_solutions_for_the_Rubik%27s_Cube" }
+  ],
+  "keywords": "Rubik's Cube, graph theory, state graph, Cayley graph, God's number, shortest path, breadth-first search, group theory"
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap">
+<style>
+  /* One committed visual world: a printed science feature. Cool paper, ink, and the six sticker colours. */
+  :root {
+    --ground: #f2f3f0;
+    --panel: #fbfbf9;
+    --line: #d5d8d2;
+    --ink: #16181a;
+    --ink-2: #4c5157;
+    --ink-3: #7d8388;
+    --accent: #1e3fae;
+    --gold: #f6c52e;
+    --l-u: #5a6068; --l-d: #cf9a00; --l-f: #1f8f57; --l-b: #2456c9; --l-r: #d93a2f; --l-l: #e57c14;
+    --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: "Libre Franklin", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 400 14px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1680px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 3.2vw, 48px);
+    padding-block: 32px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead { border-bottom: 1px solid var(--ink); padding-bottom: 18px; }
+  h1 {
+    margin: 0;
+    font: 500 clamp(34px, 5vw, 64px)/1.02 var(--serif);
+    letter-spacing: -.018em;
+    text-wrap: balance;
+  }
+
+  /* ---------- stage: three figures on a shared baseline ---------- */
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 4fr) minmax(0, 5fr);
+    gap: 28px 32px;
+    align-items: stretch;
+  }
+  .pane { display: flex; flex-direction: column; min-width: 0; border-top: 2px solid var(--ink); }
+  .pane-head { display: flex; flex-direction: column; gap: 3px; padding: 12px 0 14px; }
+  .pane-head h2 { margin: 0; font: 600 22px/1.15 var(--serif); letter-spacing: -.005em; text-wrap: balance; }
+  .pane-head h2 span { font-style: italic; font-weight: 400; color: var(--ink-2); margin-left: .2em; }
+  .hint { font: 400 12.5px/1.4 var(--sans); color: var(--ink-3); }
+  .viewport { position: relative; touch-action: none; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .viewport canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; outline-offset: -3px; }
+  #cubeView {
+    height: clamp(300px, 44vh, 500px);
+    background: radial-gradient(ellipse 40% 8% at 50% 90%, rgba(22, 24, 26, .10) 0%, transparent 72%), var(--panel);
+    cursor: grab;
+  }
+  #graphView { flex: 1; min-height: clamp(360px, 56vh, 640px); cursor: grab; }
+  .viewport.dragging { cursor: grabbing !important; }
+  #flatView { flex: 1; min-height: clamp(320px, 44vh, 500px); touch-action: pan-y; }
+  #flatView canvas { touch-action: pan-y; }
+  .flat-hint {
+    position: absolute; left: 14px; right: 14px; bottom: 10px;
+    font: 400 12px/1.4 var(--sans); color: var(--ink-3); pointer-events: none; text-align: center;
+  }
+  .flat-hint b { color: var(--ink); font-weight: 600; }
+  .pane-note { margin: 0; padding: 14px 0 0; color: var(--ink-2); font: 400 16px/1.5 var(--serif); max-width: 62ch; }
+  .pane-note b { color: var(--ink); font-weight: 600; }
+
+  .face-label {
+    position: absolute; left: 0; top: 0;
+    font: 700 13px/1 var(--sans);
+    color: rgba(12, 14, 16, .6);
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  /* ---------- controls ---------- */
+  .controls { padding: 14px 0 0; display: flex; flex-direction: column; gap: 12px; }
+  .movepad { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .mv-group { display: flex; flex-direction: column; gap: 6px; }
+  button {
+    font: 500 13px/1 var(--sans);
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, transform .06s;
+  }
+  button:hover { background: #fff; border-color: var(--ink); }
+  button:active { transform: translateY(1px); }
+  button:focus-visible, canvas:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  button.mv {
+    font: 600 14px/1 var(--sans);
+    padding: 10px 0;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  button.mv i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(22, 24, 26, .45); flex: none; }
+  button.primary { background: var(--ink); border-color: var(--ink); color: var(--panel); font-weight: 600; }
+  button.primary:hover { background: #2c3035; border-color: #2c3035; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .row .label { font: italic 400 15px/1 var(--serif); color: var(--ink-2); margin-right: 4px; }
+  .scramble { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding-right: 10px; }
+  .scramble button { border: 0; background: transparent; border-right: 1px solid var(--line); border-radius: 3px 0 0 3px; }
+  .scramble button:hover { background: #fff; }
+  .scramble input { width: 60px; accent-color: var(--ink); }
+  .scramble output { font: 600 12px/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink-2); min-width: 2ch; text-align: right; }
+  button.ghost { background: transparent; font-size: 12.5px; font-weight: 500; padding: 8px 10px; color: var(--ink-2); letter-spacing: .02em; }
+  .walk {
+    font: 500 12.5px/1.5 var(--sans);
+    letter-spacing: .04em;
+    color: var(--ink);
+    border-block: 1px solid var(--line);
+    padding: 9px 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .walk b { color: var(--ink-3); font-weight: 400; letter-spacing: 0; }
+  .status { min-height: 1.5em; font: 400 15.5px/1.45 var(--serif); color: var(--ink-2); }
+  .status strong { color: var(--ink); font-weight: 600; }
+  .status .seq { font: 500 12.5px/1.5 var(--sans); letter-spacing: .04em; color: var(--ink); }
+
+  /* ---------- graph overlays ---------- */
+  .g-tools { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .g-tools .seg { display: flex; align-items: center; gap: 0; background: rgba(251, 251, 249, .92); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .g-tools .seg span { font: 400 12px/1 var(--sans); color: var(--ink-3); padding: 0 9px 0 10px; }
+  .g-tools .seg button { border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; font: 500 12px/1 var(--sans); padding: 8px 11px; color: var(--ink-3); }
+  .g-tools .seg button:hover { background: #fff; color: var(--ink); }
+  .g-tools .seg button[aria-pressed="true"] { color: var(--ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ink); }
+  .legend {
+    position: absolute; left: 14px; bottom: 12px;
+    display: flex; flex-wrap: wrap; gap: 4px 16px;
+    font: 400 12px/1.4 var(--sans); color: var(--ink-2);
+    pointer-events: none; max-width: calc(100% - 28px);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { display: inline-block; border-radius: 50%; }
+  .lg-solved { width: 9px; height: 9px; background: var(--gold); box-shadow: 0 0 0 1.5px var(--panel), 0 0 0 2.5px var(--ink); }
+  .lg-you { width: 9px; height: 9px; background: var(--accent); box-shadow: 0 0 0 4px rgba(30, 63, 174, .2); }
+  .lg-seen { width: 7px; height: 7px; background: var(--ink); }
+  .lg-unseen { width: 5px; height: 5px; background: #9aa0a5; }
+  .lg-edges { display: inline-flex; gap: 2px; }
+  .lg-edges b { width: 7px; height: 3px; border-radius: 2px; background: var(--c); }
+  .tip {
+    position: absolute; z-index: 5; pointer-events: none;
+    background: #fff; border: 1px solid var(--ink); border-radius: 3px;
+    box-shadow: 0 8px 28px rgba(22, 24, 26, .14);
+    padding: 10px 12px; display: flex; gap: 12px; align-items: center;
+    font-size: 12.5px; line-height: 1.45; color: var(--ink-2); width: max-content; max-width: 290px;
+  }
+  .tip strong { display: block; color: var(--ink); font: 600 16px/1.25 var(--serif); margin-bottom: 2px; }
+  .tip b { color: var(--ink); font-weight: 600; }
+  .tip canvas { width: 92px; height: 69px; flex: none; }
+  dl.stats { margin: 0; }
+  .stats { display: flex; flex-wrap: wrap; gap: 14px 32px; padding-top: 16px; }
+  .stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .stat dt { font: 600 10.5px/1.3 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+  .stat dd { margin: 0; font: 500 27px/1.1 var(--serif); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+  .stat dd small { font: italic 400 15px/1 var(--serif); color: var(--ink-2); }
+
+  footer { border-top: 1px solid var(--line); padding-top: 16px; color: var(--ink-2); font: italic 400 15px/1.4 var(--serif); }
+
+  @media (max-width: 1279px) {
+    .stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    #graphPane { grid-column: 1 / -1; }
+  }
+  @media (max-width: 760px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .movepad { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+</style>
+</head>
+<body>
+<noscript>
+  <p style="max-width:60ch;margin:48px auto;padding:0 16px;font:17px/1.5 Georgia,serif">Rubik's Cube State Graph is an interactive visualization of the Rubik's Cube as a graph theory problem: a 3D cube you can turn, the same state drawn as a planar graph of 54 stickers on 9 rings, and the graph of cube states in which solving means finding the shortest path back to Solved. It needs JavaScript to run.</p>
+</noscript>
+<div class="wrap">
+  <header class="masthead">
+    <h1>Rubik's Cube State Graph</h1>
+  </header>
+
+  <main class="stage">
+    <div class="pane">
+      <div class="pane-head">
+        <h2>The cube <span>one state</span></h2>
+        <div class="hint">Drag a face to turn it. Drag around the cube to look at it from another side.</div>
+      </div>
+      <div class="viewport" id="cubeView">
+        <canvas id="cubeCanvas" tabindex="0" aria-label="3D Rubik's cube. Use the keys U, D, L, R, F, B to turn faces; hold Shift for counter-clockwise."></canvas>
+      </div>
+      <div class="controls">
+        <div class="movepad" id="movepad" role="group" aria-label="Face turns"></div>
+        <div class="row">
+          <div class="scramble">
+            <button id="btnScramble" type="button">Scramble</button>
+            <input id="scrambleLen" type="range" min="1" max="30" value="8" aria-label="Scramble length in turns">
+            <output id="scrambleOut" for="scrambleLen">8</output>
+          </div>
+          <button id="btnUndo" type="button">Undo</button>
+          <button id="btnSolve" type="button" class="primary">Find the way home</button>
+          <button id="btnReset" type="button">Reset</button>
+        </div>
+        <div class="row">
+          <span class="label">Walk a loop</span>
+          <button class="ghost" type="button" data-demo="U U U U">U ×4</button>
+          <button class="ghost" type="button" data-demo="R L R' L'">R L R′ L′</button>
+          <button class="ghost" type="button" data-demo="R U R' U' R U R' U' R U R' U' R U R' U' R U R' U' R U R' U'">(R U R′ U′) ×6</button>
+        </div>
+        <div class="walk" id="walk" aria-label="Your walk so far"></div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="pane" id="flatPane">
+      <div class="pane-head">
+        <h2>The sticker graph <span>that state, flattened</span></h2>
+        <div class="hint">54 vertices on 9 rings. Click a ring to turn its layer.</div>
+      </div>
+      <div class="viewport" id="flatView">
+        <canvas id="flatCanvas" aria-label="The current cube state drawn as a planar graph: 54 coloured stickers at the crossings of 9 rings."></canvas>
+        <div class="flat-hint" id="flatHint"></div>
+      </div>
+      <p class="pane-note">Each dot is a <b>sticker</b>; each ring is one <b>layer</b> of the cube, twelve stickers that always travel together. Every sticker sits where two rings cross. A turn slides one ring a quarter of the way round and spins the nine stickers of its face.</p>
+    </div>
+
+    <div class="pane" id="graphPane">
+      <div class="pane-head">
+        <h2>The state graph <span>that whole state is one vertex</span></h2>
+        <div class="hint">Drag to orbit, pinch or ⌘/Ctrl-scroll to zoom. Click any state to walk there.</div>
+      </div>
+      <div class="viewport" id="graphView">
+        <canvas id="graphCanvas" aria-label="Graph of cube states explored so far"></canvas>
+        <div class="g-tools">
+          <div class="seg" role="group" aria-label="Reveal every state within this many turns of Solved">
+            <span>Show all states within</span>
+            <button type="button" data-ball="1" title="13 states">1</button>
+            <button type="button" data-ball="2" title="127 states">2</button>
+            <button type="button" data-ball="3" title="1,195 states">3</button>
+            <span style="padding-left:8px;border-left:1px solid var(--line);align-self:stretch;display:flex;align-items:center">turns</span>
+          </div>
+          <div class="seg">
+            <button type="button" id="tglNeighbors" aria-pressed="true" style="border-left:0">Unvisited states</button>
+            <button type="button" id="tglSpin" aria-pressed="true">Spin</button>
+            <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+            <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+          </div>
+        </div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="lg-solved"></i>Solved</span>
+          <span><i class="lg-you"></i>You</span>
+          <span><i class="lg-seen"></i>Visited</span>
+          <span><i class="lg-unseen"></i>One turn away, unvisited</span>
+          <span><span class="lg-edges"><b style="--c:var(--l-u)"></b><b style="--c:var(--l-d)"></b><b style="--c:var(--l-f)"></b><b style="--c:var(--l-b)"></b><b style="--c:var(--l-r)"></b><b style="--c:var(--l-l)"></b></span>Edge colour: the face you turn</span>
+        </div>
+        <div class="tip" id="tip" hidden><canvas id="tipNet" width="184" height="138"></canvas><div id="tipText"></div></div>
+      </div>
+      <dl class="stats">
+        <div class="stat"><dt>States discovered</dt><dd id="stN">0</dd></div>
+        <div class="stat"><dt>Visited</dt><dd id="stV">0</dd></div>
+        <div class="stat"><dt>Edges</dt><dd id="stE">0</dd></div>
+        <div class="stat"><dt>Shortest known way home</dt><dd id="stD">0</dd></div>
+        <div class="stat"><dt>Share of the whole graph</dt><dd id="stShare">0</dd></div>
+      </dl>
+    </div>
+  </main>
+
+  <footer>Created by Nathaniel with Fable 5.1</footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* =====================================================================
+   1. CUBE MODEL — 54 stickers, 12 quarter-turn generators as permutations
+   ===================================================================== */
+const FACE_NAMES = ['U', 'D', 'F', 'B', 'R', 'L'];
+const FACE_HEX = ['#fdfdfa', '#f6c52e', '#1f8f57', '#2456c9', '#d93a2f', '#f08a24'];                 // sticker fills
+const LINE_HEX = ['#5a6068', '#cf9a00', '#1f8f57', '#2456c9', '#d93a2f', '#e57c14'];                 // the same faces as strokes on paper
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const FACE_RGB = FACE_HEX.map(hexRGB), LINE_RGB = LINE_HEX.map(hexRGB);
+const FACE_NORMALS = [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]];
+
+const stickers = [];                 // {p:[x,y,z], f:face}
+const stickerAt = new Map();         // "x,y,z|f" -> index
+for (let f = 0; f < 6; f++) {
+  const n = FACE_NORMALS[f];
+  for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+    if (x * n[0] + y * n[1] + z * n[2] !== 1) continue;
+    stickerAt.set(`${x},${y},${z}|${f}`, stickers.length);
+    stickers.push({ p: [x, y, z], f });
+  }
+}
+const faceOfNormal = n => FACE_NORMALS.findIndex(m => m[0] === n[0] && m[1] === n[1] && m[2] === n[2]);
+
+// exact 90° rotation of an integer vector; dir=+1 is counter-clockwise seen from the +axis tip
+function rot90(v, axis, dir) {
+  const [x, y, z] = v, s = dir;
+  if (axis === 0) return [x, -s * z, s * y];
+  if (axis === 1) return [s * z, y, -s * x];
+  return [-s * y, s * x, z];
+}
+
+// move m = 2*face + (1 if counter-clockwise). Clockwise seen from outside = -90° about the outward normal.
+const MOVES = [];
+for (let f = 0; f < 6; f++) {
+  const n = FACE_NORMALS[f];
+  const axis = n.findIndex(c => c !== 0), layer = n[axis];
+  MOVES.push({ name: FACE_NAMES[f], face: f, axis, layer, dir: -layer });
+  MOVES.push({ name: FACE_NAMES[f] + '′', face: f, axis, layer, dir: layer });
+}
+const SRC = MOVES.map(mv => {       // SRC[m][j] = index of the sticker that lands on j
+  const src = new Uint8Array(54);
+  stickers.forEach((s, i) => {
+    let j = i;
+    if (s.p[mv.axis] === mv.layer) {
+      const p = rot90(s.p, mv.axis, mv.dir), n = rot90(FACE_NORMALS[s.f], mv.axis, mv.dir);
+      j = stickerAt.get(`${p[0]},${p[1]},${p[2]}|${faceOfNormal(n)}`);
+    }
+    src[j] = i;
+  });
+  return src;
+});
+const SOLVED = stickers.map(s => String(s.f)).join('');
+const tmp54 = new Uint8Array(54);
+function applyMove(key, m) {
+  const src = SRC[m];
+  for (let j = 0; j < 54; j++) tmp54[j] = key.charCodeAt(src[j]);
+  return String.fromCharCode.apply(null, tmp54);
+}
+const moveByName = name => MOVES.findIndex(mv => mv.name === name.replace("'", '′'));
+const moveFromRotation = (axis, layer, dir) => MOVES.findIndex(mv => mv.axis === axis && mv.layer === layer && mv.dir === dir);
+
+// Two-sided breadth-first search. Optimal whenever the true distance is <= 2*maxHalf.
+function shortestPath(startKey, goalKey, maxHalf) {
+  if (startKey === goalKey) return [];
+  const A = new Map([[startKey, -1]]), B = new Map([[goalKey, -1]]);
+  let fa = [startKey], fb = [goalKey], da = 0, db = 0;
+  while (fa.length && fb.length) {
+    const canA = da < maxHalf, canB = db < maxHalf;
+    if (!canA && !canB) return null;
+    const useA = canA && (!canB || fa.length <= fb.length);
+    const own = useA ? A : B, other = useA ? B : A, frontier = useA ? fa : fb, next = [];
+    let meet = null;
+    outer: for (const k of frontier) {
+      const last = own.get(k);
+      for (let m = 0; m < 12; m++) {
+        if (last >= 0 && m === (last ^ 1)) continue;
+        const c = applyMove(k, m);
+        if (own.has(c)) continue;
+        own.set(c, m);
+        if (other.has(c)) { meet = c; break outer; }
+        next.push(c);
+      }
+    }
+    if (meet) {
+      const path = [];
+      for (let k = meet, m; (m = A.get(k)) !== -1; k = applyMove(k, m ^ 1)) path.unshift(m);
+      for (let k = meet, m; (m = B.get(k)) !== -1; k = applyMove(k, m ^ 1)) path.push(m ^ 1);
+      return path;
+    }
+    if (useA) { fa = next; da++; } else { fb = next; db++; }
+  }
+  return null;
+}
+
+/* =====================================================================
+   2. EXPLORED GRAPH — vertices are states, edges are quarter turns
+   ===================================================================== */
+const NODE_CAP = 6000;   // stop revealing new neighbours past this; your own steps are always added
+const G = {
+  n: 0, keys: [], index: new Map(), visited: [], expanded: [], adj: [], dist: [], onRoute: [],
+  pos: new Float64Array(3 * 1024), vel: new Float64Array(3 * 1024),
+  edges: [], edgeIndex: new Map(), centroid: [0, 0, 0],
+  dirty: true, active: [], activeEdges: [],
+};
+const sim = { alpha: 1, tick: 0 };
+const SIMP = { rep: .5, cut: 14, hubRest: 2.4, hubK: .5 };
+let showNeighbors = true;
+
+function addNode(key, parent) {
+  const i = G.n++;
+  if (i * 3 + 3 > G.pos.length) {
+    const p = new Float64Array(G.pos.length * 2); p.set(G.pos); G.pos = p;
+    const v = new Float64Array(G.vel.length * 2); v.set(G.vel); G.vel = v;
+  }
+  G.keys.push(key); G.index.set(key, i);
+  G.visited.push(0); G.expanded.push(0); G.adj.push([]); G.dist.push(Infinity); G.onRoute.push(0);
+  let x = 0, y = 0, z = 0;
+  if (parent >= 0) {
+    const px = G.pos[parent * 3], py = G.pos[parent * 3 + 1], pz = G.pos[parent * 3 + 2];
+    let ox = px - G.centroid[0], oy = py - G.centroid[1], oz = pz - G.centroid[2];
+    const ol = Math.hypot(ox, oy, oz) || 1;
+    let rx = Math.random() - .5, ry = Math.random() - .5, rz = Math.random() - .5;
+    const rl = Math.hypot(rx, ry, rz) || 1;
+    x = px + ox / ol * .45 + rx / rl * .55; y = py + oy / ol * .45 + ry / rl * .55; z = pz + oz / ol * .45 + rz / rl * .55;
+  }
+  G.pos[i * 3] = x; G.pos[i * 3 + 1] = y; G.pos[i * 3 + 2] = z;
+  G.vel[i * 3] = G.vel[i * 3 + 1] = G.vel[i * 3 + 2] = 0;
+  G.dirty = true;
+  return i;
+}
+function link(a, b, m) {
+  const k = a < b ? a * 1e7 + b : b * 1e7 + a;
+  let e = G.edgeIndex.get(k);
+  if (e) return e;
+  e = { a, b, m, walked: false, route: false };
+  G.edges.push(e); G.edgeIndex.set(k, e);
+  G.adj[a].push({ to: b, m, e }); G.adj[b].push({ to: a, m: m ^ 1, e });
+  G.dirty = true;
+  return e;
+}
+function expand(i) {
+  if (G.expanded[i]) return;
+  let all = true;
+  for (let m = 0; m < 12; m++) {
+    const k = applyMove(G.keys[i], m);
+    let j = G.index.get(k);
+    if (j === undefined) {
+      if (G.n >= NODE_CAP) { all = false; continue; }
+      j = addNode(k, i);
+    }
+    link(i, j, m);
+  }
+  G.expanded[i] = all ? 1 : 0;
+  sim.alpha = Math.max(sim.alpha, .55);
+}
+function growBall(radius) {
+  const depth = new Map([[0, 0]]);
+  let frontier = [0];
+  for (let d = 0; d < radius; d++) {
+    const next = [];
+    for (const i of frontier) {
+      expand(i);
+      for (const a of G.adj[i]) if (!depth.has(a.to)) { depth.set(a.to, d + 1); next.push(a.to); }
+    }
+    frontier = next;
+  }
+  sim.alpha = 1;
+}
+function refreshGraph() {
+  if (!G.dirty) return;
+  G.dirty = false;
+  // shortest known distance to Solved (vertex 0), through everything uncovered so far
+  G.dist.fill(Infinity); G.dist[0] = 0;
+  let q = [0];
+  while (q.length) {
+    const next = [];
+    for (const i of q) for (const a of G.adj[i]) if (G.dist[a.to] === Infinity) { G.dist[a.to] = G.dist[i] + 1; next.push(a.to); }
+    q = next;
+  }
+  G.active = [];
+  for (let i = 0; i < G.n; i++) if (showNeighbors || G.visited[i] || G.onRoute[i] || i === 0) G.active.push(i);
+  const on = new Uint8Array(G.n);
+  for (const i of G.active) on[i] = 1;
+  G.activeEdges = G.edges.filter(e => on[e.a] && on[e.b]);
+  G.deg = new Uint16Array(G.n);
+  for (const e of G.activeEdges) { G.deg[e.a]++; G.deg[e.b]++; }
+  G.hubDeg = new Uint16Array(G.n);   // neighbours that are themselves branching points
+  for (const e of G.activeEdges) if (G.deg[e.a] > 1 && G.deg[e.b] > 1) { G.hubDeg[e.a]++; G.hubDeg[e.b]++; }
+  updateStats();
+}
+function pathInGraph(from, to) {       // shortest route through visible vertices, as a list of moves
+  if (from === to) return [];
+  const on = new Uint8Array(G.n);
+  for (const i of G.active) on[i] = 1;
+  const prev = new Map([[from, null]]);
+  let q = [from];
+  while (q.length && !prev.has(to)) {
+    const next = [];
+    for (const i of q) for (const a of G.adj[i]) if (on[a.to] && !prev.has(a.to)) { prev.set(a.to, { from: i, m: a.m }); next.push(a.to); }
+    q = next;
+  }
+  if (!prev.has(to)) return null;
+  const path = [];
+  for (let i = to, p; (p = prev.get(i)); i = p.from) path.unshift(p.m);
+  return path;
+}
+
+// d3-style force layout in 3D: many-body repulsion, link springs, a little gravity
+function simTick() {
+  if (sim.alpha < .003) return;
+  const A = G.active, n = A.length, pos = G.pos, vel = G.vel, alpha = sim.alpha;
+  const stride = Math.max(1, Math.ceil(n * n / 2 / 5e5));
+  const REP = SIMP.rep * alpha * stride, CUT2 = SIMP.cut * SIMP.cut;
+  sim.tick++;
+  for (let a = 0; a < n; a++) {
+    const i = A[a] * 3, xi = pos[i], yi = pos[i + 1], zi = pos[i + 2];
+    let fx = 0, fy = 0, fz = 0;
+    for (let b = a + 1 + ((sim.tick + a) % stride); b < n; b += stride) {
+      const j = A[b] * 3;
+      let dx = pos[j] - xi, dy = pos[j + 1] - yi, dz = pos[j + 2] - zi;
+      let d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < .02) { dx += (Math.random() - .5) * .1; dy += (Math.random() - .5) * .1; dz += (Math.random() - .5) * .1; d2 = .02; }
+      if (d2 > CUT2) continue;
+      const w = REP / (d2 * Math.sqrt(d2));
+      dx *= w; dy *= w; dz *= w;
+      fx -= dx; fy -= dy; fz -= dz;
+      vel[j] += dx; vel[j + 1] += dy; vel[j + 2] += dz;
+    }
+    vel[i] += fx; vel[i + 1] += fy; vel[i + 2] += fz;
+  }
+  for (const e of G.activeEdges) {
+    const i = e.a * 3, j = e.b * 3, da = G.deg[e.a], db = G.deg[e.b];
+    let dx = pos[j] + vel[j] - pos[i] - vel[i], dy = pos[j + 1] + vel[j + 1] - pos[i + 1] - vel[i + 1], dz = pos[j + 2] + vel[j + 2] - pos[i + 2] - vel[i + 2];
+    const l = Math.hypot(dx, dy, dz) || 1e-6;
+    const hubs = da > 1 && db > 1;
+    const rest = hubs ? SIMP.hubRest : 1;
+    const strength = hubs ? Math.min(SIMP.hubK, 2 / Math.max(G.hubDeg[e.a], G.hubDeg[e.b])) : 1;
+    const f = (l - rest) / l * alpha * strength, bias = da / (da + db);
+    dx *= f; dy *= f; dz *= f;
+    vel[j] -= dx * bias; vel[j + 1] -= dy * bias; vel[j + 2] -= dz * bias;
+    vel[i] += dx * (1 - bias); vel[i + 1] += dy * (1 - bias); vel[i + 2] += dz * (1 - bias);
+  }
+  for (let a = 0; a < n; a++) {
+    const i = A[a] * 3;
+    for (let c = 0; c < 3; c++) {
+      vel[i + c] = (vel[i + c] - pos[i + c] * .006 * alpha) * .6;
+      pos[i + c] += vel[i + c];
+    }
+  }
+  sim.alpha += (0 - sim.alpha) * (n > 400 ? .012 : .022);
+}
+
+/* =====================================================================
+   3. SESSION STATE + MOVE ENGINE
+   ===================================================================== */
+let state = SOLVED, current = 0, markerTarget = 0;
+let history = [];
+const queue = [];        // {m, undo, solve}
+let anim = null;         // {m, tgt, t0, dur, opts}
+let turn = null;         // free drag of a layer: {axis, layer, angle, settle}
+let hoverMove = -1;
+const mpos = [0, 0, 0];  // the "you" marker glides after the current vertex
+
+function resetAll() {
+  G.n = 0; G.keys = []; G.index = new Map(); G.visited = []; G.expanded = []; G.adj = []; G.dist = []; G.onRoute = [];
+  G.edges = []; G.edgeIndex = new Map(); G.centroid = [0, 0, 0]; G.dirty = true;
+  queue.length = 0; anim = null; turn = null; history = [];
+  state = SOLVED; current = 0; markerTarget = 0; mpos[0] = mpos[1] = mpos[2] = 0;
+  addNode(SOLVED, -1); G.visited[0] = 1; expand(0);
+  sim.alpha = 1;
+}
+function clearRoute() {
+  for (const e of G.edges) e.route = false;
+  G.onRoute.fill(0); G.dirty = true;
+}
+function beginMove(m) {
+  const key = applyMove(state, m);
+  let j = G.index.get(key);
+  if (j === undefined) j = addNode(key, current);
+  const e = link(current, j, m);
+  markerTarget = j;
+  return { j, e, key };
+}
+function commitMove(m, tgt, opts) {
+  state = tgt.key; tgt.e.walked = true; G.visited[tgt.j] = 1; current = tgt.j;
+  expand(current);
+  if (opts.undo) history.pop(); else history.push(m);
+  if (!opts.solve && G.edges.some(e => e.route)) clearRoute();
+  G.dirty = true;
+  updateWalk();
+  if (current === 0 && !queue.length) say(opts.solve ? `Home. That route was <strong>${opts.len} turns</strong> long.` : 'Back at <strong>Solved</strong> — you just closed a loop in the graph.');
+}
+function instantMove(m, opts = {}) { commitMove(m, beginMove(m), opts); }
+function enqueue(moves, opts = {}) {
+  if (turn) return;
+  for (const m of moves) queue.push({ m, opts });
+}
+function stepEngine(now) {
+  if (turn && turn.settle) {
+    const s = turn.settle, t = Math.min(1, (now - s.t0) / s.dur);
+    turn.angle = s.from + (s.to - s.from) * (1 - Math.pow(1 - t, 3));
+    if (t >= 1) {
+      const q = s.q, t0 = turn; turn = null;
+      if (q) { const m = moveFromRotation(t0.axis, t0.layer, Math.sign(q)); for (let i = 0; i < Math.abs(q); i++) instantMove(m); say(''); }
+    }
+    return;
+  }
+  if (anim) {
+    const t = (now - anim.t0) / anim.dur;
+    if (t >= 1) { const a = anim; anim = null; commitMove(a.m, a.tgt, a.opts); }
+  }
+  if (!anim && !turn && queue.length) {
+    const item = queue.shift();
+    const dur = REDUCED ? 0 : queue.length > 2 ? 105 : 250;
+    anim = { m: item.m, tgt: beginMove(item.m), t0: now, dur, opts: item.opts };
+    if (hoverNode >= 0) { hoverNode = -1; showTip(-1); }   // the graph is about to shift under a resting pointer
+    if (dur === 0) { const a = anim; anim = null; commitMove(a.m, a.tgt, a.opts); }
+  }
+}
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function currentRotation(now) {   // which layer is mid-turn right now, and by how much
+  if (turn) return turn;
+  if (anim) { const mv = MOVES[anim.m]; return { axis: mv.axis, layer: mv.layer, angle: mv.dir * Math.PI / 2 * ease(Math.min(1, (now - anim.t0) / anim.dur)) }; }
+  return null;
+}
+
+/* =====================================================================
+   4. THE CUBE — WebGL2, stickers drawn in the fragment shader
+   ===================================================================== */
+const cubeView = $('#cubeView'), cubeCanvas = $('#cubeCanvas');
+const gl = cubeCanvas.getContext('webgl2', { antialias: true, alpha: true });
+const cam = { yaw: .62, pitch: .48, fov: 32 * Math.PI / 180, W: 1, H: 1, C: [0, 0, 1], f: [0, 0, -1], r: [1, 0, 0], u: [0, 1, 0] };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+function updateCamera() {
+  const aspect = cam.W / cam.H, dist = 9.4 / Math.min(1, aspect * .92);
+  const cp = Math.cos(cam.pitch);
+  cam.C = [dist * Math.sin(cam.yaw) * cp, dist * Math.sin(cam.pitch), dist * Math.cos(cam.yaw) * cp];
+  cam.f = norm(cam.C.map(c => -c)); cam.r = norm(cross(cam.f, [0, 1, 0])); cam.u = cross(cam.r, cam.f);
+}
+function project(p) {              // world -> CSS pixels in the cube viewport
+  const d = [p[0] - cam.C[0], p[1] - cam.C[1], p[2] - cam.C[2]];
+  const zc = dot(d, cam.f), t = Math.tan(cam.fov / 2), aspect = cam.W / cam.H;
+  return [(dot(d, cam.r) / (zc * t * aspect) * .5 + .5) * cam.W, (.5 - dot(d, cam.u) / (zc * t) * .5) * cam.H];
+}
+function pickCube(mx, my) {        // ray vs the 3x3x3 box -> {p, na, ns, cubie}
+  const t = Math.tan(cam.fov / 2), aspect = cam.W / cam.H;
+  const nx = mx / cam.W * 2 - 1, ny = 1 - my / cam.H * 2;
+  const d = norm([0, 1, 2].map(i => cam.f[i] + cam.r[i] * nx * t * aspect + cam.u[i] * ny * t));
+  let tmin = -Infinity, tmax = Infinity, na = -1, ns = 0;
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(d[i]) < 1e-9) { if (Math.abs(cam.C[i]) > 1.5) return null; continue; }
+    let t1 = (-1.5 - cam.C[i]) / d[i], t2 = (1.5 - cam.C[i]) / d[i], s = -1;
+    if (t1 > t2) { [t1, t2] = [t2, t1]; s = 1; }
+    if (t1 > tmin) { tmin = t1; na = i; ns = s; }
+    tmax = Math.min(tmax, t2);
+  }
+  if (tmin > tmax || tmin < 0 || na < 0) return null;
+  const p = [0, 1, 2].map(i => cam.C[i] + d[i] * tmin);
+  const cubie = p.map((c, i) => i === na ? ns : Math.max(-1, Math.min(1, Math.round(c))));
+  return { p, na, ns, cubie };
+}
+
+let prog, vbuf, verts, uView, uProj, uLight;
+const SIDX = new Int8Array(27 * 6).fill(-1);
+function initGL() {
+  if (!gl) { cubeView.insertAdjacentHTML('beforeend', '<p style="position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-2);padding:24px;text-align:center">This browser has no WebGL2, so the 3D cube can\'t be drawn. The buttons and the graph still work.</p>'); return; }
+  const VS = `#version 300 es
+  in vec3 aPos; in vec3 aNor; in vec2 aUv; in vec4 aCol;
+  uniform mat4 uView, uProj;
+  out vec3 vPos; out vec3 vNor; out vec2 vUv; out vec4 vCol;
+  void main(){ vPos=aPos; vNor=aNor; vUv=aUv; vCol=aCol; gl_Position=uProj*uView*vec4(aPos,1.0); }`;
+  const FS = `#version 300 es
+  precision highp float;
+  in vec3 vPos; in vec3 vNor; in vec2 vUv; in vec4 vCol;
+  uniform vec3 uLight; out vec4 o;
+  void main(){
+    // Soft and matte: no outlines. Each sticker just deepens slightly toward its own edge, the way a real one does,
+    // and sits on pale grey plastic so that even the white face reads without a border.
+    vec2 q = abs(vUv) - vec2(0.71);
+    float d = length(max(q,0.0)) + min(max(q.x,q.y),0.0) - 0.17;   // rounded-square sticker
+    float aa = fwidth(d)*1.2;
+    float fill = vCol.a*(1.0 - smoothstep(-aa, aa, d));
+    vec3 sticker = vCol.rgb*(1.0 - 0.13*smoothstep(-0.11, 0.0, d));
+    float e = max(abs(vUv.x), abs(vUv.y)), ae = fwidth(e)*1.2;
+    vec3 body = mix(vec3(0.80,0.806,0.79), vec3(0.895,0.90,0.885), vCol.a);         // inner faces sit a shade back
+    body *= 1.0 - 0.16*smoothstep(0.93 - ae, 0.985 + ae, e);                          // cubies round off into their seams
+    vec3 base = mix(body, sticker, fill);
+    float tone = 0.85 + 0.15*max(dot(normalize(vNor), normalize(uLight)), 0.0);     // gentle, so colours stay true
+    o = vec4(base*tone, 1.0);
+  }`;
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  vbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
+  verts = new Float32Array(27 * 36 * 12);
+  gl.bufferData(gl.ARRAY_BUFFER, verts.byteLength, gl.DYNAMIC_DRAW);
+  [['aPos', 3, 0], ['aNor', 3, 12], ['aUv', 2, 24], ['aCol', 4, 32]].forEach(([name, size, off]) => {
+    const loc = gl.getAttribLocation(prog, name);
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 48, off);
+  });
+  uView = gl.getUniformLocation(prog, 'uView'); uProj = gl.getUniformLocation(prog, 'uProj');
+  uLight = gl.getUniformLocation(prog, 'uLight');
+  gl.enable(gl.DEPTH_TEST); gl.clearColor(0, 0, 0, 0);
+}
+let ci = 0;
+for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++, ci++)
+  for (let f = 0; f < 6; f++) { const s = stickerAt.get(`${x},${y},${z}|${f}`); if (s !== undefined) SIDX[ci * 6 + f] = s; }
+
+function rotVec(v, axis, c, s) {
+  const [x, y, z] = v;
+  if (axis === 0) return [x, y * c - z * s, y * s + z * c];
+  if (axis === 1) return [x * c + z * s, y, -x * s + z * c];
+  return [x * c - y * s, x * s + y * c, z];
+}
+const QUAD = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+function drawCube(now) {
+  if (!gl) return;
+  updateCamera();
+  const rot = currentRotation(now);
+  const rc = rot ? Math.cos(rot.angle) : 1, rs = rot ? Math.sin(rot.angle) : 0;
+  let o = 0, c = 0;
+  for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++, c++) {
+    const center = [x, y, z], turning = rot && center[rot.axis] === rot.layer;
+    for (let f = 0; f < 6; f++) {
+      const n = FACE_NORMALS[f], a = n.findIndex(v => v !== 0), t1 = (a + 1) % 3, t2 = (a + 2) % 3;
+      const si = SIDX[c * 6 + f];
+      const col = si >= 0 ? FACE_RGB[state.charCodeAt(si) - 48] : null;
+      const nn = turning ? rotVec(n, rot.axis, rc, rs) : n;
+      for (const [u, v] of QUAD) {
+        let p = [x + n[0] * .5, y + n[1] * .5, z + n[2] * .5];
+        p[t1] += u * .5; p[t2] += v * .5;
+        if (turning) p = rotVec(p, rot.axis, rc, rs);
+        verts[o++] = p[0]; verts[o++] = p[1]; verts[o++] = p[2];
+        verts[o++] = nn[0]; verts[o++] = nn[1]; verts[o++] = nn[2];
+        verts[o++] = u; verts[o++] = v;
+        if (col) { verts[o++] = col[0] / 255; verts[o++] = col[1] / 255; verts[o++] = col[2] / 255; verts[o++] = 1; }
+        else { verts[o++] = 0; verts[o++] = 0; verts[o++] = 0; verts[o++] = 0; }
+      }
+    }
+  }
+  const { C, f, r, u } = cam, aspect = cam.W / cam.H, fl = 1 / Math.tan(cam.fov / 2), N = 1, F = 60;
+  gl.viewport(0, 0, cubeCanvas.width, cubeCanvas.height);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, verts);
+  gl.uniformMatrix4fv(uView, false, [r[0], u[0], -f[0], 0, r[1], u[1], -f[1], 0, r[2], u[2], -f[2], 0, -dot(r, C), -dot(u, C), dot(f, C), 1]);
+  gl.uniformMatrix4fv(uProj, false, [fl / aspect, 0, 0, 0, 0, fl, 0, 0, 0, 0, (F + N) / (N - F), -1, 0, 0, 2 * F * N / (N - F), 0]);
+  gl.uniform3fv(uLight, [0, 1, 2].map(i => -f[i] * .72 + u[i] * .55 - r[i] * .32));
+  gl.drawArrays(gl.TRIANGLES, 0, 27 * 36);
+  // face letters ride on the centre stickers that face the camera
+  faceLabels.forEach((el, fi) => {
+    const n = FACE_NORMALS[fi], facing = dot(n, C) > 1.5 + .8;
+    el.hidden = !facing;
+    if (facing) { const s = project(n.map(v => v * 1.5)); el.style.transform = `translate(${s[0]}px,${s[1]}px) translate(-50%,-50%)`; }
+  });
+}
+const faceLabels = FACE_NAMES.map(name => {
+  const el = document.createElement('span'); el.className = 'face-label'; el.textContent = name; el.setAttribute('aria-hidden', 'true');
+  cubeView.appendChild(el); return el;
+});
+
+// pointer: drag on a sticker turns that layer, drag elsewhere orbits the camera
+let cdrag = null;
+cubeCanvas.addEventListener('pointerdown', ev => {
+  const b = cubeCanvas.getBoundingClientRect(), mx = ev.clientX - b.left, my = ev.clientY - b.top;
+  const hit = (!anim && !queue.length && !turn) ? pickCube(mx, my) : null;
+  cdrag = { x: ev.clientX, y: ev.clientY, hit, decided: false };
+  cubeCanvas.setPointerCapture(ev.pointerId); cubeView.classList.add('dragging');
+});
+cubeCanvas.addEventListener('pointermove', ev => {
+  if (!cdrag) return;
+  const dx = ev.clientX - cdrag.x, dy = ev.clientY - cdrag.y;
+  if (!cdrag.hit) {
+    cam.yaw -= (ev.movementX || 0) * .008;
+    cam.pitch = Math.max(-1.2, Math.min(1.2, cam.pitch + (ev.movementY || 0) * .008));
+    return;
+  }
+  if (!cdrag.decided) {
+    if (Math.hypot(dx, dy) < 8) return;
+    const { p, na, ns, cubie } = cdrag.hit, base = project(p);
+    let best = null;
+    for (const ti of [0, 1, 2]) {
+      if (ti === na) continue;
+      const q = p.slice(); q[ti] += .5;
+      const s = project(q), sx = s[0] - base[0], sy = s[1] - base[1], len = Math.hypot(sx, sy) || 1;
+      const along = Math.abs(dx * sx / len + dy * sy / len);
+      if (!best || along > best.along) best = { ti, ux: sx / len, uy: sy / len, pxPerUnit: len / .5, along };
+    }
+    const ra = 3 - na - best.ti;
+    const nvec = [0, 0, 0]; nvec[na] = ns; const tvec = [0, 0, 0]; tvec[best.ti] = 1;
+    const sigma = cross(nvec, tvec)[ra];
+    cdrag.decided = true;
+    if (cubie[ra] === 0) { say('Middle slices aren\'t one of the twelve edges in this graph — turn an outer face.'); cdrag.hit = null; return; }
+    cdrag.best = best; cdrag.sigma = sigma;
+    turn = { axis: ra, layer: cubie[ra], angle: 0, settle: null };
+  }
+  if (turn && !turn.settle) {
+    const b = cdrag.best;
+    turn.angle = cdrag.sigma * (dx * b.ux + dy * b.uy) / b.pxPerUnit / 1.35;
+    turn.angle = Math.max(-Math.PI, Math.min(Math.PI, turn.angle));
+  }
+});
+const endCubeDrag = () => {
+  cubeView.classList.remove('dragging');
+  if (turn && !turn.settle) {
+    let q = Math.round(turn.angle / (Math.PI / 2));
+    if (q === 0 && Math.abs(turn.angle) > .38) q = Math.sign(turn.angle);
+    turn.settle = { from: turn.angle, to: q * Math.PI / 2, q, t0: performance.now(), dur: REDUCED ? 1 : 150 };
+  }
+  cdrag = null;
+};
+cubeCanvas.addEventListener('pointerup', endCubeDrag);
+cubeCanvas.addEventListener('pointercancel', endCubeDrag);
+
+/* =====================================================================
+   4b. THE STICKER GRAPH — one state flattened onto the plane
+   Three families of concentric circles, one family per axis, one circle per layer.
+   A sticker belongs to two layers, so it sits where two circles cross; the two
+   crossings of a pair of circles are the two opposite faces.
+   ===================================================================== */
+// --- geometry (no DOM) ---
+const TAU = Math.PI * 2;
+const RING_R = [1.3, 1.6, 1.9];                                   // layer +1, 0, -1
+const RING_C = [330, 90, 210].map(d => [Math.cos(d * Math.PI / 180), Math.sin(d * Math.PI / 180)]);   // x, y, z
+const stickerAxis = s => FACE_NORMALS[s.f].findIndex(v => v !== 0);
+const FLAT_POS = stickers.map(s => {
+  const na = stickerAxis(s), [a, b] = [0, 1, 2].filter(i => i !== na);
+  const A = RING_C[a], B = RING_C[b], ra = RING_R[1 - s.p[a]], rb = RING_R[1 - s.p[b]];
+  const dx = B[0] - A[0], dy = B[1] - A[1], d = Math.hypot(dx, dy), t = (ra * ra - rb * rb + d * d) / (2 * d), h = Math.sqrt(ra * ra - t * t);
+  const T = RING_C[na], far = p => Math.hypot(p[0] - T[0], p[1] - T[1]);
+  const pts = [1, -1].map(sg => [A[0] + (t * dx - sg * h * dy) / d, A[1] + (t * dy + sg * h * dx) / d]).sort((p, q) => far(p) - far(q));
+  return pts[s.p[na] === 1 ? 0 : 1];                              // +faces cross near the middle, -faces on the outside
+});
+// A track is a closed loop of slots that stickers slide along: a ring (12 slots) or the rim of a face (8 slots).
+function makeTrack(center, ids, move) {
+  const items = ids.map(i => ({ i, a: Math.atan2(FLAT_POS[i][1] - center[1], FLAT_POS[i][0] - center[0]), r: Math.hypot(FLAT_POS[i][0] - center[0], FLAT_POS[i][1] - center[1]) })).sort((p, q) => p.a - q.a);
+  const tr = { center, ids: items.map(it => it.i), ang: items.map(it => it.a), rad: items.map(it => it.r), slot: new Map(items.map((it, k) => [it.i, k])), step: 0 };
+  if (move >= 0) {                                                // slots travelled per +90° turn of this layer
+    const n = items.length, st = (tr.slot.get(SRC[move].indexOf(tr.ids[0])) + n) % n;
+    tr.step = st <= n / 2 ? st : st - n;
+  }
+  return tr;
+}
+const RING_TRACK = [[], [], []], FACE_TRACK = [[], [], []];
+for (let axis = 0; axis < 3; axis++) for (let layer = -1; layer <= 1; layer++) {
+  const move = layer ? moveFromRotation(axis, layer, 1) : -1;
+  const inLayer = stickers.map((s, i) => i).filter(i => stickers[i].p[axis] === layer);
+  RING_TRACK[axis][layer + 1] = makeTrack(RING_C[axis], inLayer.filter(i => stickerAxis(stickers[i]) !== axis), move);
+  if (layer) {
+    const face = inLayer.filter(i => stickerAxis(stickers[i]) === axis), mid = face.find(i => stickers[i].p.filter(v => v === 0).length === 2);
+    FACE_TRACK[axis][layer + 1] = makeTrack(FLAT_POS[mid], face.filter(i => i !== mid), move);
+  }
+}
+function trackPoint(tr, slot, shift) {
+  const n = tr.ids.length, s = slot + shift, k = Math.floor(s), f = s - k, i0 = ((k % n) + n) % n, i1 = (i0 + 1) % n;
+  const a0 = tr.ang[i0], a1 = tr.ang[i1] + (i1 === 0 ? TAU : 0), a = a0 + (a1 - a0) * f, r = tr.rad[i0] + (tr.rad[i1] - tr.rad[i0]) * f;
+  return [tr.center[0] + r * Math.cos(a), tr.center[1] + r * Math.sin(a)];
+}
+function flatPoint(i, rot, u) {                                   // where sticker i is drawn, u quarter-turns into a rotation
+  const s = stickers[i];
+  if (rot && s.p[rot.axis] === rot.layer) {
+    const tr = (stickerAxis(s) === rot.axis ? FACE_TRACK : RING_TRACK)[rot.axis][rot.layer + 1];
+    if (tr && tr.slot.has(i)) return trackPoint(tr, tr.slot.get(i), tr.step * u);
+  }
+  return FLAT_POS[i];
+}
+// --- drawing ---
+const flatView = $('#flatView'), flatCanvas = $('#flatCanvas'), fctx = flatCanvas.getContext('2d');
+const flat = { W: 1, H: 1, dpr: 1, hover: null, S: 1, ox: 0, oy: 0 };
+const FLAT_HINT = 'Click a ring to turn its layer. Shift-click turns it the other way.';
+function drawFlat(now) {
+  const { W, H } = flat, S = flat.S = Math.min(W / 6.05, H / 5.85), ox = flat.ox = W / 2, oy = flat.oy = H / 2 + .25 * S - 6;
+  const rot = currentRotation(now), u = rot ? rot.angle / (Math.PI / 2) : 0;
+  const lit = rot || (hoverMove >= 0 ? MOVES[hoverMove] : flat.hover);
+  fctx.setTransform(flat.dpr, 0, 0, flat.dpr, 0, 0);
+  fctx.clearRect(0, 0, W, H);
+  for (let pass = 0; pass < 2; pass++) for (let axis = 0; axis < 3; axis++) for (let layer = -1; layer <= 1; layer++) {
+    const on = !!lit && lit.axis === axis && lit.layer === layer;
+    if (on !== (pass === 1)) continue;                            // the lit ring is stroked last, on top
+    fctx.strokeStyle = on ? '#16181a' : layer ? '#b9bdb6' : '#dcdfd9';
+    fctx.lineWidth = Math.max(1.5, S * (on ? .045 : .032));
+    fctx.beginPath(); fctx.arc(ox + RING_C[axis][0] * S, oy - RING_C[axis][1] * S, RING_R[1 - layer] * S, 0, TAU); fctx.stroke();
+  }
+  const r = S * .108, moving = [];
+  const dot = i => {
+    const p = flatPoint(i, rot, u), x = ox + p[0] * S, y = oy - p[1] * S;
+    fctx.fillStyle = FACE_HEX[state.charCodeAt(i) - 48];
+    fctx.beginPath(); fctx.arc(x, y, r, 0, TAU); fctx.fill(); fctx.stroke();
+    if (stickers[i].p.filter(v => v === 0).length === 2) { fctx.fillStyle = 'rgba(12,14,16,.66)'; fctx.fillText(FACE_NAMES[stickers[i].f], x, y + .5); }
+  };
+  fctx.strokeStyle = '#24272a'; fctx.lineWidth = Math.max(1.25, S * .024);
+  fctx.font = `600 ${Math.round(S * .12)}px "Libre Franklin", "Helvetica Neue", Arial, sans-serif`; fctx.textAlign = 'center'; fctx.textBaseline = 'middle';
+  for (let i = 0; i < 54; i++) { if (rot && stickers[i].p[rot.axis] === rot.layer) moving.push(i); else dot(i); }
+  moving.forEach(dot);
+}
+function ringAt(ev) {                                             // nearest ring under the pointer, if any
+  const b = flatCanvas.getBoundingClientRect(), x = (ev.clientX - b.left - flat.ox) / flat.S, y = -(ev.clientY - b.top - flat.oy) / flat.S;
+  let best = null, bd = 9 / flat.S;
+  for (let axis = 0; axis < 3; axis++) for (let layer = -1; layer <= 1; layer++) {
+    const d = Math.abs(Math.hypot(x - RING_C[axis][0], y - RING_C[axis][1]) - RING_R[1 - layer]);
+    if (d < bd) { bd = d; best = { axis, layer }; }
+  }
+  return best;
+}
+const ringFace = h => FACE_NORMALS.findIndex(n => n[h.axis] === h.layer);
+flatCanvas.addEventListener('pointermove', ev => {
+  const h = ringAt(ev); flat.hover = h;
+  flatView.style.cursor = h && h.layer ? 'pointer' : 'default';
+  $('#flatHint').innerHTML = !h ? FLAT_HINT
+    : !h.layer ? 'A middle slice. It never turns here, so the six centres stay put.'
+    : `The <b>${FACE_NAMES[ringFace(h)]}</b> layer. Click for <b>${FACE_NAMES[ringFace(h)]}</b>, shift-click for <b>${FACE_NAMES[ringFace(h)]}\u2032</b>.`;
+});
+flatCanvas.addEventListener('pointerleave', () => { flat.hover = null; $('#flatHint').innerHTML = FLAT_HINT; });
+flatCanvas.addEventListener('click', ev => {
+  const h = ringAt(ev);
+  if (h && h.layer) { enqueue([ringFace(h) * 2 + (ev.shiftKey ? 1 : 0)]); say(''); }
+});
+$('#flatHint').innerHTML = FLAT_HINT;
+
+/* =====================================================================
+   5. THE STATE GRAPH — canvas 2D, our own tiny 3D projection
+   ===================================================================== */
+const graphView = $('#graphView'), graphCanvas = $('#graphCanvas'), ctx = graphCanvas.getContext('2d');
+const gcam = { yaw: .4, pitch: .28, zoom: 1, R: 3, W: 1, H: 1, dpr: 1, spin: !REDUCED };
+let proj = new Float32Array(4 * 1024);      // per vertex: screen x, screen y, perspective, depth(0 far..1 near)
+let hoverNode = -1, gdrag = null;
+const buckets = Array.from({ length: 6 * 4 * 8 }, () => []);
+const EDGE_STYLE = [{ a: .4, w: .8 }, { a: .8, w: 1.2 }, { a: 1, w: 2.2 }, { a: 1, w: 3.6 }];   // unseen, door, walked, route
+
+function projectPoint(x, y, z, S, D, out, o) {
+  const cy = gcam._cy, sy = gcam._sy, cp = gcam._cp, sp = gcam._sp;
+  x -= G.centroid[0]; y -= G.centroid[1]; z -= G.centroid[2];
+  const x1 = x * cy + z * sy, z1 = -x * sy + z * cy, y1 = y * cp - z1 * sp, z2 = y * sp + z1 * cp;
+  const persp = D / (D - z2);
+  out[o] = gcam.W / 2 + x1 * S * persp; out[o + 1] = gcam.H / 2 - y1 * S * persp; out[o + 2] = persp;
+  out[o + 3] = Math.max(0, Math.min(1, (z2 / gcam.R + 1) / 2));
+}
+function drawGraph(now, dt) {
+  const A = G.active, pos = G.pos, W = gcam.W, H = gcam.H;
+  // camera follows the cloud: smoothed centroid and radius
+  let cx = 0, cy = 0, cz = 0;
+  for (const i of A) { cx += pos[i * 3]; cy += pos[i * 3 + 1]; cz += pos[i * 3 + 2]; }
+  cx /= A.length; cy /= A.length; cz /= A.length;
+  let R = 1.6;
+  for (const i of A) R = Math.max(R, Math.hypot(pos[i * 3] - cx, pos[i * 3 + 1] - cy, pos[i * 3 + 2] - cz));
+  const k = gcam.init ? 1 - Math.exp(-dt * 4) : 1; gcam.init = true;
+  G.centroid[0] += (cx - G.centroid[0]) * k; G.centroid[1] += (cy - G.centroid[1]) * k; G.centroid[2] += (cz - G.centroid[2]) * k;
+  gcam.R += (R - gcam.R) * (R > gcam.R ? Math.min(1, k * 3) : k);
+  if (gcam.spin && !gdrag && hoverNode < 0) gcam.yaw += dt * .11;
+  gcam._cy = Math.cos(gcam.yaw); gcam._sy = Math.sin(gcam.yaw); gcam._cp = Math.cos(gcam.pitch); gcam._sp = Math.sin(gcam.pitch);
+  const S = Math.min(W, H) * .42 / gcam.R * gcam.zoom, D = gcam.R * 3.2;
+  if (proj.length < G.n * 4) proj = new Float32Array(G.n * 8);
+  for (const i of A) projectPoint(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2], S, D, proj, i * 4);
+
+  // marker glides toward the vertex we are heading to
+  const mk = REDUCED ? 1 : 1 - Math.exp(-dt * 14), t3 = markerTarget * 3;
+  for (let c = 0; c < 3; c++) mpos[c] += (pos[t3 + c] - mpos[c]) * mk;
+  const mp = new Float32Array(4); projectPoint(mpos[0], mpos[1], mpos[2], S, D, mp, 0);
+
+  ctx.setTransform(gcam.dpr, 0, 0, gcam.dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = 'round';
+
+  // edges, batched by face colour x class x depth band
+  for (const b of buckets) b.length = 0;
+  const idle = !anim && !queue.length;
+  for (const e of G.activeEdges) {
+    const door = idle && (e.a === current || e.b === current);
+    const cls = e.route ? 3 : e.walked ? 2 : door ? 1 : 0;
+    const band = Math.min(7, ((proj[e.a * 4 + 3] + proj[e.b * 4 + 3]) * 4) | 0);
+    buckets[((e.m >> 1) * 4 + cls) * 8 + band].push(e);
+  }
+  for (let cls = 0; cls < 4; cls++) for (let f = 0; f < 6; f++) for (let band = 0; band < 8; band++) {
+    const list = buckets[(f * 4 + cls) * 8 + band];
+    if (!list.length) continue;
+    const st = EDGE_STYLE[cls], c = LINE_RGB[f], depth = .3 + .7 * (band + .5) / 8;
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(st.a * depth).toFixed(3)})`;
+    ctx.lineWidth = st.w * (.7 + .5 * (band / 7));
+    ctx.beginPath();
+    for (const e of list) { ctx.moveTo(proj[e.a * 4], proj[e.a * 4 + 1]); ctx.lineTo(proj[e.b * 4], proj[e.b * 4 + 1]); }
+    ctx.stroke();
+  }
+
+  // unvisited vertices: small, dim, batched by depth band
+  const seen = [];
+  const bands = Array.from({ length: 8 }, () => []);
+  for (const i of A) (G.visited[i] || i === 0 ? seen : bands[Math.min(7, (proj[i * 4 + 3] * 8) | 0)]).push(i);
+  bands.forEach((list, band) => {
+    if (!list.length) return;
+    ctx.fillStyle = `rgba(128,134,140,${(.3 + .7 * (band + .5) / 8).toFixed(3)})`;
+    ctx.beginPath();
+    for (const i of list) { const r = 2.1 * proj[i * 4 + 2]; ctx.moveTo(proj[i * 4] + r, proj[i * 4 + 1]); ctx.arc(proj[i * 4], proj[i * 4 + 1], r, 0, 6.2832); }
+    ctx.fill();
+  });
+  // visited vertices, far to near
+  seen.sort((a, b) => proj[a * 4 + 3] - proj[b * 4 + 3]);
+  for (const i of seen) {
+    const x = proj[i * 4], y = proj[i * 4 + 1], p = proj[i * 4 + 2], d = .45 + .55 * proj[i * 4 + 3];
+    if (i === 0) {
+      ctx.fillStyle = '#f6c52e'; ctx.beginPath(); ctx.arc(x, y, 5.5 * p, 0, 6.2832); ctx.fill();
+      ctx.strokeStyle = '#16181a'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(x, y, 5.5 * p, 0, 6.2832); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 9.5 * p, 0, 6.2832); ctx.stroke();
+    } else {
+      ctx.fillStyle = `rgba(22,24,26,${d.toFixed(3)})`; ctx.beginPath(); ctx.arc(x, y, 3.6 * p, 0, 6.2832); ctx.fill();
+    }
+  }
+
+  // the twelve doors out of where you stand, labelled with their moves
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (idle && showNeighbors) {
+    const x0 = proj[current * 4], y0 = proj[current * 4 + 1];
+    ctx.font = '600 11px "Libre Franklin", "Helvetica Neue", Arial, sans-serif';
+    for (const a of G.adj[current]) {
+      const x = proj[a.to * 4], y = proj[a.to * 4 + 1];
+      let dx = x - x0, dy = y - y0; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+      const hot = a.m === hoverMove || a.to === hoverNode;
+      if (hot) { ctx.strokeStyle = '#16181a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 7, 0, 6.2832); ctx.stroke(); }
+      ctx.fillStyle = hot ? '#16181a' : `rgba(76,81,87,${(.5 + .5 * proj[a.to * 4 + 3]).toFixed(2)})`;   // labels stay in ink; the edge carries the colour
+      ctx.fillText(MOVES[a.m].name, x + dx * 13, y + dy * 13);
+    }
+  }
+  if (hoverNode >= 0 && hoverNode !== current) {
+    ctx.strokeStyle = '#16181a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(proj[hoverNode * 4], proj[hoverNode * 4 + 1], 7, 0, 6.2832); ctx.stroke();
+  }
+
+  // you
+  const pulse = REDUCED ? 0 : Math.sin(now / 420) * 2.5;
+  const halo = ctx.createRadialGradient(mp[0], mp[1], 2, mp[0], mp[1], 20 + pulse);
+  halo.addColorStop(0, 'rgba(30,63,174,.42)'); halo.addColorStop(1, 'rgba(30,63,174,0)');
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mp[0], mp[1], 20 + pulse, 0, 6.2832); ctx.fill();
+  ctx.fillStyle = '#1e3fae'; ctx.beginPath(); ctx.arc(mp[0], mp[1], 5, 0, 6.2832); ctx.fill();
+  ctx.strokeStyle = '#fbfbf9'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  ctx.font = '600 10px "Libre Franklin", "Helvetica Neue", Arial, sans-serif';
+  const sx = proj[0], sy = proj[1];
+  ctx.fillStyle = '#16181a'; ctx.fillText(current === 0 && idle ? 'SOLVED · YOU' : 'SOLVED', sx, sy + 20 * proj[2]);
+  if (!(current === 0 && idle)) { ctx.fillStyle = '#1e3fae'; ctx.fillText('YOU', mp[0], mp[1] - 17); }
+}
+
+function nodeAt(mx, my) {
+  let best = -1, bd = 13 * 13;
+  for (const i of G.active) {
+    const dx = proj[i * 4] - mx, dy = proj[i * 4 + 1] - my;
+    const d = (dx * dx + dy * dy) * (G.visited[i] ? .45 : 1) * (1.4 - .4 * proj[i * 4 + 3]);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+const NET_POS = [[1, 0], [1, 2], [1, 1], [3, 1], [2, 1], [0, 1]];   // U D F B R L on a 4x3 unfolded cross
+const NET_RIGHT = [[1, 0, 0], [1, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 0, -1], [0, 0, 1]];
+const NET_DOWN = [[0, 0, 1], [0, 0, -1], [0, -1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0]];
+function drawNet(key) {
+  const c = $('#tipNet'), g = c.getContext('2d'), u = 46 / 3 * 2 / 2;   // 184x138 canvas, 46px per face
+  g.clearRect(0, 0, c.width, c.height);
+  for (let f = 0; f < 6; f++) for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) {
+    const n = FACE_NORMALS[f], r = NET_RIGHT[f], d = NET_DOWN[f];
+    const p = [0, 1, 2].map(i => n[i] + r[i] * (col - 1) + d[i] * (row - 1));
+    g.fillStyle = FACE_HEX[key.charCodeAt(stickerAt.get(`${p[0]},${p[1]},${p[2]}|${f}`)) - 48];
+    g.beginPath(); g.roundRect(NET_POS[f][0] * 46 + col * u + 1, NET_POS[f][1] * 46 + row * u + 1, u - 2, u - 2, 3); g.fill(); g.strokeStyle = 'rgba(22,24,26,.55)'; g.lineWidth = 1; g.stroke();
+  }
+}
+function showTip(i) {
+  const tip = $('#tip');
+  if (i < 0) { tip.hidden = true; return; }
+  drawNet(G.keys[i]);
+  const d = G.dist[i], door = G.adj[current].find(a => a.to === i);
+  let title = i === 0 ? 'Solved' : G.visited[i] ? 'A state you\'ve visited' : 'A state you haven\'t visited';
+  let body = i === 0 ? '' : `${d} turn${d === 1 ? '' : 's'} from Solved, by the shortest known route.<br>`;
+  if (i === current) body += 'You are here.';
+  else if (door) body += `Turn <b>${MOVES[door.m].name}</b> to step here.`;
+  else { const p = pathInGraph(current, i); body += p ? `Click to walk here: ${p.length} turns.` : ''; }
+  $('#tipText').innerHTML = `<strong>${title}</strong>${body}`;
+  tip.hidden = false;
+  const x = proj[i * 4], y = proj[i * 4 + 1], tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(gcam.W - tw - 8, x + 16)) + 'px';
+  tip.style.top = Math.max(8, Math.min(gcam.H - th - 8, y + 16)) + 'px';
+}
+graphCanvas.addEventListener('pointerdown', ev => {
+  gdrag = { x: ev.clientX, y: ev.clientY, moved: 0 };
+  graphCanvas.setPointerCapture(ev.pointerId); graphView.classList.add('dragging');
+});
+graphCanvas.addEventListener('pointermove', ev => {
+  const b = graphCanvas.getBoundingClientRect();
+  if (gdrag) {
+    gdrag.moved += Math.abs(ev.movementX || 0) + Math.abs(ev.movementY || 0);
+    gcam.yaw += (ev.movementX || 0) * .006;
+    gcam.pitch = Math.max(-1.4, Math.min(1.4, gcam.pitch + (ev.movementY || 0) * .006));
+    if (gdrag.moved > 5 && hoverNode >= 0) { hoverNode = -1; showTip(-1); }
+    return;
+  }
+  const h = nodeAt(ev.clientX - b.left, ev.clientY - b.top);
+  if (h !== hoverNode) { hoverNode = h; showTip(h); graphView.style.cursor = h >= 0 ? 'pointer' : ''; }
+});
+graphCanvas.addEventListener('pointerup', ev => {
+  graphView.classList.remove('dragging');
+  const wasClick = gdrag && gdrag.moved <= 5; gdrag = null;
+  if (!wasClick) return;
+  const b = graphCanvas.getBoundingClientRect(), i = nodeAt(ev.clientX - b.left, ev.clientY - b.top);
+  if (i < 0 || i === current || anim || queue.length) return;
+  const p = pathInGraph(current, i);
+  if (p) { enqueue(p); say(p.length === 1 ? `Stepping along <strong>${MOVES[p[0]].name}</strong>.` : `Walking ${p.length} edges through the graph — watch the cube follow.`); hoverNode = -1; showTip(-1); }
+});
+graphCanvas.addEventListener('pointercancel', () => { gdrag = null; graphView.classList.remove('dragging'); });
+graphCanvas.addEventListener('pointerleave', () => { if (!gdrag) { hoverNode = -1; showTip(-1); } });
+graphCanvas.addEventListener('wheel', ev => {
+  if (!ev.ctrlKey && !ev.metaKey) return;
+  ev.preventDefault();
+  gcam.zoom = Math.max(.4, Math.min(8, gcam.zoom * Math.exp(-ev.deltaY * .01)));
+}, { passive: false });
+
+/* =====================================================================
+   6. UI
+   ===================================================================== */
+const say = html => { $('#status').innerHTML = html; };
+const sup = n => String(n).replace(/[-0-9]/g, c => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+const commas = s => String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const TOTAL = 43252003274489856000;
+
+function updateStats() {
+  let v = 0; for (let i = 0; i < G.n; i++) v += G.visited[i];
+  $('#stN').textContent = commas(G.n);
+  $('#stV').textContent = commas(v);
+  $('#stE').textContent = commas(G.edges.length);
+  const d = G.dist[current];
+  $('#stD').innerHTML = `${d} <small>turn${d === 1 ? '' : 's'}</small>`;
+  const share = G.n / TOTAL * 100, ex = Math.floor(Math.log10(share));
+  $('#stShare').innerHTML = `${(share / Math.pow(10, ex)).toFixed(1)}×10${sup(ex)} <small>%</small>`;
+}
+function updateWalk() {
+  const names = history.map(m => MOVES[m].name), shown = names.length > 36 ? '… ' + names.slice(-36).join(' ') : names.join(' ');
+  $('#walk').innerHTML = history.length ? `<b>Your walk, ${history.length} turn${history.length === 1 ? '' : 's'}:</b>&ensp;${shown}` : '<b>Your walk:</b>&ensp;you haven\'t left Solved yet';
+  $('#walk').scrollLeft = 1e6;
+}
+
+// move pad
+const pad = $('#movepad');
+for (let f = 0; f < 6; f++) {
+  const g = document.createElement('div'); g.className = 'mv-group';
+  for (const m of [f * 2, f * 2 + 1]) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mv'; b.style.setProperty('--c', FACE_HEX[f]);
+    b.innerHTML = `<i></i>${MOVES[m].name}`;
+    b.title = `${['Up', 'Down', 'Front', 'Back', 'Right', 'Left'][f]} face, ${m & 1 ? 'counter-clockwise' : 'clockwise'}`;
+    b.addEventListener('click', () => { enqueue([m]); say(''); });
+    b.addEventListener('pointerenter', () => { hoverMove = m; });
+    b.addEventListener('pointerleave', () => { hoverMove = -1; });
+    b.addEventListener('focus', () => { hoverMove = m; });
+    b.addEventListener('blur', () => { hoverMove = -1; });
+    g.appendChild(b);
+  }
+  pad.appendChild(g);
+}
+addEventListener('keydown', ev => {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+  const f = FACE_NAMES.indexOf(ev.key.toUpperCase());
+  if (f >= 0) { enqueue([f * 2 + (ev.shiftKey ? 1 : 0)]); say(''); }
+});
+
+$('#scrambleLen').addEventListener('input', ev => { $('#scrambleOut').textContent = ev.target.value; });
+$('#btnScramble').addEventListener('click', () => {
+  const n = +$('#scrambleLen').value, seq = [];
+  while (seq.length < n) {
+    const m = (Math.random() * 12) | 0, a = seq[seq.length - 1], b = seq[seq.length - 2];
+    if (a !== undefined && (m === (a ^ 1) || (m === a && m === b))) continue;
+    seq.push(m);
+  }
+  enqueue(seq);
+  say(`A random walk of <strong>${n} edges</strong>. Each step picks one of the 12 doors out of the current vertex.`);
+});
+$('#btnUndo').addEventListener('click', () => {
+  if (anim || queue.length || turn) return;
+  if (!history.length) return say('Nothing to undo — you\'re at the start of your walk.');
+  enqueue([history[history.length - 1] ^ 1], { undo: true });
+  say('Walking the last edge backwards.');
+});
+$('#btnReset').addEventListener('click', () => { resetAll(); updateWalk(); say('Fresh cube, fresh graph: Solved and its 12 neighbours.'); });
+$('#btnSolve').addEventListener('click', () => {
+  if (anim || queue.length || turn) return;
+  if (current === 0) return say('You\'re already at <strong>Solved</strong>. Scramble first, then find the way home.');
+  say('Searching outward from both ends of the graph…');
+  setTimeout(() => {
+    const t0 = performance.now();
+    let path = shortestPath(state, SOLVED, 5), optimal = !!path;
+    if (!path) path = pathInGraph(current, 0) || history.slice().reverse().map(m => m ^ 1);
+    // lay the route into the graph so you can see it before walking it
+    clearRoute();
+    let k = state, at = current; G.onRoute[at] = 1;
+    for (const m of path) {
+      k = applyMove(k, m);
+      let j = G.index.get(k); if (j === undefined) j = addNode(k, at);
+      link(at, j, m).route = true; G.onRoute[j] = 1; at = j;
+    }
+    G.dirty = true; sim.alpha = Math.max(sim.alpha, .4);
+    enqueue(path, { solve: true, len: path.length });
+    const names = path.map(m => MOVES[m].name).join(' ');
+    say(optimal
+      ? `Shortest path found in ${Math.round(performance.now() - t0)} ms: <strong>${path.length} turn${path.length === 1 ? '' : 's'}</strong> — provably optimal. <span class="seq">${names}</span>`
+      : `You're more than 10 turns out, too far for a brute-force search in the browser. Retracing the shortest route through the graph you've uncovered: <strong>${path.length} turns</strong>. A route of 26 or fewer always exists.`);
+  }, 30);
+});
+document.querySelectorAll('[data-demo]').forEach(b => b.addEventListener('click', () => {
+  const seq = b.dataset.demo.split(' ').map(moveByName);
+  enqueue(seq);
+  say(`Walking <strong>${seq.length} edges</strong> that end exactly where they began — a ${seq.length}-cycle in the graph.`);
+}));
+document.querySelectorAll('[data-ball]').forEach(b => b.addEventListener('click', () => {
+  const r = +b.dataset.ball;
+  if (!showNeighbors) $('#tglNeighbors').click();
+  growBall(r);
+  say(`Revealed every state within <strong>${r} turn${r === 1 ? '' : 's'}</strong> of Solved: ${['', '13', '127', '1,195'][r]} vertices. The real graph keeps branching like this for 26 levels.`);
+}));
+$('#tglNeighbors').addEventListener('click', ev => {
+  showNeighbors = !showNeighbors; ev.currentTarget.setAttribute('aria-pressed', showNeighbors);
+  G.dirty = true; sim.alpha = Math.max(sim.alpha, .5);
+});
+$('#tglSpin').addEventListener('click', ev => { gcam.spin = !gcam.spin; ev.currentTarget.setAttribute('aria-pressed', gcam.spin); });
+$('#tglSpin').setAttribute('aria-pressed', gcam.spin);
+$('#zoomIn').addEventListener('click', () => { gcam.zoom = Math.min(8, gcam.zoom * 1.3); });
+$('#zoomOut').addEventListener('click', () => { gcam.zoom = Math.max(.4, gcam.zoom / 1.3); });
+
+/* =====================================================================
+   7. BOOT + FRAME LOOP
+   ===================================================================== */
+let booted = false;
+function fit(view, canvas, target, redraw) {
+  const sync = () => {
+    const w = Math.max(1, view.clientWidth), h = Math.max(1, view.clientHeight), dpr = Math.min(2, devicePixelRatio || 1);
+    const cw = Math.round(w * dpr), chh = Math.round(h * dpr);
+    target.W = w; target.H = h; target.dpr = dpr;
+    if (canvas.width === cw && canvas.height === chh) return;
+    canvas.width = cw; canvas.height = chh;                       // assigning clears the canvas, so repaint before the browser does
+    if (booted) redraw(performance.now(), 0);
+  };
+  new ResizeObserver(sync).observe(view); sync();
+}
+initGL();
+fit(cubeView, cubeCanvas, cam, drawCube);
+fit(graphView, graphCanvas, gcam, drawGraph);
+fit(flatView, flatCanvas, flat, drawFlat);
+
+resetAll();
+['R', 'U', "R'", "U'"].forEach(n => instantMove(moveByName(n)));   // open mid-walk, so there is already a path to look at
+refreshGraph();
+for (let i = 0; i < 260; i++) simTick();
+mpos[0] = G.pos[current * 3]; mpos[1] = G.pos[current * 3 + 1]; mpos[2] = G.pos[current * 3 + 2];
+gcam.yaw = Math.atan2(G.pos[current * 3 + 2] - G.pos[2], G.pos[current * 3] - G.pos[0]);   // open looking at the walk side-on, not down its length
+updateWalk();
+say('You start four turns from home: R U R′ U′. Turn a face, or press <strong>Find the way home</strong> and watch the shortest path light up.');
+
+booted = true;
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+  stepEngine(now);
+  refreshGraph();
+  simTick();
+  drawCube(now);
+  drawFlat(now);
+  drawGraph(now, dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
