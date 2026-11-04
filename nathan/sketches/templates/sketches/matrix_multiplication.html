@@ -1,0 +1,625 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include 'snippets/meta.html'%}
+</head>
+<body>
+
+    <main class="page">
+        <header>
+            <h1>Matrix multiplication</h1>
+            <p class="lede">Pick the sizes and a method, then select a thread and step through what it does.</p>
+        </header>
+
+        <section class="controls" aria-label="Setup">
+            <div class="field">
+                <span class="field-label">A size</span>
+                <input type="number" id="m" min="1" max="100" value="2" aria-label="Rows of A">
+                <span>&times;</span>
+                <input type="number" id="n" min="1" max="100" value="3" aria-label="Columns of A">
+            </div>
+            <div class="field">
+                <span class="field-label">B size</span>
+                <input type="number" id="p" min="1" max="100" value="3" aria-label="Rows of B">
+                <span>&times;</span>
+                <input type="number" id="q" min="1" max="100" value="4" aria-label="Columns of B">
+            </div>
+            <button id="randomize">Randomize values</button>
+            <div class="field">
+                <label class="field-label" for="method">Method</label>
+                <select id="method"></select>
+            </div>
+        </section>
+
+        <div class="mismatch" id="mismatch" hidden>
+            <p id="mismatch-text"></p>
+            <button id="fix-b"></button>
+            <button id="fix-a"></button>
+        </div>
+
+        <section class="stage" aria-label="Matrices">
+            <figure class="matrix a">
+                <figcaption><b>A</b> <span id="a-size"></span></figcaption>
+                <div class="bracket"><table id="a-table"></table></div>
+            </figure>
+            <span class="operator">&times;</span>
+            <figure class="matrix b">
+                <figcaption><b>B</b> <span id="b-size"></span></figcaption>
+                <div class="bracket"><table id="b-table"></table></div>
+            </figure>
+            <span class="operator">=</span>
+            <figure class="matrix c" id="c-figure">
+                <figcaption><b>C</b> <span id="c-size"></span></figcaption>
+                <div class="bracket"><table id="c-table"></table></div>
+                <p class="hint">Click a cell to select its thread.</p>
+            </figure>
+        </section>
+
+        <section class="inspector" id="inspector">
+            <div class="panel">
+                <h2 id="thread-title"></h2>
+                <ol class="code" id="code"></ol>
+                <p class="note" id="note" aria-live="polite"></p>
+                <div class="transport">
+                    <button id="first" aria-label="Back to start">&#x23EE;</button>
+                    <button id="back">&larr; Back</button>
+                    <button id="next" class="primary">Next &rarr;</button>
+                    <button id="last" aria-label="Skip to end">&#x23ED;</button>
+                    <span id="step-label"></span>
+                </div>
+                <input type="range" id="scrub" min="0" value="0" aria-label="Step">
+            </div>
+
+            <div class="panel">
+                <h2>Registers</h2>
+                <div class="registers" id="registers"></div>
+
+                <h2>Cost</h2>
+                <div class="table-scroll">
+                    <table class="costs">
+                        <thead>
+                            <tr><th></th><th>So far</th><th>Per thread</th><th id="all-threads"></th></tr>
+                        </thead>
+                        <tbody id="costs"></tbody>
+                    </table>
+                </div>
+                <p class="assumptions" id="assumptions"></p>
+            </div>
+        </section>
+    </main>
+
+</body>
+
+<style>
+    :root {
+        color-scheme: light;
+        --ground: #f2f3f0;
+        --panel: #fbfbf9;
+        --line: #d5d8d2;
+        --ink: #16181a;
+        --ink-2: #4c5157;
+        --a: #1e3fae;
+        --a-soft: #dde3f7;
+        --b: #a84e08;
+        --b-soft: #f8e6d4;
+        --c: #1a7349;
+        --c-soft: #d9efe3;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+        height: auto;
+        background: var(--ground);
+        color: var(--ink);
+        font: 400 15px/1.5 system-ui, -apple-system, sans-serif;
+    }
+
+    .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 16px 56px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 42px); font-weight: 600; line-height: 1.1; }
+    h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; font-family: var(--mono); }
+    .panel h2:not(:first-child) { margin-top: 20px; }
+    .lede { margin: 6px 0 0; color: var(--ink-2); }
+
+    button, select, input { font: inherit; color: inherit; }
+    button, select, input[type=number] {
+        min-height: 36px;
+        padding: 4px 10px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+    }
+    button { cursor: pointer; }
+    button:hover:not(:disabled) { border-color: var(--ink-2); }
+    button:disabled { opacity: .4; cursor: default; }
+    button.primary { background: var(--ink); border-color: var(--ink); color: white; }
+    :focus-visible { outline: 2px solid var(--a); outline-offset: 1px; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+    .field { display: flex; align-items: center; gap: 6px; }
+    .field-label { color: var(--ink-2); }
+    input[type=number] { width: 64px; }
+
+    .mismatch {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: var(--b-soft);
+        border-radius: 6px;
+    }
+    .mismatch p { margin: 0; flex-basis: 100%; }
+
+    .stage { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+    .operator { font-size: 24px; color: var(--ink-2); }
+    .matrix { margin: 0; max-width: 100%; }
+    .matrix figcaption { margin-bottom: 6px; color: var(--ink-2); }
+    .matrix figcaption b { color: var(--ink); }
+    .bracket {
+        width: fit-content;
+        max-width: 100%;
+        overflow-x: auto;
+        padding: 3px;
+        border-inline: 2px solid var(--ink);
+        border-radius: 7px;
+    }
+    .hint { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }
+
+    .bracket table { border-collapse: separate; border-spacing: 2px; }
+    .bracket td {
+        min-width: 34px;
+        height: 34px;
+        padding: 0 4px;
+        text-align: center;
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        border-radius: 4px;
+    }
+    .bracket td button {
+        display: block;
+        width: 100%;
+        min-width: 26px;
+        min-height: 34px;
+        padding: 0 2px;
+        background: transparent;
+        border: 1px dashed var(--line);
+        border-radius: 4px;
+    }
+    .bracket td:has(button) { padding: 0; }
+
+    /* big matrices shrink so more of them fit before scrolling */
+    table.compact td { min-width: 24px; height: 24px; font-size: 12px; }
+    table.compact td button { min-width: 22px; min-height: 24px; font-size: 12px; }
+    table.tiny td { min-width: 16px; height: 16px; padding: 0 1px; font-size: 9px; }
+    table.tiny td button { min-width: 15px; min-height: 16px; font-size: 9px; }
+
+    .a td.line { background: var(--a-soft); }
+    .a td.now { background: var(--a); color: white; }
+    .b td.line { background: var(--b-soft); }
+    .b td.now { background: var(--b); color: white; }
+    .c td button.selected { background: var(--c-soft); border: 2px solid var(--c); }
+    .c td button.written { border-style: solid; font-weight: 600; }
+    .c td button.now { background: var(--c); border-color: var(--c); color: white; }
+
+    .inspector {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        gap: 16px;
+        align-items: start;
+    }
+    @media (max-width: 760px) { .inspector { grid-template-columns: minmax(0, 1fr); } }
+
+    .panel { padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+
+    .code {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-family: var(--mono);
+        font-size: 14px;
+        overflow-x: auto;
+    }
+    .code li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: max-content;
+        padding: 2px 8px;
+        border-radius: 4px;
+        white-space: pre;
+    }
+    .code .num { width: 1.2em; color: var(--ink-2); text-align: right; user-select: none; }
+    .code .tag { margin-left: auto; padding-left: 16px; font-size: 12px; color: var(--ink-2); }
+    .code li.current { background: var(--ink); color: white; }
+    .code li.current .num, .code li.current .tag { color: #c9cdd0; }
+
+    .note { min-height: 3em; margin: 12px 0; color: var(--ink-2); }
+
+    .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    #step-label { margin-left: 6px; color: var(--ink-2); font-size: 13px; }
+    #scrub { width: 100%; margin-top: 10px; }
+
+    .registers {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+        gap: 6px;
+        font-family: var(--mono);
+    }
+    .register { padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; }
+    .register span { display: block; font-size: 12px; color: var(--ink-2); }
+    .register.changed { background: var(--ink); border-color: var(--ink); color: white; }
+    .register.changed span { color: #c9cdd0; }
+
+    .table-scroll { overflow-x: auto; }
+    .costs { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .costs th, .costs td { padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .costs th { font-weight: 600; text-align: right; color: var(--ink-2); font-size: 13px; }
+    .costs td { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+    .costs td:first-child { text-align: left; font-family: inherit; }
+    .costs tr.total td { font-weight: 600; }
+    .assumptions { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+</style>
+
+<script>
+    /* ---------- methods ---------- */
+
+    const threadPerOutput = {
+        label: "One thread per output value",
+        code: [
+            { text: "thread(i, j):" },
+            { text: "  sum = 0.0" },
+            { text: "  for k = 0 to n-1:" },
+            { text: "    a = load A[i][k]", tag: "HBM read" },
+            { text: "    b = load B[k][j]", tag: "HBM read" },
+            { text: "    p = a * b", tag: "FP multiply" },
+            { text: "    sum = sum + p", tag: "FP add" },
+            { text: "  store C[i][j] = sum", tag: "HBM write" },
+        ],
+        registers: ["i", "j", "n", "k", "a", "b", "p", "sum"],
+        assumptions: "Every element read or written is one HBM access (no cache or burst reuse). " +
+            "i, j, n and k are integers held locally, so the loop itself costs no HBM accesses or FP operations. " +
+            "The first add (0.0 + p) is counted because the code performs it.",
+
+        // Every thread does the same work: one row of A and one column of B, both of length n.
+        costs(n) {
+            return { reads: 2 * n, writes: 1, multiplies: n, adds: n };
+        },
+
+        // The thread's full execution, one entry per line it runs.
+        trace(A, B, i, j) {
+            const n = B.length;
+            const regs = { i, j, n, k: null, a: null, b: null, p: null, sum: null };
+            const counts = { reads: 0, writes: 0, multiplies: 0, adds: 0 };
+            const steps = [];
+            const record = (line, changed, note, focus = {}) => {
+                steps.push({ line, changed, note, focus, regs: { ...regs }, counts: { ...counts } });
+            };
+
+            record(0, ["i", "j", "n"], `Thread starts with its arguments i=${i}, j=${j}. It will compute C[${i}][${j}] from row ${i} of A and column ${j} of B.`);
+
+            regs.sum = 0;
+            record(1, ["sum"], "Clear the accumulator. This is a register write, so it is neither an HBM access nor an FP operation.");
+
+            for (let k = 0; k < n; k++) {
+                regs.k = k;
+                record(2, ["k"], `Loop iteration k=${k} of ${n - 1}.`);
+
+                regs.a = A[i][k];
+                counts.reads++;
+                record(3, ["a"], `HBM read: A[${i}][${k}] = ${formatFloat(regs.a)} goes into register a.`, { a: k });
+
+                regs.b = B[k][j];
+                counts.reads++;
+                record(4, ["b"], `HBM read: B[${k}][${j}] = ${formatFloat(regs.b)} goes into register b.`, { b: k });
+
+                regs.p = regs.a * regs.b;
+                counts.multiplies++;
+                record(5, ["p"], `FP multiply: ${formatFloat(regs.a)} * ${formatFloat(regs.b)} = ${formatFloat(regs.p)}.`);
+
+                const before = regs.sum;
+                regs.sum = before + regs.p;
+                counts.adds++;
+                record(6, ["sum"], `FP add: ${formatFloat(before)} + ${formatFloat(regs.p)} = ${formatFloat(regs.sum)}.`);
+            }
+
+            regs.k = n;
+            record(2, ["k"], `k=${n} is past n-1, so the loop exits.`);
+
+            counts.writes++;
+            record(7, [], `HBM write: C[${i}][${j}] = ${formatFloat(regs.sum)}. The thread is finished.`, { write: true });
+
+            return steps;
+        },
+    };
+
+    const METHODS = { threadPerOutput };
+
+    function formatFloat(value) {
+        return value.toFixed(1);
+    }
+
+    // PAGE: everything below touches the DOM.
+
+    /* ---------- state ---------- */
+
+    const MAX_SIZE = 100;
+    const $ = (id) => document.getElementById(id);
+
+    const randomDigit = () => Math.floor(Math.random() * 10);
+
+    // Resizing keeps the values that still fit and fills new cells at random.
+    const resized = (old, rows, cols) => Array.from({ length: rows }, (_, r) =>
+        Array.from({ length: cols }, (_, c) => old[r]?.[c] ?? randomDigit()));
+
+    const state = {
+        m: 2, n: 3, p: 3, q: 4,
+        A: resized([], 2, 3),
+        B: resized([], 3, 4),
+        method: "threadPerOutput",
+        thread: { i: 0, j: 0 },
+        steps: [],
+        step: 0,
+        written: new Map(), // "i,j" -> value of each thread that has reached its store
+    };
+
+    const compatible = () => state.n === state.p;
+    const method = () => METHODS[state.method];
+
+    /* ---------- building the page ---------- */
+
+    function sizeClass(rows, cols) {
+        const largest = Math.max(rows, cols);
+        return largest > 40 ? "tiny" : largest > 12 ? "compact" : "";
+    }
+
+    function buildTable(table, rows, cols, makeCell) {
+        table.className = sizeClass(rows, cols);
+        table.replaceChildren();
+        for (let r = 0; r < rows; r++) {
+            const tr = table.insertRow();
+            for (let c = 0; c < cols; c++) makeCell(tr.insertCell(), r, c);
+        }
+    }
+
+    function buildAll() {
+        const { m, n, p, q, A, B } = state;
+        $("a-size").textContent = `${m} × ${n}`;
+        $("b-size").textContent = `${p} × ${q}`;
+        buildTable($("a-table"), m, n, (td, r, c) => { td.textContent = A[r][c]; });
+        buildTable($("b-table"), p, q, (td, r, c) => { td.textContent = B[r][c]; });
+
+        const ok = compatible();
+        $("mismatch").hidden = ok;
+        $("inspector").hidden = !ok;
+        $("c-figure").hidden = !ok;
+        document.querySelectorAll(".operator")[1].hidden = !ok;
+
+        if (!ok) {
+            $("mismatch-text").textContent = `A has ${n} column${n === 1 ? "" : "s"} but B has ${p} row${p === 1 ? "" : "s"}. ` +
+                "These must match, because each output value pairs one row of A with one column of B.";
+            $("fix-b").textContent = `Give B ${n} row${n === 1 ? "" : "s"}`;
+            $("fix-a").textContent = `Give A ${p} column${p === 1 ? "" : "s"}`;
+            return;
+        }
+
+        $("c-size").textContent = `${m} × ${q}`;
+        buildTable($("c-table"), m, q, (td, r, c) => {
+            const button = document.createElement("button");
+            button.dataset.i = r;
+            button.dataset.j = c;
+            button.setAttribute("aria-label", `Select thread i=${r}, j=${c}`);
+            td.appendChild(button);
+        });
+
+        buildCode();
+        buildCosts();
+        selectThread(Math.min(state.thread.i, m - 1), Math.min(state.thread.j, q - 1));
+    }
+
+    function buildCode() {
+        $("code").replaceChildren(...method().code.map((line, index) => {
+            const li = document.createElement("li");
+            const num = document.createElement("span");
+            num.className = "num";
+            num.textContent = index + 1;
+            li.append(num, line.text);
+            if (line.tag) {
+                const tag = document.createElement("span");
+                tag.className = "tag";
+                tag.textContent = line.tag;
+                li.append(tag);
+            }
+            return li;
+        }));
+        $("registers").replaceChildren(...method().registers.map((name) => {
+            const box = document.createElement("div");
+            box.className = "register";
+            box.dataset.name = name;
+            const label = document.createElement("span");
+            label.textContent = name;
+            box.append(label, document.createElement("b"));
+            return box;
+        }));
+        $("assumptions").textContent = method().assumptions;
+    }
+
+    const COST_ROWS = [
+        { label: "HBM reads", get: (c) => c.reads },
+        { label: "HBM writes", get: (c) => c.writes },
+        { label: "HBM accesses", get: (c) => c.reads + c.writes, total: true },
+        { label: "FP multiplies", get: (c) => c.multiplies },
+        { label: "FP adds", get: (c) => c.adds },
+        { label: "FP operations", get: (c) => c.multiplies + c.adds, total: true },
+    ];
+
+    function buildCosts() {
+        const threads = state.m * state.q;
+        const perThread = method().costs(state.n);
+        $("all-threads").textContent = `All ${threads.toLocaleString()} thread${threads === 1 ? "" : "s"}`;
+        $("costs").replaceChildren(...COST_ROWS.map((row) => {
+            const tr = document.createElement("tr");
+            if (row.total) tr.className = "total";
+            const each = row.get(perThread);
+            for (const text of [row.label, "", each.toLocaleString(), (each * threads).toLocaleString()]) {
+                tr.insertCell().textContent = text;
+            }
+            return tr;
+        }));
+    }
+
+    /* ---------- running a thread ---------- */
+
+    function selectThread(i, j) {
+        state.thread = { i, j };
+        state.steps = method().trace(state.A, state.B, i, j);
+        state.step = 0;
+        $("scrub").max = state.steps.length - 1;
+        $("thread-title").textContent = `Thread i=${i}, j=${j}`;
+        paint();
+    }
+
+    function goTo(step) {
+        state.step = Math.max(0, Math.min(state.steps.length - 1, step));
+        paint();
+    }
+
+    function setClass(el, name) {
+        if (el.className !== name) el.className = name;
+    }
+
+    function paint() {
+        const { i, j } = state.thread;
+        const current = state.steps[state.step];
+        const key = `${i},${j}`;
+
+        // A thread's value is in C only once it has run its store.
+        if (current.counts.writes > 0) state.written.set(key, current.regs.sum);
+        else state.written.delete(key);
+
+        const aRows = $("a-table").rows;
+        for (let r = 0; r < state.m; r++) {
+            for (let c = 0; c < state.n; c++) {
+                setClass(aRows[r].cells[c], r !== i ? "" : c === current.focus.a ? "now" : "line");
+            }
+        }
+        const bRows = $("b-table").rows;
+        for (let r = 0; r < state.p; r++) {
+            for (let c = 0; c < state.q; c++) {
+                setClass(bRows[r].cells[c], c !== j ? "" : r === current.focus.b ? "now" : "line");
+            }
+        }
+        const cRows = $("c-table").rows;
+        for (let r = 0; r < state.m; r++) {
+            for (let c = 0; c < state.q; c++) {
+                const button = cRows[r].cells[c].firstChild;
+                const value = state.written.get(`${r},${c}`);
+                const selected = r === i && c === j;
+                const text = value === undefined ? "·" : String(value);
+                if (button.textContent !== text) button.textContent = text;
+                setClass(button, [
+                    selected ? "selected" : "",
+                    value !== undefined ? "written" : "",
+                    selected && current.focus.write ? "now" : "",
+                ].filter(Boolean).join(" "));
+            }
+        }
+
+        [...$("code").children].forEach((li, index) => li.classList.toggle("current", index === current.line));
+        $("note").textContent = current.note;
+
+        for (const box of $("registers").children) {
+            const name = box.dataset.name;
+            const value = current.regs[name];
+            box.lastChild.textContent = value === null ? "—" :
+                ["i", "j", "n", "k"].includes(name) ? value : formatFloat(value);
+            box.classList.toggle("changed", current.changed.includes(name));
+        }
+
+        [...$("costs").rows].forEach((tr, index) => {
+            tr.cells[1].textContent = COST_ROWS[index].get(current.counts).toLocaleString();
+        });
+
+        const last = state.steps.length - 1;
+        $("step-label").textContent = `Step ${state.step} of ${last}`;
+        $("scrub").value = state.step;
+        $("first").disabled = $("back").disabled = state.step === 0;
+        $("last").disabled = $("next").disabled = state.step === last;
+    }
+
+    /* ---------- controls ---------- */
+
+    function applySizes() {
+        state.A = resized(state.A, state.m, state.n);
+        state.B = resized(state.B, state.p, state.q);
+        state.written.clear();
+        buildAll();
+    }
+
+    for (const id of ["m", "n", "p", "q"]) {
+        // Leave the box alone while it is blank or out of range, then tidy it up on blur.
+        $(id).addEventListener("input", () => {
+            const value = Number($(id).value);
+            if (Number.isInteger(value) && value >= 1 && value <= MAX_SIZE && value !== state[id]) {
+                state[id] = value;
+                applySizes();
+            }
+        });
+        $(id).addEventListener("change", () => { $(id).value = state[id]; });
+    }
+
+    function setSize(id, value) {
+        state[id] = value;
+        $(id).value = value;
+        applySizes();
+    }
+    $("fix-b").addEventListener("click", () => setSize("p", state.n));
+    $("fix-a").addEventListener("click", () => setSize("n", state.p));
+
+    $("randomize").addEventListener("click", () => {
+        state.A = resized([], state.m, state.n);
+        state.B = resized([], state.p, state.q);
+        state.written.clear();
+        buildAll();
+    });
+
+    $("method").replaceChildren(...Object.entries(METHODS).map(([id, { label }]) => new Option(label, id)));
+    $("method").addEventListener("change", () => {
+        state.method = $("method").value;
+        state.written.clear();
+        buildAll();
+    });
+
+    $("c-table").addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (button) selectThread(Number(button.dataset.i), Number(button.dataset.j));
+    });
+
+    $("first").addEventListener("click", () => goTo(0));
+    $("back").addEventListener("click", () => goTo(state.step - 1));
+    $("next").addEventListener("click", () => goTo(state.step + 1));
+    $("last").addEventListener("click", () => goTo(state.steps.length - 1));
+    $("scrub").addEventListener("input", () => goTo(Number($("scrub").value)));
+
+    document.addEventListener("keydown", (event) => {
+        if (!compatible() || event.target.matches("input, select")) return;
+        if (event.key === "ArrowRight") goTo(state.step + 1);
+        if (event.key === "ArrowLeft") goTo(state.step - 1);
+    });
+
+    buildAll();
+</script>
+
+</html>

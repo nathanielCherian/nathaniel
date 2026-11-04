@@ -167,6 +167,14 @@ def rubiks(request):
     }
     return render(request, "sketches/rubiks.html", context=meta)
 
+def rabbithole(request):
+    meta = {
+        "title":"RabbitHole",
+        "description":"A branching learning notebook: ask a question, highlight any phrase in the answer, and fork a new thread from it. Explore a topic as a tree instead of a transcript.",
+        "image":"meta/rabbithole.png"
+    }
+    return render(request, "sketches/rabbithole.html", context=meta)
+
 pages = [
     ['', indexv2, 'sketch-index-v2'],
     ['v1/', index, 'sketch-index'],
@@ -191,4 +199,5 @@ pages = [
     ['surf/', surf, 'surf'],
     ['wordhunt-solver/', wordhunt, 'wordhunt'],
     ['rubiks-state-graph/', rubiks, 'rubiks'],
+    ['rabbithole/', rabbithole, 'rabbithole'],
 ]

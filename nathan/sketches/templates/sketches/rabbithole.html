@@ -1,0 +1,2047 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    {% include 'snippets/meta.html'%}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RabbitHole</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22 aria-hidden=%22true%22%3E%3Cellipse cx=%2216%22 cy=%2224.5%22 rx=%2212%22 ry=%224.5%22 fill=%22%23141413%22/%3E%3Cg clip-path=%22url(%23rh-clip)%22%3E%3Cpath d=%22M11.6 15.5 C 9.6 11.5, 7.6 6.5, 8.8 3.6 C 9.4 2.1, 11.9 2.2, 12.5 3.8 C 13.9 7.3, 14.4 11.5, 14.6 15.5 Z%22 fill=%22%23faf9f5%22 stroke=%22%23141413%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M17.4 15.5 C 17.1 11, 17.3 5.8, 18.6 2.6 C 19.2 1.2, 21.6 1.2, 22.1 2.7 C 23.2 6, 22.3 11, 21 15.5 Z%22 fill=%22%23faf9f5%22 stroke=%22%23141413%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Crect x=%229.5%22 y=%2213.5%22 width=%2213%22 height=%2216%22 rx=%226.5%22 fill=%22%23faf9f5%22 stroke=%22%23141413%22 stroke-width=%222%22/%3E%3C/g%3E%3Cellipse cx=%2213.6%22 cy=%2219.6%22 rx=%221%22 ry=%221.4%22 fill=%22%23141413%22/%3E%3Cellipse cx=%2218.4%22 cy=%2219.6%22 rx=%221%22 ry=%221.4%22 fill=%22%23141413%22/%3E%3Cellipse cx=%2216%22 cy=%2222.7%22 rx=%221.3%22 ry=%22.9%22 fill=%22%23d97757%22/%3E%3Cdefs%3E%3CclipPath id=%22rh-clip%22%3E%3Crect x=%220%22 y=%220%22 width=%2232%22 height=%2224.5%22/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+<script>
+// ---- inlined example.js ----
+// RabbitHole example sessions, exported 2026-11-04 (2 topics).
+// Loaded automatically on first run; the Example button adds or refreshes them.
+// Format: { version, topics: [{ key, title, turns: [[question, answer, concepts?], ...], children: [{ forkIndex, quote, ... }] }] }
+window.RABBITHOLE_EXAMPLE = {
+  "version": 6,
+  "topics": [
+    {
+      "key": "flashattention",
+      "title": "FlashAttention",
+      "turns": [
+        [
+          "Can you please explain flash attention to me",
+          "# FlashAttention\n\nFlashAttention (Dao et al., 2022) computes **exactly the same output** as standard attention, but much faster and with far less memory. It does not approximate anything. The speedup comes from **reorganizing the computation to avoid slow memory traffic**, not from doing fewer math operations.\n\nLet's build it up step by step.\n\n---\n\n## 1. Standard attention and its hidden cost\n\nFor one attention head with sequence length $N$ and head dimension $d$:\n\n$$\nQ, K, V \\in \\mathbb{R}^{N \\times d}\n$$\n\n$$\nS = QK^\\top \\in \\mathbb{R}^{N\\times N}, \\quad P = \\text{softmax}(S) \\text{ (row-wise)}, \\quad O = PV \\in \\mathbb{R}^{N\\times d}\n$$\n\n(I'm dropping the $1/\\sqrt{d}$ scaling for readability. It doesn't change the story.)\n\nA naive GPU implementation runs as separate steps:\n\n1. Read $Q, K$ from GPU memory, compute $S$, **write $S$** ($N\\times N$) back to memory.\n2. **Read $S$**, compute softmax, **write $P$** ($N\\times N$).\n3. **Read $P$** and $V$, compute $O$, write $O$.\n\n**Concrete size:** with $N = 4096$, the matrix $S$ has $4096^2 \\approx 16.8$M entries per head. In fp16 that's about 32 MB per head, per layer, and it gets written and read multiple times.\n\n---\n\n## 2. Why that matters: the GPU memory hierarchy\n\nA GPU has two relevant kinds of memory (numbers for an A100):\n\n| Memory | Size | Bandwidth |\n|---|---|---|\n| **HBM** (main GPU memory) | 40–80 GB | ~1.5–2 TB/s |\n| **SRAM** (on-chip, per streaming multiprocessor) | ~192 KB each, ~20 MB total | ~19 TB/s |\n\nModern GPUs can do arithmetic much faster than they can move data to and from HBM. Operations like softmax do very little math per byte loaded, so they are **memory-bound**: the GPU spends most of its time waiting on HBM reads and writes.\n\n> **Key insight of the paper:** attention is slow mainly because of **IO** (moving the $N\\times N$ matrices to and from HBM), not because of FLOPs. So minimize HBM reads and writes. The authors call this being *IO-aware*.\n\nThe ideal would be to load $Q, K, V$ once, do everything in fast SRAM, and write only $O$. But $S$ doesn't fit in SRAM. So we need to work in **tiles**.\n\n---\n\n## 3. The obstacle: softmax needs the whole row\n\nTiling a matrix multiply is easy. The problem is the softmax. For row $i$:\n\n$$\nP_{ij} = \\frac{e^{S_{ij} - m_i}}{\\sum_k e^{S_{ik} - m_i}}, \\qquad m_i = \\max_k S_{ik}\n$$\n\nThe max $m_i$ is subtracted for numerical stability. Both the max and the denominator depend on the **entire row**. So if you only see a block of keys at a time, it looks like you can't compute the softmax yet.\n\nThe fix is a trick called **online softmax**.\n\n---\n\n## 4. Online softmax: the core trick\n\nProcess the keys in blocks. For each query row, keep three running quantities:\n\n- $m$: the running max of scores seen so far\n- $\\ell$: the running sum of $e^{s - m}$\n- $\\tilde{o}$: the running **unnormalized** output, $\\sum e^{s - m} v$\n\nWhen a new block arrives with a larger max $m_{\\text{new}}$, the old quantities were computed relative to the wrong max. You fix this by multiplying them by a correction factor $e^{m_{\\text{old}} - m_{\\text{new}}}$:\n\n$$\nm_{\\text{new}} = \\max(m_{\\text{old}}, \\tilde m_{\\text{block}})\n$$\n$$\n\\ell_{\\text{new}} = e^{m_{\\text{old}} - m_{\\text{new}}}\\,\\ell_{\\text{old}} + \\sum_{j\\in \\text{block}} e^{s_j - m_{\\text{new}}}\n$$\n$$\n\\tilde{o}_{\\text{new}} = e^{m_{\\text{old}} - m_{\\text{new}}}\\,\\tilde{o}_{\\text{old}} + \\sum_{j\\in \\text{block}} e^{s_j - m_{\\text{new}}}\\, v_j\n$$\n\nAt the end, $O = \\tilde{o} / \\ell$.\n\n### Worked example\n\nTake one query whose scores against 3 keys are $s = [1, 2, 3]$. The values are scalars $v = [10, 20, 30]$. Split the keys into Block A = keys 1 and 2, and Block B = key 3.\n\n**Block A** (scores 1, 2):\n- $m = 2$\n- $\\ell = e^{1-2} + e^{2-2} = 0.3679 + 1 = 1.3679$\n- $\\tilde o = 0.3679\\cdot 10 + 1\\cdot 20 = 23.679$\n\n**Block B** (score 3):\n- $m_{\\text{new}} = 3$, so the correction factor is $e^{2-3} = 0.3679$\n- $\\ell = 1.3679 \\cdot 0.3679 + e^{0} = 0.5032 + 1 = 1.5032$\n- $\\tilde o = 23.679 \\cdot 0.3679 + 1\\cdot 30 = 8.711 + 30 = 38.711$\n\n**Final:** $O = 38.711 / 1.5032 \\approx 25.75$\n\n**Check against the direct computation:** $\\text{softmax}([1,2,3]) = [0.090, 0.245, 0.665]$, and $0.090\\cdot10 + 0.245\\cdot20 + 0.665\\cdot 30 \\approx 25.75$. ✅\n\nSo we got the exact answer without ever holding the full row at once.\n\n---\n\n## 5. The FlashAttention algorithm (tiling + online softmax)\n\nSplit $Q$ into row blocks $Q_i$, and $K, V$ into blocks $K_j, V_j$. Choose block sizes so that everything fits in SRAM.\n\n```\nfor each query block Q_i:                  # (FlashAttention-2 loop order)\n    load Q_i into SRAM\n    init m = -inf, l = 0, O_acc = 0        # per row, live in SRAM/registers\n    for each key/value block (K_j, V_j):\n        load K_j, V_j into SRAM\n        S_ij = Q_i @ K_j^T                 # small tile, stays on-chip\n        m_new = max(m, rowmax(S_ij))\n        P_ij  = exp(S_ij - m_new)\n        l     = exp(m - m_new) * l + rowsum(P_ij)\n        O_acc = exp(m - m_new) * O_acc + P_ij @ V_j\n        m     = m_new\n    O_i = O_acc / l\n    write O_i to HBM; also save logsumexp L_i = m + log(l)\n```\n\nThe $N\\times N$ matrices $S$ and $P$ **never exist in HBM**. Only small tiles of them ever exist, and only in SRAM. The whole computation is one fused GPU kernel.\n\n---\n\n## 6. The backward pass: recompute instead of store\n\nTraining needs gradients, and the standard backward pass uses $P$. Normally you'd save $P$ ($N\\times N$) from the forward pass.\n\nFlashAttention instead saves only $O$ and the per-row statistic $L_i$ (the logsumexp, i.e. $N$ numbers). In the backward pass it **recomputes** each tile $S_{ij} = Q_iK_j^\\top$ and $P_{ij} = e^{S_{ij} - L_i}$ on the fly, again in SRAM.\n\nThis adds extra FLOPs, but recomputing is faster than reading a huge $P$ back from HBM. It is the same idea as gradient checkpointing, applied inside one kernel.\n\n---\n\n## 7. What you gain\n\n| | Standard | FlashAttention |\n|---|---|---|\n| FLOPs | $O(N^2 d)$ | $O(N^2 d)$ (slightly more, due to recompute) |\n| Extra memory | $O(N^2)$ | $O(N)$ |\n| HBM accesses | $\\Theta(Nd + N^2)$ | $\\Theta(N^2 d^2 / M)$ |\n| Result | exact | **exact** (same math) |\n\nHere $M$ is the SRAM size. Since $d^2$ (e.g. $64^2 = 4096$) is much smaller than $M$ (around 100K bytes), the HBM traffic drops several-fold.\n\nIn practice:\n- Attention runs about 2–4× faster.\n- Memory grows **linearly** in sequence length instead of quadratically.\n- This made long contexts (8K, 32K, and beyond) practical to train.\n\n---\n\n## 8. Later versions (briefly)\n\n- **FlashAttention-2 (2023):**\n  - Puts the loop over query blocks on the outside, as in the pseudocode above.\n  - Delays the division by $\\ell$ to the very end, reducing non-matmul operations.\n  - Parallelizes across the sequence dimension.\n  - Result: about 2× faster than v1.\n- **FlashAttention-3 (2024):**\n  - Targets H100 GPUs.\n  - Overlaps data movement with computation using asynchronous hardware units, and assigns different groups of GPU threads to loading versus computing (\"warp specialization\").\n  - Supports FP8.\n\n---\n\n### One-sentence summary\nFlashAttention computes exact attention tile by tile inside fast on-chip memory, using the online-softmax rescaling trick so it never has to write the $N\\times N$ attention matrix to slow GPU memory, and it recomputes those tiles during the backward pass instead of storing them.\n\nIf you'd like, I can go deeper into the backward-pass gradient formulas or the IO-complexity proof.",
+          [
+            {
+              "term": "GPU memory hierarchy",
+              "phrase": "A GPU has two relevant kinds of memory",
+              "question": "How do HBM and on-chip SRAM differ in size and speed, and why does that gap matter for this algorithm?"
+            },
+            {
+              "term": "Memory-bound operations",
+              "phrase": "Operations like softmax do very little math",
+              "question": "What does it mean for an operation to be limited by memory bandwidth rather than arithmetic speed?"
+            },
+            {
+              "term": "Numerical stability in softmax",
+              "phrase": "The max m_i is subtracted for numerical stability",
+              "question": "Why does subtracting the row maximum before exponentiating keep the softmax from overflowing?"
+            },
+            {
+              "term": "Matrix tiling",
+              "phrase": "we need to work in tiles",
+              "question": "How does splitting a large matrix multiply into smaller blocks let each block fit in fast memory?"
+            },
+            {
+              "term": "Logsumexp",
+              "phrase": "save logsumexp L_i = m + log(l)",
+              "question": "What is the logsumexp and why is storing it per row enough to recompute softmax probabilities later?"
+            }
+          ]
+        ]
+      ],
+      "children": [
+        {
+          "key": "softmax-as-attention-weights",
+          "title": "Softmax as Attention Weights",
+          "turns": [
+            [
+              "What is softmax, why do we need it?",
+              "# Softmax\n\n## What it is\n\nSoftmax turns a list of arbitrary real numbers (called **scores** or **logits**) into a list of **positive numbers that sum to 1**, which you can read as probabilities or weights.\n\nFor a vector $s = [s_1, \\dots, s_n]$:\n\n$$\n\\text{softmax}(s)_j = \\frac{e^{s_j}}{\\sum_{k=1}^{n} e^{s_k}}\n$$\n\nIt works in two steps:\n1. **Exponentiate** each score with $e^{s_j}$. This makes everything positive, and larger scores become much larger.\n2. **Normalize** by dividing by the total, so the results sum to 1.\n\n### Worked example\n\nLet's reuse the scores from the earlier example, $s = [1, 2, 3]$:\n\n| | $s_j$ | $e^{s_j}$ | $\\div$ sum (30.19) |\n|---|---|---|---|\n| key 1 | 1 | 2.718 | **0.090** |\n| key 2 | 2 | 7.389 | **0.245** |\n| key 3 | 3 | 20.086 | **0.665** |\n\nThe outputs sum to 1, and the biggest score gets the biggest share.\n\nThe name comes from this behavior: it's a \"soft\" version of picking the maximum. A hard max would output $[0, 0, 1]$. Softmax gives most of the weight to the winner but still gives some to the others.\n\n---\n\n## Why attention needs it\n\nIn attention, each query compares itself to every key. The raw score $S_{ij} = q_i \\cdot k_j$ measures how relevant key $j$ is to query $i$. These raw scores are awkward to use directly:\n\n- They can be **negative** (e.g. $-5$).\n- They are **unbounded** (e.g. $+200$).\n- They **don't sum to anything meaningful**, so their overall scale would vary from row to row.\n\nThe output we want is a **weighted average** of the value vectors:\n\n$$\no_i = \\sum_j P_{ij}\\, v_j\n$$\n\nFor this to be a sensible average, the weights $P_{ij}$ should be non-negative and sum to 1. Softmax does exactly that.\n\nIn the earlier example, the output was\n\n$$\n0.090\\cdot 10 + 0.245 \\cdot 20 + 0.665 \\cdot 30 \\approx 25.75\n$$\n\nThat is a blend of the values, pulled toward 30 because key 3 had the highest relevance.\n\n### Why not something simpler?\n\n- **Divide by the sum without exponentiating:** this breaks with negative scores. For example, $[-1, 1]$ sums to 0, so you'd divide by zero.\n- **Hard max (argmax):** pick only the best key. This isn't differentiable, so gradients can't flow and the model can't learn. It also can't blend information from several tokens.\n- **Softmax:** smooth, differentiable, always positive, and it sharpens toward the strongest match.\n\n---\n\n## Why subtract the max (the $m_i$ in FlashAttention)\n\nExponentials blow up quickly. In fp16, $e^{12}$ already overflows: fp16 can only represent numbers up to about 65,504.\n\nThe fix relies on a useful property: softmax doesn't change if you **subtract the same constant from every score**, because the constant cancels in the fraction:\n\n$$\n\\frac{e^{s_j - c}}{\\sum_k e^{s_k - c}} = \\frac{e^{s_j} e^{-c}}{e^{-c}\\sum_k e^{s_k}} = \\frac{e^{s_j}}{\\sum_k e^{s_k}}\n$$\n\nChoosing $c = \\max_k s_k$ makes the largest exponent $e^0 = 1$, and every other exponent is between 0 and 1. That guarantees no overflow.\n\nCheck with $[1,2,3]$: subtracting 3 gives $[-2,-1,0]$, so the exponentials are $[0.135, 0.368, 1]$. The sum is $1.503$, and dividing gives $[0.090, 0.245, 0.665]$, the same answer as before.\n\n---\n\n## How this connects back to FlashAttention\n\nThis is exactly why softmax was the obstacle:\n\n- Computing the max $m_i$ and the denominator $\\sum_k e^{s_k - m_i}$ requires seeing **the entire row** of scores.\n- FlashAttention only sees one block of keys at a time.\n\nThe online-softmax trick works because of the shift property above. If you computed partial sums using an old max and later discover a bigger one, you can fix them by multiplying by $e^{m_{\\text{old}} - m_{\\text{new}}}$. That's exactly the 0.3679 correction factor in the worked example.",
+              [
+                {
+                  "term": "Exponential function",
+                  "phrase": "Exponentiate each score with",
+                  "question": "What does the exponential function e^x do to numbers, and why does it always produce positive values?"
+                },
+                {
+                  "term": "Dot product",
+                  "phrase": "The raw score S_{ij} = q_i",
+                  "question": "How is the dot product of two vectors computed, and what does a large value signify about their similarity?"
+                },
+                {
+                  "term": "Weighted average",
+                  "phrase": "The output we want is a",
+                  "question": "How does a weighted average differ from a simple average, and why must the weights sum to 1?"
+                },
+                {
+                  "term": "Differentiability and gradients",
+                  "phrase": "This isn't differentiable, so gradients",
+                  "question": "What does it mean for a function to be differentiable, and why does training with gradient descent require it?"
+                },
+                {
+                  "term": "Floating-point overflow",
+                  "phrase": "fp16, e^{12} already overflows:",
+                  "question": "What is floating-point precision (such as fp16), and why do large numbers overflow to infinity in it?"
+                },
+                {
+                  "term": "Online softmax",
+                  "phrase": "The online-softmax trick works because",
+                  "question": "How can partial softmax sums be rescaled incrementally as new blocks of scores arrive?"
+                }
+              ]
+            ],
+            [
+              "Do we have other options other than softmax?",
+              "# Alternatives to Softmax in Attention\n\nYes. Researchers have tried many replacements, and a few are used in production models. They fall into three families:\n\n1. **Tweaks to softmax**: keep softmax but change a detail.\n2. **Different normalizers**: replace softmax with another function that maps scores to weights.\n3. **Linear attention**: remove the $N\\times N$ weight matrix entirely.\n\nThroughout, I'll reuse our running example: scores $s = [1, 2, 3]$ and values $v = [10, 20, 30]$. Softmax gave weights $[0.090, 0.245, 0.665]$ and output **25.75**.\n\n---\n\n## 1. Tweaks to softmax\n\n### Temperature\nDivide the scores by $\\tau$ before applying softmax, so you compute $\\text{softmax}(s/\\tau)$:\n- With $\\tau < 1$ the weights get sharper (closer to a hard max).\n- With $\\tau > 1$ they get flatter (closer to uniform).\n\nThe $1/\\sqrt{d}$ factor in standard attention is exactly a fixed temperature.\n\n### \"Softmax + 1\" / attention sinks\nStandard softmax **forces** the weights to sum to 1, so a head *must* attend somewhere even when nothing is relevant. A fix is to add an extra term to the denominator:\n\n$$\nP_j = \\frac{e^{s_j}}{1 + \\sum_k e^{s_k}}\n$$\n\nOn our example the denominator becomes $30.19 + 1 = 31.19$, giving weights $[0.087, 0.237, 0.644]$, which sum to **0.968**. The missing 3.2% means \"attend to nothing.\" Some recent models (e.g. gpt-oss) use a *learned* sink value in place of the fixed 1.\n\n---\n\n## 2. Different normalizers\n\n### Sigmoid attention\nApply the sigmoid $\\sigma(x) = 1/(1+e^{-x})$ to each score **independently**:\n\n$$\nP_{ij} = \\sigma(S_{ij} + b)\n$$\n\nOn our example (with $b=0$), the weights are $[0.731, 0.881, 0.953]$. These sum to **2.57**, not 1, so the output is $7.3 + 17.6 + 28.6 = 53.5$. That's no longer an average of the values.\n\n- **Problem:** the output magnitude grows with sequence length.\n- **Standard fix:** use a bias $b \\approx -\\log N$ to keep the weights small.\n- **Benefit:** there is no row-wide max or sum. Every entry is computed independently, which makes it simpler and faster on GPUs. Apple's 2024 \"sigmoid self-attention\" work released a \"FlashSigmoid\" kernel built on this.\n\n### ReLU attention\nUse $P_{ij} = \\text{ReLU}(S_{ij}) / N$, which zeroes out negative scores and scales by the sequence length.\n\nOn our example: $[1,2,3]/3 = [0.33, 0.67, 1.0]$.\n\n- This is cheap and elementwise, like sigmoid.\n- Wortsman et al. (2023) showed it can roughly match softmax in Vision Transformers.\n- It needs the $1/N$ scaling to stay stable.\n\n### Sparsemax / entmax\nSoftmax never outputs an exact zero. Even a terrible key gets a tiny weight. **Sparsemax** projects the scores onto the probability simplex (the set of non-negative vectors summing to 1). The weights still sum to 1, but many are **exactly 0**:\n\n$$\nP_j = \\max(s_j - \\tau,\\ 0)\n$$\n\nHere $\\tau$ is chosen so the results sum to 1.\n\n**Example:** with halved scores $[0.5, 1, 1.5]$:\n- The right threshold is $\\tau = 0.75$.\n- The weights are $[0, 0.25, 0.75]$.\n- Key 1 is ignored completely.\n\n*Entmax* interpolates between softmax and sparsemax.\n\n- **Benefit:** sparse weights are more interpretable.\n- **Cost:** finding $\\tau$ requires sorting or searching over the whole row. That is even harder to tile than softmax, so it doesn't combine well with FlashAttention.\n\n---\n\n## 3. Linear attention: drop the $N\\times N$ matrix\n\nInstead of computing $e^{q\\cdot k}$, use a feature map $\\phi$ such that the similarity is $\\phi(q)\\cdot\\phi(k)$. One common choice is $\\phi(x) = \\text{elu}(x)+1$. Then:\n\n$$\no_i = \\frac{\\phi(q_i)^\\top \\sum_j \\phi(k_j) v_j^\\top}{\\phi(q_i)^\\top \\sum_j \\phi(k_j)}\n$$\n\nThe trick is **associativity of matrix multiplication**:\n\n$$\n\\underbrace{(\\phi(Q)\\phi(K)^\\top)}_{N\\times N}V \\;=\\; \\phi(Q)\\underbrace{(\\phi(K)^\\top V)}_{d\\times d}\n$$\n\nThe right-hand side never forms an $N\\times N$ matrix, so the cost drops from $O(N^2 d)$ to $O(N d^2)$, which is **linear in sequence length**. The running sum $\\sum_j \\phi(k_j)v_j^\\top$ can be updated token by token, so the model can also run like an RNN with a fixed-size state.\n\n- **Examples:** Linear Transformer (Katharopoulos et al., 2020), and Performer, which uses random features to *approximate* softmax.\n- **Successors:** this line of work evolved into RetNet, RWKV, Gated Linear Attention, DeltaNet, and state-space models like Mamba.\n- **Weakness:** the whole history is compressed into a $d\\times d$ state. These models therefore struggle with **precise recall**, such as \"copy the phone number from 5,000 tokens ago.\" Softmax attention handles this easily because it can put sharp, nearly one-hot weight on a single token.\n\n---\n\n## Summary\n\n| Method | Weights sum to 1? | Exact zeros? | Needs whole row? | Cost | Used in practice |\n|---|---|---|---|---|---|\n| **Softmax** | ✅ | ❌ | ✅ (max + sum) | $O(N^2)$ | Almost everywhere |\n| Softmax + sink | ≤ 1 | ❌ | ✅ | $O(N^2)$ | Some recent LLMs |\n| Sigmoid | ❌ | ❌ | ❌ | $O(N^2)$ | Research, some vision |\n| ReLU / N | ❌ | ✅ | ❌ | $O(N^2)$ | Research |\n| Sparsemax / entmax | ✅ | ✅ | ✅ (sort/threshold) | $O(N^2)$+ | Niche (NLP, interpretability) |\n| Linear attention | ≈ | ❌ | ❌ | **$O(N)$** | Hybrid & RNN-style models |\n\n## Why softmax still dominates\n\n- **Sharp, selective retrieval:** exponentials let one strongly matching key dominate, which is what in-context recall requires.\n- **Stable scale:** outputs are always a convex average of the values, no matter the sequence length.\n- **Well understood and well optimized:** with FlashAttention's online-softmax trick, the \"needs the whole row\" problem is solved, so softmax's main computational drawback is largely gone.\n\nThat last point is why many state-of-the-art \"efficient\" models today are **hybrids**: mostly linear-attention or state-space layers for speed, plus a few full softmax-attention layers for precise recall.",
+              [
+                {
+                  "term": "Softmax function",
+                  "phrase": "Standard softmax **forces** the weights",
+                  "question": "How does softmax turn a row of raw scores into weights that are positive and sum to 1?"
+                },
+                {
+                  "term": "Sigmoid function",
+                  "phrase": "Apply the sigmoid $\\sigma(x)",
+                  "question": "How does the sigmoid squash a single number into the range between 0 and 1?"
+                },
+                {
+                  "term": "Probability simplex",
+                  "phrase": "projects the scores onto the probability simplex",
+                  "question": "What does it mean for a vector to lie on the probability simplex, and why does that constrain the weights?"
+                },
+                {
+                  "term": "Associativity of matrix multiplication",
+                  "phrase": "The trick is **associativity of matrix multiplication**",
+                  "question": "Why can I regroup the product of three matrices without changing the result, and how does that change the cost?"
+                },
+                {
+                  "term": "Feature map",
+                  "phrase": "use a feature map $\\phi$ such that",
+                  "question": "How can a feature map $\\phi$ replace $e^{q\\cdot k}$ with a dot product of transformed vectors?"
+                },
+                {
+                  "term": "Online softmax",
+                  "phrase": "FlashAttention's online-softmax trick",
+                  "question": "How can softmax be computed in blocks without seeing the whole row at once?"
+                }
+              ]
+            ]
+          ],
+          "forkIndex": 1,
+          "quote": "softmax",
+          "children": [
+            {
+              "key": "reordering-sums-in-linear-attention",
+              "title": "Reordering Sums in Linear Attention",
+              "turns": [
+                [
+                  "What is linear attention how does that work",
+                  "# Linear Attention\n\nLinear attention is a way to compute something attention-like **without ever building the $N\\times N$ score matrix**. Its cost grows linearly with sequence length instead of quadratically. The idea rests on one fact about matrix multiplication: **you can choose the order in which you multiply**.\n\n---\n\n## 1. Rewriting attention as a \"similarity-weighted average\"\n\nStandard attention for one query $q_i$ is:\n\n$$\no_i = \\frac{\\sum_j \\text{sim}(q_i, k_j)\\, v_j}{\\sum_j \\text{sim}(q_i, k_j)}, \\qquad \\text{sim}(q,k) = e^{q\\cdot k}\n$$\n\nThis is just softmax written out: weights proportional to $e^{q\\cdot k}$, divided by their sum.\n\nAny **non-negative** similarity function would give a valid weighted average. Linear attention picks a similarity that **factorizes** into a dot product of features:\n\n$$\n\\text{sim}(q,k) = \\phi(q)\\cdot\\phi(k)\n$$\n\nHere $\\phi$ is a feature map that keeps outputs positive. A common choice is $\\phi(x) = \\text{elu}(x) + 1$, which is positive everywhere.\n\n---\n\n## 2. The key step: reorder the sum\n\nPlug the factorized similarity into the numerator:\n\n$$\n\\sum_j \\big(\\phi(q_i)^\\top \\phi(k_j)\\big)\\, v_j^\\top \\;=\\; \\phi(q_i)^\\top \\underbrace{\\Big(\\sum_j \\phi(k_j)\\, v_j^\\top\\Big)}_{M \\;\\in\\; \\mathbb{R}^{d\\times d}}\n$$\n\nDo the same for the denominator:\n\n$$\n\\sum_j \\phi(q_i)^\\top\\phi(k_j) \\;=\\; \\phi(q_i)^\\top \\underbrace{\\Big(\\sum_j \\phi(k_j)\\Big)}_{z \\;\\in\\; \\mathbb{R}^{d}}\n$$\n\nSo:\n\n$$\n\\boxed{o_i = \\frac{\\phi(q_i)^\\top M}{\\phi(q_i)^\\top z}}\n$$\n\nThe point is that $M$ and $z$ **don't depend on the query**. You compute them once and reuse them for every query.\n\nIn matrix form, this is the associativity trick from before:\n\n$$\n\\underbrace{(\\phi(Q)\\,\\phi(K)^\\top)}_{N\\times N}\\,V \\quad=\\quad \\phi(Q)\\,\\underbrace{(\\phi(K)^\\top V)}_{d\\times d}\n$$\n\n| Order | Intermediate | Cost |\n|---|---|---|\n| Left (standard) | $N\\times N$ | $O(N^2 d)$ |\n| Right (linear) | $d\\times d$ | $O(N d^2)$ |\n\nFor example, with $N = 100{,}000$ tokens and $d = 128$, the right-hand order is about $N/d \\approx 780\\times$ cheaper.\n\n> **Why can't we do this with softmax?** The function $e^{q\\cdot k}$ does not factor into a *finite* dot product. Its Taylor series $\\sum_n (q\\cdot k)^n/n!$ corresponds to an infinite-dimensional feature map. The **Performer** model approximates it with random features $\\phi$, chosen so that $\\mathbb{E}[\\phi(q)\\cdot\\phi(k)] = e^{q\\cdot k}$. Most modern linear attention models don't bother approximating softmax at all; they just use a different similarity.\n\n---\n\n## 3. Worked example: both orders give the same answer\n\nTo keep the arithmetic easy, assume the features have already been computed. Use $d = 2$, scalar values as before, and one query:\n\n| | $\\phi(k_j)$ | $v_j$ |\n|---|---|---|\n| key 1 | $[1, 0]$ | 10 |\n| key 2 | $[0, 1]$ | 20 |\n| key 3 | $[1, 1]$ | 30 |\n\n$$\\phi(q) = [2, 1]$$\n\n**Left order (build all similarities):**\n- Similarities $\\phi(q)\\cdot\\phi(k_j)$: $2,\\ 1,\\ 3$. Their sum is 6.\n- Weights: $[0.333, 0.167, 0.5]$\n- Output: $(2\\cdot10 + 1\\cdot20 + 3\\cdot30)/6 = 130/6 \\approx \\mathbf{21.67}$\n\n**Right order (build the summary first):**\n- $M = \\sum_j \\phi(k_j)\\,v_j = [10,0] + [0,20] + [30,30] = [40, 50]$\n- $z = \\sum_j \\phi(k_j) = [1,0]+[0,1]+[1,1] = [2, 2]$\n- Numerator: $\\phi(q)\\cdot M = 2\\cdot40 + 1\\cdot50 = 130$\n- Denominator: $\\phi(q)\\cdot z = 2\\cdot 2 + 1\\cdot 2 = 6$\n- Output: $130/6 \\approx \\mathbf{21.67}$ ✅\n\nThe answer is identical, but the right order never needed one similarity score per key. It compressed all the keys and values into $M$ and $z$.\n\n---\n\n## 4. The RNN view: causal linear attention\n\nIn a language model, token $i$ may only attend to tokens $1,\\dots,i$. With linear attention, that just means $M$ and $z$ become **running sums**:\n\n$$\nM_i = M_{i-1} + \\phi(k_i)\\,v_i^\\top, \\qquad z_i = z_{i-1} + \\phi(k_i), \\qquad o_i = \\frac{\\phi(q_i)^\\top M_i}{\\phi(q_i)^\\top z_i}\n$$\n\nIn the example:\n\n| step | add | $M_i$ | $z_i$ |\n|---|---|---|---|\n| 1 | key 1 | $[10, 0]$ | $[1, 0]$ |\n| 2 | key 2 | $[10, 20]$ | $[1, 1]$ |\n| 3 | key 3 | $[40, 50]$ | $[2, 2]$ |\n\nThis is exactly a **recurrent neural network**: a fixed-size state $(M, z)$ that gets updated once per token.\n\n| | Softmax attention | Linear attention |\n|---|---|---|\n| Memory during generation | KV cache, grows as $O(N d)$ | Fixed state, $O(d^2)$ |\n| Cost per new token | $O(N d)$ (look at all past keys) | $O(d^2)$ (constant) |\n\nThis constant cost per token is the main appeal for long contexts and fast inference.\n\n---\n\n## 5. The catch: a fixed-size memory blurs things together\n\nSince all of history is squeezed into a $d\\times d$ matrix, different key–value pairs **interfere** with each other.\n\n**Example:** try to retrieve key 1's value exactly by querying with $\\phi(q) = [1, 0]$.\n\n- Similarities: key 1 → 1, key 2 → 0, key 3 → 1\n- Output: $(10 + 30)/2 = \\mathbf{20}$, but we wanted **10**.\n\nKey 3's feature $[1,1]$ overlaps with key 1's, so their values get mixed together.\n\nSoftmax attention avoids this. Exponentials can make one score dominate, which yields nearly one-hot weights. A $d\\times d$ state can store at most about $d$ key–value pairs cleanly (when the keys are orthogonal). Beyond that, the memories blur.\n\nThat is why pure linear attention models are weaker at **precise recall tasks**: copying, looking things up in a long document, or answering \"needle in a haystack\" questions.\n\n---\n\n## 6. How modern variants improve it\n\nMost recent work keeps the running state $M$ but changes **how it is updated**:\n\n| Idea | Update rule (dropping $\\phi$) | Intuition | Examples |\n|---|---|---|---|\n| Plain | $M_t = M_{t-1} + k_t v_t^\\top$ | Keep adding; never forget | Linear Transformer |\n| **Decay / gating** | $M_t = \\gamma_t\\, M_{t-1} + k_t v_t^\\top$ | Gradually forget old content so new content has room | RetNet, GLA, Mamba-2 |\n| **Delta rule** | $M_t = M_{t-1} + \\beta_t\\, k_t\\,(v_t - M_{t-1}^\\top k_t)^\\top$ | Check what the memory currently returns for $k_t$, and correct only the error. This *overwrites* instead of piling on | DeltaNet, Gated DeltaNet |\n\nOther common practical changes:\n- The denominator $z$ is often dropped and replaced with a normalization layer, which is more stable.\n- **Training uses a \"chunkwise\" form.** Within a chunk of, say, 64 tokens, compute attention the quadratic way, which is fast as matrix multiplication on GPUs. Between chunks, pass the state $M$ along recurrently. This tiling idea is close in spirit to FlashAttention.\n\n---\n\n## Summary\n\n- **What:** replace $e^{q\\cdot k}$ with a factorized similarity $\\phi(q)\\cdot\\phi(k)$.\n- **How:** reorder $(QK^\\top)V$ into $Q(K^\\top V)$, so you build a $d\\times d$ summary of the keys and values instead of an $N\\times N$ matrix.\n- **Result:** cost is $O(N)$ in sequence length, and inference behaves like an RNN with constant memory per step.\n- **Trade-off:** a fixed-size state causes interference, so exact recall is weaker than with softmax.\n- **In practice:** gated and delta-rule variants narrow the gap, and many current models are **hybrids**. They use mostly linear-attention layers plus a few softmax-attention layers, with FlashAttention handling those softmax layers efficiently.",
+                  [
+                    {
+                      "term": "Softmax attention",
+                      "phrase": "Standard attention for one query",
+                      "question": "What exactly is softmax attention, and how does it compute weights over keys and values?"
+                    },
+                    {
+                      "term": "Matrix multiplication associativity",
+                      "phrase": "you can choose the order in which you multiply",
+                      "question": "Why does changing the order of multiplying matrices give the same result but a different cost?"
+                    },
+                    {
+                      "term": "Feature map",
+                      "phrase": "Here phi is a feature map that keeps outputs positive",
+                      "question": "What is a feature map, and why does mapping queries and keys through one make a similarity factor into a dot product?"
+                    },
+                    {
+                      "term": "Kernel and Taylor series",
+                      "phrase": "Its Taylor series",
+                      "question": "How does the exponential function's Taylor series relate to an infinite-dimensional feature map?"
+                    },
+                    {
+                      "term": "Recurrent neural network",
+                      "phrase": "This is exactly a recurrent neural network",
+                      "question": "How does a recurrent neural network keep a fixed-size state updated one step at a time?"
+                    },
+                    {
+                      "term": "KV cache",
+                      "phrase": "KV cache, grows as",
+                      "question": "What is a KV cache and why does its memory grow with sequence length during generation?"
+                    }
+                  ]
+                ]
+              ],
+              "forkIndex": 5,
+              "quote": "Linear attention"
+            }
+          ]
+        },
+        {
+          "key": "backward-pass-gradient-derivation",
+          "title": "Backward Pass Gradient Derivation",
+          "turns": [
+            [
+              "go",
+              "## Backward pass in detail\n\n### The gradients we need\n\nGiven the upstream gradient $dO \\in \\mathbb{R}^{N\\times d}$, the chain rule through $O = PV$, $P = \\text{softmax}(S)$, $S = QK^\\top$ gives:\n\n$$\ndV = P^\\top dO, \\qquad dP = dO\\,V^\\top\n$$\n\nFor the softmax, take a single row $p = \\text{softmax}(s)$. Its Jacobian is $\\partial p_k/\\partial s_j = p_k(\\delta_{kj} - p_j)$, so\n\n$$\ndS_{ij} = P_{ij}\\Big(dP_{ij} - \\underbrace{\\textstyle\\sum_k P_{ik}\\, dP_{ik}}_{D_i}\\Big)\n\\quad\\Longrightarrow\\quad dS = P \\circ (dP - D)\n$$\n\n$$\ndQ = dS\\,K, \\qquad dK = dS^\\top Q\n$$\n\n### The problem, and two tricks\n\nEvery formula above involves $P$ or $dP$, both $N\\times N$. FlashAttention avoids materializing either one:\n\n1. **Recompute $P$ from $L$.** The forward pass saved the logsumexp $L_i = m_i + \\log \\ell_i$. Any tile can then be rebuilt exactly as $P_{ij} = \\exp(Q_iK_j^\\top - L_i)$, with no running max or rescaling needed.\n\n2. **Compute $D$ without $dP$.** Naively, $D_i = \\sum_k P_{ik}\\,dP_{ik}$ needs a full row of $P$ and $dP$. But $dP_{ik} = dO_i \\cdot v_k$, so\n$$\nD_i = dO_i \\cdot \\sum_k P_{ik} v_k = dO_i \\cdot O_i\n$$\nThat is just a row-wise dot product of two $N\\times d$ matrices you already have. It is computed once up front and costs $N$ numbers.\n\n### The tiled loop (FlashAttention-2 order)\n\n```\nD = rowsum(dO * O)                         # N numbers, precomputed\nfor each key/value block (K_j, V_j):       # outer loop over keys now\n    load K_j, V_j; init dK_j = 0, dV_j = 0 in SRAM\n    for each query block i:\n        load Q_i, dO_i, L_i, D_i\n        S_ij  = Q_i @ K_j^T\n        P_ij  = exp(S_ij - L_i)            # exact recompute\n        dV_j += P_ij^T @ dO_i\n        dP_ij = dO_i @ V_j^T\n        dS_ij = P_ij * (dP_ij - D_i)\n        dK_j += dS_ij^T @ Q_i\n        dQ_i += dS_ij @ K_j                # accumulated in HBM (atomic add)\n    write dK_j, dV_j to HBM\n```\n\n**Why the loops flip:** $dK_j$ and $dV_j$ sum contributions over *all* queries. Putting keys on the outside lets each block's $dK_j, dV_j$ accumulate in SRAM and be written once. The price is that $dQ_i$ receives contributions from every key block, so it is accumulated in HBM, with atomic adds when key blocks run in parallel.\n\n**Cost:** the backward pass redoes the $Q_iK_j^\\top$ matmul and the exponentials, so it uses more FLOPs than the standard version. However, it never reads or writes an $N\\times N$ matrix to HBM, which is why it ends up faster overall while keeping memory at $O(N)$.",
+              [
+                {
+                  "term": "Softmax Jacobian",
+                  "phrase": "Its Jacobian is",
+                  "question": "How do I derive the partial derivative of a softmax output with respect to its input logits?"
+                },
+                {
+                  "term": "Chain rule",
+                  "phrase": "the chain rule through",
+                  "question": "How does the chain rule combine gradients through a sequence of matrix operations like O = PV and P = softmax(S)?"
+                },
+                {
+                  "term": "Logsumexp",
+                  "phrase": "saved the logsumexp",
+                  "question": "What is logsumexp and why does storing it per row let the softmax be recomputed exactly?"
+                },
+                {
+                  "term": "Online softmax tiling",
+                  "phrase": "no running max or rescaling",
+                  "question": "How does tiling a softmax computation with running maxima and sums keep results exact without the full N by N matrix?"
+                },
+                {
+                  "term": "Atomic add",
+                  "phrase": "with atomic adds when",
+                  "question": "Why do parallel threads writing to the same memory location need atomic operations to avoid lost updates?"
+                },
+                {
+                  "term": "Row-wise dot product identity",
+                  "phrase": "That is just a row-wise dot",
+                  "question": "Why does the sum of P times dP equal the dot product of dO with O, and how does that avoid computing dP?"
+                }
+              ]
+            ]
+          ],
+          "forkIndex": 1,
+          "quote": "The backward pass",
+          "children": [
+            {
+              "key": "jacobian-matrix-definition-and-softmax",
+              "title": "Jacobian Matrix Definition and Softmax",
+              "turns": [
+                [
+                  "Can you explain what the Jacobian is?",
+                  "The **Jacobian** is the matrix of all first-order partial derivatives of a vector-valued function. If $f: \\mathbb{R}^n \\to \\mathbb{R}^m$ maps $x$ to $y = f(x)$, its Jacobian $J \\in \\mathbb{R}^{m\\times n}$ has entries\n\n$$\nJ_{kj} = \\frac{\\partial y_k}{\\partial x_j}\n$$\n\nso row $k$ says how output $k$ responds to each input, and column $j$ says how input $j$ affects every output. It is the multivariable generalization of a derivative: near $x$, the function behaves like the linear map $\\Delta y \\approx J\\,\\Delta x$.\n\n**For softmax:** $p = \\text{softmax}(s)$ maps $\\mathbb{R}^N \\to \\mathbb{R}^N$. Every output depends on every input, because all inputs share the denominator. Differentiating $p_k = e^{s_k}/\\sum_i e^{s_i}$ gives\n\n$$\n\\frac{\\partial p_k}{\\partial s_j} = p_k(\\delta_{kj} - p_j)\n$$\n\nwhere $\\delta_{kj}$ is 1 if $k=j$ and 0 otherwise. Raising $s_j$ increases $p_j$ (the diagonal term $p_j(1-p_j) > 0$) and decreases every other $p_k$ (the off-diagonal term $-p_kp_j < 0$), since the probabilities must still sum to 1.\n\n**How it's used in backprop:** given the gradient with respect to the outputs, $dp$, the gradient with respect to the inputs is $ds = J^\\top dp$, i.e.\n\n$$\nds_j = \\sum_k \\frac{\\partial p_k}{\\partial s_j}\\, dp_k = \\sum_k p_k(\\delta_{kj} - p_j)\\,dp_k = p_j\\Big(dp_j - \\sum_k p_k\\,dp_k\\Big)\n$$\n\nThat is exactly the $dS = P\\circ(dP - D)$ formula from before. Note that the full $N\\times N$ Jacobian never needs to be built; it collapses to an elementwise product minus one scalar $D_i$ per row.",
+                  [
+                    {
+                      "term": "Partial derivative",
+                      "phrase": "matrix of all first-order partial derivatives",
+                      "question": "How is a partial derivative computed when holding all other inputs fixed?"
+                    },
+                    {
+                      "term": "Linear approximation",
+                      "phrase": "behaves like the linear map",
+                      "question": "How does a function near a point get approximated by a linear map using its derivative?"
+                    },
+                    {
+                      "term": "Softmax function",
+                      "phrase": "p = softmax(s) maps",
+                      "question": "How is softmax defined, and why do its outputs always sum to 1?"
+                    },
+                    {
+                      "term": "Kronecker delta",
+                      "phrase": "where delta_kj is 1 if",
+                      "question": "What does the Kronecker delta symbol mean and why is it useful in index formulas?"
+                    },
+                    {
+                      "term": "Chain rule in backprop",
+                      "phrase": "the gradient with respect to the inputs is",
+                      "question": "How does the chain rule combine upstream gradients with local Jacobians to give input gradients?"
+                    }
+                  ]
+                ]
+              ],
+              "forkIndex": 3,
+              "quote": "Jacobian",
+              "children": [
+                {
+                  "key": "partial-derivative",
+                  "title": "Partial derivative",
+                  "turns": [
+                    [
+                      "How is a partial derivative computed when holding all other inputs fixed?",
+                      "You treat every other input as a **constant** and differentiate with respect to the one variable you care about, using ordinary single-variable rules. Formally, nudge only $x_j$ and watch the output:\n\n$$\n\\frac{\\partial f}{\\partial x_j}(x) = \\lim_{h\\to 0} \\frac{f(x_1,\\dots,x_j + h,\\dots,x_n) - f(x_1,\\dots,x_n)}{h}\n$$\n\nOnly the $j$-th coordinate moves; everything else stays put.\n\n**Example:** $f(x, y) = x^2 y + \\sin y$.\n\n- $\\partial f/\\partial x$: treat $y$ as a number, like 5. Then $x^2 y$ differentiates to $2xy$, and $\\sin y$ is a constant, so its derivative is 0. Result: $2xy$.\n- $\\partial f/\\partial y$: treat $x$ as a constant. Then $x^2 y$ becomes $x^2$, and $\\sin y$ becomes $\\cos y$. Result: $x^2 + \\cos y$.\n\n**Applied to softmax:** to get $\\partial p_k/\\partial s_j$ for $p_k = e^{s_k}/Z$ with $Z = \\sum_i e^{s_i}$, hold every $s_i$ except $s_j$ fixed. Then $\\partial Z/\\partial s_j = e^{s_j}$, because only one term of the sum varies.\n\n- **Case $k \\neq j$:** the numerator $e^{s_k}$ is constant, so\n$$\\frac{\\partial p_k}{\\partial s_j} = -\\frac{e^{s_k}e^{s_j}}{Z^2} = -p_kp_j$$\n- **Case $k = j$:** both the numerator and $Z$ vary. By the quotient rule,\n$$\\frac{\\partial p_j}{\\partial s_j} = \\frac{e^{s_j}Z - e^{s_j}e^{s_j}}{Z^2} = p_j - p_j^2$$\n\nTogether these give $p_k(\\delta_{kj} - p_j)$, the Jacobian entry from before.",
+                      [
+                        {
+                          "term": "Limit definition of derivative",
+                          "phrase": "lim_{h\\to 0} \\frac{f(x_1",
+                          "question": "How does the limit of a difference quotient define the rate of change of a function?"
+                        },
+                        {
+                          "term": "Single-variable differentiation rules",
+                          "phrase": "using ordinary single-variable rules",
+                          "question": "Which basic rules, such as the power rule and chain rule, do I apply once the other inputs are treated as constants?"
+                        },
+                        {
+                          "term": "Quotient rule",
+                          "phrase": "By the quotient rule,",
+                          "question": "How do I differentiate a fraction of two functions where both the numerator and denominator depend on the variable?"
+                        },
+                        {
+                          "term": "Softmax function",
+                          "phrase": "for p_k = e^{s_k}/Z",
+                          "question": "What does the softmax function compute, and why is it written as exponentials divided by a sum?"
+                        },
+                        {
+                          "term": "Jacobian matrix",
+                          "phrase": "the Jacobian entry from before",
+                          "question": "How is a Jacobian matrix built from all the partial derivatives of a vector-valued function?"
+                        },
+                        {
+                          "term": "Kronecker delta",
+                          "phrase": "p_k(\\delta_{kj} - p_j)",
+                          "question": "What does the Kronecker delta equal and how does it compactly encode the two cases k equals j and k not equal j?"
+                        }
+                      ]
+                    ]
+                  ],
+                  "forkIndex": 5,
+                  "quote": "matrix of all first-order partial derivatives"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "gpu-memory-hierarchy",
+          "title": "GPU memory hierarchy",
+          "turns": [
+            [
+              "try again.",
+              "\"Two kinds\" was a simplification. The GPU actually has a hierarchy of memories, each smaller and faster than the one below it. Numbers are for an A100:\n\n- **Registers:** private to each thread and the fastest storage. In FlashAttention, the running $m$, $\\ell$, and output accumulator $\\tilde o$ typically live here.\n- **SRAM (shared memory / L1):** on-chip, about 192 KB per streaming multiprocessor. The 108 SMs give roughly 20 MB total, at about 19 TB/s aggregate. The program controls it explicitly, so this is where FlashAttention places its $Q_i, K_j, V_j$ tiles.\n- **L2 cache:** 40 MB, shared by all SMs. The hardware manages it automatically, so the algorithm can't directly decide what stays there.\n- **HBM:** the 40–80 GB \"GPU memory\" you see in specs, at about 1.5–2 TB/s. It's large but roughly 10× slower than SRAM.\n\nThe earlier answer singled out HBM and SRAM because the algorithm explicitly controls data movement between those two levels. FlashAttention's whole design is about choosing what to load from HBM into SRAM and when. Its IO-complexity analysis counts only HBM accesses, with $M$ being the SRAM size.",
+              [
+                {
+                  "term": "GPU memory hierarchy",
+                  "phrase": "hierarchy of memories, each smaller and faster",
+                  "question": "Why does a GPU need several memory levels with different speeds and sizes instead of one large memory?"
+                },
+                {
+                  "term": "Streaming multiprocessor",
+                  "phrase": "per streaming multiprocessor. The 108",
+                  "question": "What is a streaming multiprocessor and how does it relate to the shared SRAM on a GPU?"
+                },
+                {
+                  "term": "Tiling",
+                  "phrase": "places its Q_i, K_j, V_j tiles",
+                  "question": "What does it mean to split a large matrix into tiles that are loaded into fast memory one block at a time?"
+                },
+                {
+                  "term": "IO complexity",
+                  "phrase": "Its IO-complexity analysis counts only HBM accesses",
+                  "question": "Why would an algorithm's runtime be analyzed by counting memory reads and writes rather than arithmetic operations?"
+                },
+                {
+                  "term": "Online softmax",
+                  "phrase": "the running m, ell, and output accumulator",
+                  "question": "How can softmax be computed incrementally over blocks by tracking a running maximum and normalizer?"
+                },
+                {
+                  "term": "Memory bandwidth",
+                  "phrase": "at about 1.5–2 TB/s",
+                  "question": "What does memory bandwidth measure, and why does it matter more than capacity for this algorithm?"
+                }
+              ]
+            ]
+          ],
+          "forkIndex": 1,
+          "quote": "A GPU has two relevant kinds of memory",
+          "children": [
+            {
+              "key": "io-complexity",
+              "title": "IO complexity",
+              "turns": [
+                [
+                  "Why would an algorithm's runtime be analyzed by counting memory reads and writes rather than arithmetic operations?",
+                  "Because runtime is set by whichever resource runs out first, and for attention that resource is memory bandwidth, not arithmetic.\n\nAn A100 can do about 312 TFLOP/s of fp16 matrix math but moves only about 2 TB/s from HBM. To keep the arithmetic units busy, an operation must perform roughly $312\\text{T} / 2\\text{T} \\approx 150$ FLOPs for every byte it loads. This ratio of FLOPs per byte is called *arithmetic intensity*. Softmax, masking, and dropout do only a handful of FLOPs per element they read. So in standard attention, the GPU spends most of its time waiting for $S$ and $P$ to stream in and out of HBM. Counting FLOPs would badly underestimate the runtime. Counting HBM bytes predicts it well.\n\nThis matters especially for FlashAttention, because it doesn't reduce FLOPs at all. The recomputation in the backward pass actually adds some. A FLOP-based analysis would predict it is *slower*. The quantity that does change is HBM traffic, so that is the quantity the analysis has to measure to explain the speedup.\n\nAccesses to SRAM and registers are ignored because they are roughly an order of magnitude cheaper and not the bottleneck. This is the standard \"external memory\" model from algorithms theory: you have a small fast memory of size $M$, a large slow memory, and you charge cost only for transfers between the two.",
+                  [
+                    {
+                      "term": "Arithmetic intensity",
+                      "phrase": "This ratio of FLOPs per byte",
+                      "question": "How is arithmetic intensity computed, and why does a low value make an operation memory-bound?"
+                    },
+                    {
+                      "term": "Memory bandwidth",
+                      "phrase": "moves only about 2 TB/s from HBM",
+                      "question": "What does memory bandwidth measure, and how does it limit the speed of data-heavy operations on a GPU?"
+                    },
+                    {
+                      "term": "HBM and SRAM",
+                      "phrase": "Accesses to SRAM and registers",
+                      "question": "What are the differences between HBM and on-chip SRAM in size, speed, and role on a GPU?"
+                    },
+                    {
+                      "term": "Compute-bound versus memory-bound",
+                      "phrase": "the GPU spends most of its time waiting",
+                      "question": "How can I tell whether a computation is limited by arithmetic throughput or by data movement?"
+                    },
+                    {
+                      "term": "External memory model",
+                      "phrase": "standard \"external memory\" model",
+                      "question": "How does the external memory model count cost, and what does the parameter M represent?"
+                    },
+                    {
+                      "term": "Backward pass recomputation",
+                      "phrase": "The recomputation in the backward pass",
+                      "question": "Why would recomputing intermediate values during backpropagation add FLOPs while still reducing total runtime?"
+                    }
+                  ]
+                ]
+              ],
+              "forkIndex": 3,
+              "quote": "Its IO-complexity analysis counts only HBM accesses",
+              "children": [
+                {
+                  "key": "arithmetic-intensity",
+                  "title": "Arithmetic intensity",
+                  "turns": [
+                    [
+                      "How is arithmetic intensity computed, and why does a low value make an operation memory-bound?",
+                      "Arithmetic intensity is the number of FLOPs an operation performs divided by the number of bytes it moves to and from slow memory (HBM):\n\n$$\nI = \\frac{\\text{FLOPs}}{\\text{bytes read} + \\text{bytes written}}\n$$\n\n**Example: softmax's exponentiation step.** Applying $e^x$ elementwise to an $N\\times N$ fp16 matrix reads 2 bytes and writes 2 bytes per element. It does only about one operation per element. So $I \\approx 1/4$ FLOP/byte.\n\n**Example: matrix multiplication.** Multiplying two $n\\times n$ fp16 matrices does $2n^3$ FLOPs. It moves $3n^2$ elements (two inputs, one output), which is $6n^2$ bytes. So $I \\approx n/3$, which grows with $n$. For $n=4096$ that is about 1365 FLOP/byte.\n\n**Why low means memory-bound.** The GPU can compute and transfer data at the same time. So the runtime is roughly whichever of the two takes longer:\n\n$$\nT \\approx \\max\\left(\\frac{\\text{FLOPs}}{\\text{peak FLOP/s}},\\ \\frac{\\text{bytes}}{\\text{bandwidth}}\\right)\n$$\n\nThe memory term dominates exactly when\n\n$$\n\\frac{\\text{FLOPs}}{\\text{bytes}} < \\frac{\\text{peak FLOP/s}}{\\text{bandwidth}} \\approx \\frac{312\\text{T}}{2\\text{T}} \\approx 150 \\text{ on an A100}\n$$\n\nThe right-hand side is a property of the hardware, called the *ridge point* of the roofline model. An operation with $I$ below the ridge point finishes its arithmetic quickly and then sits idle waiting for data. Making the math faster does nothing for it, and only reducing the bytes moved helps.\n\nSoftmax, at $I \\approx 1/4$, sits far below the ridge point. Matmul sits far above it. Fusing everything into one kernel keeps softmax's intermediate values on-chip, which removes their HBM traffic from the denominator.",
+                      [
+                        {
+                          "term": "Roofline model",
+                          "phrase": "called the *ridge point* of the roofline model",
+                          "question": "What does the roofline model plot, and how does the ridge point separate memory-bound from compute-bound regions?"
+                        },
+                        {
+                          "term": "HBM memory bandwidth",
+                          "phrase": "bytes / bandwidth",
+                          "question": "What is memory bandwidth on a GPU, and how is it measured in bytes per second?"
+                        },
+                        {
+                          "term": "Peak FLOP/s",
+                          "phrase": "peak FLOP/s",
+                          "question": "What does peak FLOP/s measure for a GPU, and how is it derived from hardware specs?"
+                        },
+                        {
+                          "term": "Overlap of compute and transfer",
+                          "phrase": "can compute and transfer data at the same time",
+                          "question": "Why does runtime equal the larger of compute time and memory time when the two overlap?"
+                        },
+                        {
+                          "term": "FLOP counting for matmul",
+                          "phrase": "does $2n^3$ FLOPs",
+                          "question": "Why does multiplying two n by n matrices require about 2n cubed floating-point operations?"
+                        },
+                        {
+                          "term": "fp16 data size",
+                          "phrase": "reads 2 bytes and writes 2 bytes",
+                          "question": "How many bytes does a half-precision fp16 value occupy in memory?"
+                        }
+                      ]
+                    ],
+                    [
+                      "Does arithmetic intensity include the bytes transferred over network or just between HBM and shared memory",
+                      "Neither by default. Arithmetic intensity is always defined *relative to a particular boundary* in the memory hierarchy. You count the bytes that cross whichever boundary you suspect is the bottleneck, and you compare against that boundary's bandwidth.\n\n- **Single-GPU roofline (what FlashAttention uses):** bytes moved between HBM and the chip. Everything that happens after data reaches SRAM or registers is treated as free.\n- **Other levels:** you can also do the same analysis for L2↔SRAM traffic or SRAM↔register traffic, each with its own bandwidth and ridge point. This is called a *hierarchical roofline*.\n- **Multi-GPU:** network or interconnect traffic gets its own separate intensity, FLOPs per byte communicated, compared against link bandwidth. NVLink on an A100 gives about 600 GB/s, and a 200 Gb/s InfiniBand link gives about 25 GB/s. Those ridge points are much higher than HBM's, so distributed training strategies are designed to do a lot of computation per byte sent between GPUs.\n\nYou don't add the different kinds of traffic together into one number. Each boundary is a separate potential bottleneck. The runtime is roughly the maximum over all of them, with some overlap between computation and communication.",
+                      [
+                        {
+                          "term": "Roofline model",
+                          "phrase": "Single-GPU roofline (what FlashAttention uses)",
+                          "question": "How does the roofline model use arithmetic intensity and bandwidth to decide whether a kernel is compute-bound or memory-bound?"
+                        },
+                        {
+                          "term": "Ridge point",
+                          "phrase": "each with its own bandwidth and ridge point",
+                          "question": "What does the ridge point mean, and how is it computed from peak FLOPs and bandwidth?"
+                        },
+                        {
+                          "term": "HBM memory",
+                          "phrase": "bytes moved between HBM and the chip",
+                          "question": "What is HBM, and how does its bandwidth differ from on-chip SRAM and registers?"
+                        },
+                        {
+                          "term": "Memory hierarchy",
+                          "phrase": "defined *relative to a particular boundary*",
+                          "question": "What levels make up the GPU memory hierarchy, and why does each level have different bandwidth?"
+                        },
+                        {
+                          "term": "Interconnect bandwidth",
+                          "phrase": "NVLink on an A100 gives about 600",
+                          "question": "What is NVLink or InfiniBand bandwidth, and how does it compare to HBM bandwidth?"
+                        },
+                        {
+                          "term": "Hierarchical roofline",
+                          "phrase": "This is called a *hierarchical roofline*",
+                          "question": "How is the hierarchical roofline applied to traffic at multiple memory levels at once?"
+                        }
+                      ]
+                    ]
+                  ],
+                  "forkIndex": 5,
+                  "quote": "This ratio of FLOPs per byte",
+                  "children": [
+                    {
+                      "key": "hbm-memory",
+                      "title": "HBM memory",
+                      "turns": [
+                        [
+                          "What is HBM, and how does its bandwidth differ from on-chip SRAM and registers?",
+                          "HBM (High Bandwidth Memory) is the GPU's main memory, the 40–80 GB listed in the specs. It is DRAM, a type of memory that stores each bit as charge in a tiny capacitor. That makes it dense and cheap per bit. The DRAM dies are stacked vertically and placed *beside* the GPU die on a shared silicon base (an interposer). They connect to the GPU through a very wide bus, 5120 bits on an A100. The wide bus is the \"high bandwidth\" part. It's much faster than ordinary DRAM, but the data still has to leave the GPU die.\n\nSRAM and registers sit *on* the GPU die itself, inside each streaming multiprocessor, right next to the arithmetic units. They store bits in transistor circuits rather than capacitors. That makes them fast, but they take up far more area per bit, so there's much less of them.\n\nThe differences come from physical distance and the number of parallel paths:\n\n| | Location | Size (A100) | Bandwidth | Latency |\n|---|---|---|---|---|\n| HBM | off-die, same package | 40–80 GB | ~1.5–2 TB/s | hundreds of cycles |\n| Shared memory (SRAM) | on-die, per SM | up to 164 KB/SM | ~19 TB/s aggregate | ~20–30 cycles |\n| Registers | inside SM, beside ALUs | 256 KB/SM | higher still | ~1 cycle |\n\nHBM's bandwidth is capped by how many wires can physically cross from the memory stacks to the GPU die, and by the energy needed to drive signals that far. On-chip memories avoid both limits. Each of the 108 SMs has its own short, wide paths to its own SRAM and registers, so their bandwidths add up across the chip. Moving a byte from HBM also costs roughly an order of magnitude more energy than reading it from SRAM.",
+                          [
+                            {
+                              "term": "DRAM capacitor storage",
+                              "phrase": "stores each bit as charge",
+                              "question": "Why does storing a bit as charge in a capacitor make memory dense and cheap but slower than transistor-based memory?"
+                            },
+                            {
+                              "term": "Interposer",
+                              "phrase": "on a shared silicon base",
+                              "question": "What is an interposer, and why is it used to connect HBM stacks to the GPU die?"
+                            },
+                            {
+                              "term": "Memory bus width",
+                              "phrase": "very wide bus, 5120 bits",
+                              "question": "How does the number of parallel wires in a bus determine the total bandwidth of a memory system?"
+                            },
+                            {
+                              "term": "Streaming multiprocessor",
+                              "phrase": "inside each streaming multiprocessor",
+                              "question": "What does a streaming multiprocessor contain, and why do its registers and shared memory sit next to its arithmetic units?"
+                            },
+                            {
+                              "term": "Memory latency in cycles",
+                              "phrase": "hundreds of cycles",
+                              "question": "What is a clock cycle, and why is latency measured in cycles rather than in seconds?"
+                            }
+                          ]
+                        ]
+                      ],
+                      "forkIndex": 9,
+                      "quote": "bytes moved between HBM and the chip"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sglang-structured-generation-language",
+      "title": "SGLang Structured Generation Language",
+      "turns": [
+        [
+          "What is SGLang and how does it work?",
+          "**SGLang** (Structured Generation Language, Zheng et al., 2023, from LMSYS/Berkeley) is a system for efficiently running *LM programs*. These are workflows that make many interdependent LLM calls, such as multi-turn chat, agents, few-shot prompting, branching reasoning, and JSON-constrained outputs. It has two halves that are designed together.\n\n**Frontend.** A Python-embedded language with primitives like `gen` (generate text into a variable), `select` (choose among options), `fork`/`join` (run parallel branches of a prompt), and constraints such as regexes. You write the control flow in ordinary Python. The interpreter streams these calls to the backend asynchronously, so independent branches run in parallel, and the runtime can see the structure of your program.\n\n**Backend runtime.** Three main ideas make execution fast:\n\n- **RadixAttention.** Instead of discarding the KV cache after each request, the runtime keeps cached prefixes in a radix tree keyed by token sequences, with LRU eviction. Any new request that shares a prefix with earlier requests (a system prompt, few-shot examples, or earlier chat turns) reuses that KV cache and skips recomputing it. A cache-aware scheduler orders requests to maximize these prefix hits.\n- **Compressed finite-state machines for constrained decoding.** A regex or JSON schema is compiled into an FSM that masks invalid tokens. When the FSM has only one possible continuation for a stretch, such as the fixed text `{\"name\": \"`, SGLang emits those tokens in a single step (\"jump-forward\") rather than decoding them one at a time.\n- **API speculative execution.** For closed API models, it speculatively generates extra tokens in one call so that later `gen` calls can often be served without another round trip.\n\nThe paper reports throughput gains of up to about 6× over systems like vLLM and Guidance on such workloads. SGLang has since grown into a general high-performance serving engine, widely used alongside or instead of vLLM.",
+          [
+            {
+              "term": "KV cache",
+              "phrase": "reuses that KV cache and skips",
+              "question": "What is a KV cache and why does reusing it save computation during LLM inference?"
+            },
+            {
+              "term": "Radix tree",
+              "phrase": "cached prefixes in a radix tree",
+              "question": "How does a radix tree store and look up shared token prefixes?"
+            },
+            {
+              "term": "Finite-state machine",
+              "phrase": "compiled into an FSM that masks",
+              "question": "How does a finite-state machine restrict which tokens a model can generate?"
+            },
+            {
+              "term": "LRU eviction",
+              "phrase": "with LRU eviction",
+              "question": "What does least-recently-used eviction mean and when does it remove cached entries?"
+            },
+            {
+              "term": "Speculative execution",
+              "phrase": "speculatively generates extra tokens in",
+              "question": "What does it mean to speculatively generate tokens before they are needed, and what happens if the guess is wrong?"
+            },
+            {
+              "term": "Regex constraint",
+              "phrase": "constraints such as regexes",
+              "question": "How does a regular expression constrain the output format of a language model?"
+            }
+          ]
+        ]
+      ],
+      "children": [
+        {
+          "key": "radix-tree",
+          "title": "Radix tree",
+          "turns": [
+            [
+              "How does a radix tree store and look up shared token prefixes?",
+              "A radix tree is a compressed trie. In SGLang, each edge is labeled with a **sequence of tokens**, not a single token, and each node holds the KV cache entries for the tokens on the edge leading into it. A path from the root to any node spells out a token prefix, and the KV tensors along that path are exactly the cache for that prefix.\n\n**Lookup.** For a new request with tokens $t_1, t_2, \\dots, t_n$, the runtime starts at the root and repeatedly picks the child edge whose first token matches the next token in the request. It then compares tokens along that edge. If the whole edge matches, it descends and continues. If the match fails partway, it stops there. The result is the **longest cached prefix**, say of length $k$. The KV cache for $t_1..t_k$ is reused directly, and only $t_{k+1}..t_n$ need a prefill computation. Because each edge holds many tokens and children are indexed by their first token, the cost is roughly linear in the matched length rather than in the size of the cache.\n\n**Insertion and splitting.** After the request runs, its new tokens and KV cache are inserted along the same path. If the match ended in the middle of an edge, that edge is **split** at the divergence point. For example, suppose an edge holds `[You, are, a, helpful, assistant]` and a new request shares only `[You, are, a]`. The edge becomes a node for `[You, are, a]` with two children, `[helpful, assistant]` and the new request's continuation. This is how two chats with the same system prompt end up sharing one copy of its KV cache.\n\n**Eviction.** Each node tracks a reference count of the running requests using it and a last-access time. When GPU memory runs low, the runtime evicts **leaf** nodes with zero references in LRU order. Evicting only leaves ensures a shared prefix is never removed while longer prefixes built on it are still cached.",
+              [
+                {
+                  "term": "Trie data structure",
+                  "phrase": "A radix tree is a compressed trie.",
+                  "question": "How does a trie organize strings so that shared beginnings are stored only once?"
+                },
+                {
+                  "term": "KV cache",
+                  "phrase": "the KV tensors along that path are exactly the cache",
+                  "question": "What are the key and value tensors computed by attention, and why are they cached during generation?"
+                },
+                {
+                  "term": "Prefill computation",
+                  "phrase": "only t_{k+1}..t_n need a prefill computation",
+                  "question": "What does the prefill step do to a prompt, and why is skipping it for cached tokens valuable?"
+                },
+                {
+                  "term": "Reference counting",
+                  "phrase": "reference count of the running requests using it",
+                  "question": "How does a reference count track whether a cached object is still in use and safe to free?"
+                },
+                {
+                  "term": "LRU eviction",
+                  "phrase": "evicts leaf nodes with zero references in LRU order",
+                  "question": "How does least-recently-used eviction decide which cached entries to remove first?"
+                }
+              ]
+            ]
+          ],
+          "forkIndex": 1,
+          "quote": "cached prefixes in a radix tree",
+          "children": [
+            {
+              "key": "kv-cache",
+              "title": "KV cache",
+              "turns": [
+                [
+                  "What are the key and value tensors computed by attention, and why are they cached during generation?",
+                  "In each transformer attention layer, every token's hidden vector $x_i$ is projected by three learned matrices:\n\n$$\nq_i = x_i W_Q,\\quad k_i = x_i W_K,\\quad v_i = x_i W_V .\n$$\n\nThe **key** $k_i$ is what other tokens match against, the **value** $v_i$ is the content they retrieve, and the **query** $q_i$ is what token $i$ uses to look things up. The output for token $i$ is a weighted average of the values, with weights given by query–key similarity:\n\n$$\n\\text{out}_i = \\sum_{j \\le i} \\operatorname{softmax}_j\\!\\left(\\frac{q_i \\cdot k_j}{\\sqrt{d}}\\right) v_j .\n$$\n\nThe constraint $j \\le i$ is the **causal mask**: a token attends only to itself and earlier tokens.\n\n**Why caching works.** Because of the causal mask, $k_j$ and $v_j$ for an earlier token never change when later tokens are added. Its hidden state at every layer depends only on tokens $\\le j$. So when generating token $n+1$, you need only that one token's $q, k, v$. You then attend over the stored $k_1..k_n$ and $v_1..v_n$ plus the new pair, and append the new $k, v$ to the store. Without the cache you would recompute keys and values for the whole sequence at every step, roughly $O(n^2)$ total projection work for $n$ tokens instead of $O(n)$.\n\n**What gets stored.** The cache holds one $k$ and one $v$ vector per token, per layer, per attention head (or per KV head in grouped-query attention). That makes it large: for a 7B-class model, roughly 0.5 MB per token in fp16. This is why reusing it across requests with a shared prefix, as RadixAttention does, saves both compute and memory.",
+                  [
+                    {
+                      "term": "Causal mask",
+                      "phrase": "The constraint j ≤ i is the",
+                      "question": "Why does restricting each token to attend only to earlier tokens matter for the rest of the explanation?"
+                    },
+                    {
+                      "term": "Softmax function",
+                      "phrase": "weights given by query–key similarity",
+                      "question": "How does softmax turn raw query-key similarity scores into weights that sum to one?"
+                    },
+                    {
+                      "term": "Scaled dot-product attention",
+                      "phrase": "The output for token i is",
+                      "question": "How do queries, keys, and values combine to produce a weighted average in attention?"
+                    },
+                    {
+                      "term": "Hidden state",
+                      "phrase": "every token's hidden vector x_i",
+                      "question": "What does a token's hidden vector represent as it passes through a transformer layer?"
+                    },
+                    {
+                      "term": "Learned linear projection",
+                      "phrase": "projected by three learned matrices",
+                      "question": "What does multiplying a vector by a learned weight matrix do to produce q, k, and v?"
+                    },
+                    {
+                      "term": "Grouped-query attention",
+                      "phrase": "or per KV head in grouped-query",
+                      "question": "How does grouped-query attention share key and value heads to reduce memory use?"
+                    }
+                  ]
+                ]
+              ],
+              "forkIndex": 3,
+              "quote": "the KV tensors along that path are exactly the cache"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+</script>
+<style>
+  /* Warm, paper-like palette: cream surfaces, near-black ink, clay accent. */
+  :root {
+    --bg: #f0eee6; --panel: #faf9f5; --ink: #141413; --muted: #6f6d66; --line: #e2dfd5;
+    --accent: #d97757; --accent-ink: #ffffff; --user: #f4e6dd; --asst: #faf9f5; --inherit: #ebe8df;
+    --danger: #b3412b; --ok: #3f7d58; --shadow: 0 10px 30px rgba(20,20,19,.12);
+    --serif: "Newsreader", "Iowan Old Style", "Times New Roman", serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1f1e1d; --panel: #262625; --ink: #f0eee6; --muted: #a8a59b; --line: #3a3836;
+      --accent: #d97757; --accent-ink: #141413; --user: #3b2d27; --asst: #262625; --inherit: #2d2c2a;
+      --shadow: 0 10px 30px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1f1e1d; --panel: #262625; --ink: #f0eee6; --muted: #a8a59b; --line: #3a3836;
+    --accent: #d97757; --accent-ink: #141413; --user: #3b2d27; --asst: #262625; --inherit: #2d2c2a;
+    --shadow: 0 10px 30px rgba(0,0,0,.5);
+  }
+  * { box-sizing: border-box; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  #app { display: grid; grid-template-columns: 290px 1fr; height: 100vh; }
+
+  /* ---------- sidebar ---------- */
+  #sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .side-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 10px; border-bottom: 1px solid var(--line); }
+  .brand { font-family: var(--serif); font-size: 21px; font-weight: 500; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
+  .rabbit { width: 28px; height: 28px; flex: none; }
+  .empty .rabbit { width: 72px; height: 72px; display: block; margin: 0 auto 6px; }
+  #tree { flex: 1; overflow: auto; padding: 8px 6px; }
+  #tree ul { list-style: none; margin: 0; padding-left: 0; }
+  #tree ul ul { padding-left: 14px; border-left: 1px dashed var(--line); margin-left: 11px; }
+  .node { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-radius: 7px; cursor: pointer; }
+  .node:hover { background: var(--inherit); }
+  .node.current { background: var(--user); }
+  .node .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+  .node.done .dot { background: var(--ok); }
+  .node.done .label { color: var(--muted); text-decoration: line-through; }
+  .node .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+  .node .count { color: var(--muted); font-size: 11px; }
+  .node .icon { border: 0; background: transparent; color: var(--muted); padding: 0 4px; border-radius: 4px; opacity: 0; font-size: 12px; cursor: pointer; }
+  .node input.rename { flex: 1; min-width: 0; font-size: 13.5px; border: 1px solid var(--accent); border-radius: 5px; padding: 1px 5px; background: var(--panel); color: var(--ink); }
+  .node:hover .icon, .node.current .icon { opacity: 1; }
+  .node .icon:hover { background: var(--line); color: var(--ink); }
+  .node .icon.del:hover { color: var(--danger); }
+  .hint { color: var(--muted); font-size: 13px; padding: 10px; }
+  .side-foot { display: flex; gap: 6px; padding: 10px 10px 4px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .credit { padding: 4px 18px 12px; font-size: 12px; color: var(--muted); }
+  .credit a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ---------- buttons ---------- */
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-weight: 500; }
+  .btn:hover { border-color: var(--ink); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(.94); }
+  .btn.primary:disabled { opacity: .5; cursor: default; }
+  .btn.small { padding: 4px 9px; font-size: 13px; }
+  .btn.ghost { border-color: transparent; color: var(--muted); font-size: 13px; padding: 4px 8px; }
+  .btn.ghost:hover { color: var(--ink); background: var(--inherit); }
+
+  /* ---------- main ---------- */
+  #main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #crumbs { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; min-height: 50px; }
+  #crumbs .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn.map { border-color: var(--accent); color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+  .btn.map:hover { background: var(--accent); color: #fff; }
+  .btn.map svg { width: 15px; height: 15px; }
+  .node.new-topic { color: var(--muted); border: 1px dashed var(--line); margin: 8px 2px 4px; justify-content: center; font-size: 13.5px; }
+  .node.new-topic:hover { color: var(--accent); border-color: var(--accent); background: transparent; }
+  .crumb { color: var(--muted); font-size: 13px; cursor: pointer; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crumb:hover { color: var(--ink); text-decoration: underline; }
+  .crumb-sep { color: var(--line); }
+  .title-input { flex: 1; min-width: 120px; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 2px 8px; font-family: var(--serif); font-size: 20px; font-weight: 500; letter-spacing: -.01em; }
+  .title-input:hover, .title-input:focus { border-color: var(--line); outline: none; background: var(--bg); }
+  #messages { flex: 1; overflow: auto; padding: 18px 16px 8px; scroll-behavior: smooth; }
+  .col { max-width: 820px; margin: 0 auto; padding-left: 40px; }   /* room for fork pins in the gutter */
+  .msg { position: relative; margin: 0 0 16px; padding: 14px 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--asst); box-shadow: 0 1px 2px rgba(20,20,19,.04); }
+  .msg.user { background: var(--user); border-color: transparent; margin-left: 48px; white-space: pre-wrap; box-shadow: none; }
+  .msg.assistant { margin-right: 24px; }
+  .msg .body > :first-child { margin-top: 0; } .msg .body > :last-child { margin-bottom: 0; }
+  .msg .body h1, .msg .body h2, .msg .body h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -.01em; }
+  .msg .body h1 { font-size: 26px; } .msg .body h2 { font-size: 22px; } .msg .body h3 { font-size: 18px; }
+  .msg .body a { color: var(--accent); }
+  .msg .body pre { background: var(--inherit); padding: 10px 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+  .msg .body code { font-size: .92em; } .msg .body :not(pre) > code { background: var(--inherit); padding: 1px 5px; border-radius: 4px; }
+  .msg .body blockquote { border-left: 3px solid var(--line); margin: 0; padding-left: 12px; color: var(--muted); }
+  .msg .body table { border-collapse: collapse; } .msg .body td, .msg .body th { border: 1px solid var(--line); padding: 4px 8px; }
+  .msg .body .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+  .msg .body .katex { font-size: 1.05em; }
+  .msg .body .math-error { color: var(--danger); font-family: monospace; font-size: .9em; }
+  .msg .body pre.plain { white-space: pre-wrap; background: transparent; padding: 0; font: inherit; }
+  .msg .tools { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .msg .tools .btn.ghost { font-size: 12.5px; }
+  .msg .note { color: var(--muted); font-size: 12.5px; margin-top: 8px; font-style: italic; }
+  .thinking { color: var(--muted); font-style: italic; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+  .quote-banner { background: var(--user); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 0 10px 10px 0; margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
+  .quote-banner b { color: var(--ink); font-weight: 600; }
+  .quote-banner q { color: var(--ink); font-style: italic; }
+  .fork-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--inherit); border: 1px dashed var(--line); padding: 8px 12px; border-radius: 10px; margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+  .fork-banner b { color: var(--ink); font-weight: 600; }
+  .fork-banner .btn { margin-left: auto; }
+  .forks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+  .forks .lbl { color: var(--muted); font-size: 12px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; cursor: pointer; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.done { text-decoration: line-through; color: var(--muted); }
+  @keyframes glow {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 80%, transparent); }
+    25%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 36px 10px color-mix(in srgb, var(--accent) 45%, transparent); }
+    70%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 20px 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+  .msg.glow { animation: glow 2.6s ease-out 1; border-color: var(--accent); }
+  @keyframes markglow {
+    0%, 100% { background: color-mix(in srgb, var(--accent) 16%, transparent); color: inherit; }
+    50%      { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 14px 3px color-mix(in srgb, var(--accent) 60%, transparent); }
+  }
+  mark.forkmark.glow { animation: markglow 1.1s ease-in-out 3; }
+  /* gutter pin, placed on the exact line a branch started from (top set inline) */
+  .fork-pin { position: absolute; left: -40px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 14px; line-height: 28px; text-align: center; cursor: pointer; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent); transition: transform .15s; }
+  .fork-pin:hover { transform: scale(1.1); }
+  .fork-pin .n { position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: 10.5px; font-weight: 700; line-height: 17px; }
+  .fork-pin.done { background: var(--ok); box-shadow: 0 2px 8px color-mix(in srgb, var(--ok) 45%, transparent); }
+  .fork-pin::after { content: ""; position: absolute; left: 28px; top: 13px; width: 10px; height: 2px; background: var(--accent); }
+  .fork-pin.done::after { background: var(--ok); }
+  .fork-menu { position: absolute; left: -4px; z-index: 20; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; min-width: 220px; max-width: 320px; }
+  .fork-menu .lbl { color: var(--muted); font-size: 11.5px; padding: 4px 8px 2px; }
+  .fork-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--ink); padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fork-menu button:hover { background: var(--inherit); }
+  .fork-menu button.done { text-decoration: line-through; color: var(--muted); }
+  .fork-menu button small { display: block; color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 760px) { .col { padding-left: 34px; } .fork-pin { left: -34px; width: 24px; height: 24px; line-height: 24px; font-size: 12px; } .fork-pin::after { left: 24px; top: 11px; width: 8px; } }
+  .forkmark { background: color-mix(in srgb, var(--accent) 16%, transparent); border-bottom: 2px solid var(--accent); border-radius: 2px; padding: 0 1px; cursor: pointer; color: inherit; }
+  .forkmark:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .forkmark.done { border-bottom-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .concept { display: inline-block; vertical-align: baseline; margin: 0 3px 0 4px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--accent); background: var(--user); color: var(--accent); font-size: .78em; font-weight: 600; line-height: 1.6; cursor: pointer; white-space: nowrap; }
+  .concept:hover { background: var(--accent); color: var(--accent-ink); }
+  .concepts-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+  .concepts-row .lbl { color: var(--muted); font-size: 12px; }
+  .concepts-row .concept { font-size: 12.5px; margin: 0; }
+  .error { background: #f9e4df; color: #7a2a18; border: 1px solid #ecc2b6; padding: 10px 14px; border-radius: 10px; margin: 0 0 14px; font-size: 13.5px; }
+  :root[data-theme="dark"] .error { background: #3a1b18; color: #ffb3aa; border-color: #5a2b26; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .error { background: #3a1b18; color: #ffb3aa; border-color: #5a2b26; } }
+  .empty { color: var(--muted); text-align: center; margin-top: 18vh; }
+  .empty h2 { font-family: var(--serif); font-weight: 500; font-size: 34px; color: var(--ink); letter-spacing: -.01em; }
+  .tip { font-size: 13px; color: var(--muted); max-width: 440px; margin: 10px auto 0; }
+
+  /* ---------- composer ---------- */
+  #composer { display: flex; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); background: var(--panel); }
+  #composer .col { display: flex; gap: 8px; width: 100%; align-items: flex-end; }
+  #input { flex: 1; resize: none; border: 1px solid var(--line); border-radius: 14px; padding: 11px 14px; background: var(--panel); max-height: 40vh; box-shadow: 0 1px 2px rgba(20,20,19,.04); }
+  #input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  #composer { background: var(--bg); }
+
+  /* ---------- toast ---------- */
+  #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px; max-width: min(560px, calc(100vw - 32px)); background: var(--ink); color: var(--bg); padding: 10px 10px 10px 16px; border-radius: 999px; box-shadow: var(--shadow); font-size: 14px; animation: toast-in .25s ease-out; }
+  #toast[hidden] { display: none; }
+  #toast .toast-action { border: 0; border-radius: 999px; background: var(--accent); color: #fff; padding: 6px 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  #toast .toast-close { border: 0; background: transparent; color: var(--bg); opacity: .7; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; }
+  #toast .toast-close:hover { opacity: 1; }
+  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+  /* ---------- selection popover ---------- */
+  #selPop { position: fixed; z-index: 50; }
+  #selPop button { background: var(--ink); color: var(--bg); border: 0; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: var(--shadow); }
+
+  /* ---------- learning map ---------- */
+  #map { position: fixed; inset: 0; z-index: 40; background: rgba(20,20,19,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #map[hidden] { display: none; }
+  .map-panel { width: min(1100px, 100%); height: min(760px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+  .map-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  .map-head .fine { color: var(--muted); font-size: 13px; flex: 1; min-width: 200px; }
+  .map-title { font-family: var(--serif); font-weight: 500; font-size: 20px; }
+  .map-scope { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+  .map-body { flex: 1; overflow: hidden; position: relative; cursor: grab; touch-action: none; user-select: none; }
+  .map-body.dragging { cursor: grabbing; }
+  #mapSvg { display: block; width: 100%; height: 100%; }
+  #mapSvg .edge { fill: none; stroke: var(--muted); stroke-width: 1.5; opacity: .6; }
+  #mapSvg .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; rx: 10; cursor: pointer; }
+  #mapSvg .mnode:hover > .box { stroke: var(--accent); }
+  #mapSvg .lab input { width: 100%; font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; background: var(--panel); color: var(--ink); pointer-events: auto; }
+  #mapSvg .mnode.done .box { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 10%, var(--panel)); }
+  #mapSvg .mnode.current .box { stroke: var(--accent); stroke-width: 3; }
+  #mapSvg .lab { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 6px 10px; cursor: pointer; pointer-events: none; color: var(--ink); }
+  #mapSvg .lab .t { font-family: var(--serif); font-size: 15px; font-weight: 500; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  #mapSvg .lab .q { font-size: 11px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-top: 2px; }
+  .map-empty { color: var(--muted); padding: 40px; text-align: center; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .title-tools { display: flex; gap: 4px; }
+  .title-tools .icon { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  .title-tools .icon:hover { background: var(--inherit); color: var(--ink); }
+  .title-tools .icon.busy { animation: pulse 1.2s infinite; }
+  dialog label.check { display: flex; align-items: center; gap: 8px; }
+  dialog label.check input { width: auto; }
+
+  /* ---------- settings ---------- */
+  dialog { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--ink); padding: 0; width: min(520px, 92vw); box-shadow: var(--shadow); }
+  dialog::backdrop { background: rgba(20,20,19,.4); }
+  dialog form { padding: 20px 22px; display: grid; gap: 12px; }
+  dialog h3 { margin: 0 0 4px; font-family: var(--serif); font-weight: 500; font-size: 24px; }
+  dialog label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  dialog input, dialog select, dialog textarea { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); width: 100%; }
+  dialog textarea { min-height: 90px; resize: vertical; }
+  dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+  dialog .fine { font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    #sidebar { max-height: 36vh; border-right: 0; border-bottom: 1px solid var(--line); }
+    .msg.user { margin-left: 16px; } .msg.assistant { margin-right: 0; }
+    #messages { padding: 14px 16px 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="side-head">
+      <span class="brand"><svg class="rabbit" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="24.5" rx="12" ry="4.5" fill="currentColor"/><g clip-path="url(#rh-clip)"><path d="M11.6 15.5 C 9.6 11.5, 7.6 6.5, 8.8 3.6 C 9.4 2.1, 11.9 2.2, 12.5 3.8 C 13.9 7.3, 14.4 11.5, 14.6 15.5 Z" fill="var(--panel)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17.4 15.5 C 17.1 11, 17.3 5.8, 18.6 2.6 C 19.2 1.2, 21.6 1.2, 22.1 2.7 C 23.2 6, 22.3 11, 21 15.5 Z" fill="var(--panel)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="9.5" y="13.5" width="13" height="16" rx="6.5" fill="var(--panel)" stroke="currentColor" stroke-width="2"/></g><ellipse cx="13.6" cy="19.6" rx="1" ry="1.4" fill="currentColor"/><ellipse cx="18.4" cy="19.6" rx="1" ry="1.4" fill="currentColor"/><ellipse cx="16" cy="22.7" rx="1.3" ry=".9" fill="var(--accent)"/><defs><clipPath id="rh-clip"><rect x="0" y="0" width="32" height="24.5"/></clipPath></defs></svg>RabbitHole</span>
+      <button id="newTopic" class="btn small">+ Topic</button>
+    </div>
+    <div id="tree"></div>
+    <div class="side-foot">
+      <button id="settingsBtn" class="btn ghost">Settings</button>
+      <button id="saveExampleBtn" class="btn ghost" title="Download every topic, with all branches, as example.js">Save as example</button>
+    </div>
+    <div class="credit">Made by <a href="https://nathanielc.com" target="_blank" rel="noopener">Nathaniel Cherian</a></div>
+  </aside>
+  <main id="main">
+    <header id="crumbs"></header>
+    <div id="messages"></div>
+    <form id="composer">
+      <div class="col">
+        <textarea id="input" rows="2" placeholder="Ask a question…  (Enter to send, Shift+Enter for a new line)"></textarea>
+        <button id="send" class="btn primary" type="submit">Send</button>
+        <button id="stop" class="btn" type="button" hidden>Stop</button>
+      </div>
+    </form>
+  </main>
+</div>
+
+<div id="selPop" hidden><button type="button">Ask about this ↳</button></div>
+<div id="toast" role="status" aria-live="polite" hidden><span class="toast-text"></span><button type="button" class="toast-action"></button><button type="button" class="toast-close" aria-label="Dismiss">×</button></div>
+
+<div id="map" hidden>
+  <div class="map-panel" role="dialog" aria-label="Learning map">
+    <div class="map-head">
+      <b class="map-title">Learning map</b>
+      <span class="fine">Drag to pan, scroll to zoom, click a topic to open it, double-click to rename. Green = understood, clay outline = where you are now.</span>
+      <label class="map-scope"><input type="checkbox" id="mapAll"> Show all topics</label>
+      <button id="mapFit" class="btn small" type="button" title="Fit the whole tree in view">Fit</button>
+      <button id="mapClose" class="btn small" type="button">Close</button>
+    </div>
+    <div class="map-body"><svg id="mapSvg" xmlns="http://www.w3.org/2000/svg"><g id="mapView"></g></svg></div>
+  </div>
+</div>
+
+<dialog id="settings">
+  <form method="dialog" id="settingsForm">
+    <h3>Settings</h3>
+    <label>Anthropic API key
+      <input type="password" name="apiKey" placeholder="sk-ant-…" autocomplete="off">
+      <span class="fine">Stored only in this browser's localStorage and sent directly to api.anthropic.com.</span>
+    </label>
+    <label>Model
+      <select name="model"></select>
+    </label>
+    <label>Effort (reasoning depth)
+      <select name="effort">
+        <option value="low">low — fastest, cheapest</option>
+        <option value="medium">medium — good default for tutoring</option>
+        <option value="high">high — deeper reasoning</option>
+      </select>
+    </label>
+    <label>System prompt
+      <textarea name="system"></textarea>
+    </label>
+    <label class="check"><input type="checkbox" name="autoTitle"> Auto-title each branch with a few-word summary (uses Claude Haiku 5.5, one small call per branch)</label>
+    <label class="check"><input type="checkbox" name="suggestConcepts"> Suggest the concepts each answer relies on, as buttons in the text (Claude Haiku 5.5, one small call per answer)</label>
+    <p class="fine" id="noKeyNote" hidden>Without a key you can read, organize and explore saved sessions and the example, but not ask new questions. Add a key here any time.</p>
+    <div class="row">
+      <button type="button" class="btn" id="settingsCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  // ---------------------------------------------------------------- state
+  const LS_KEY = 'learngraph.v1';   // kept from the app's original name so saved sessions survive the rename
+  const MODELS = [
+    ['claude-opus-5-5',   'Claude Opus 5.5 (default)'],
+    ['claude-sonnet-5-5', 'Claude Sonnet 5.5'],
+    ['claude-haiku-5-5',  'Claude Haiku 5.5'],
+    ['claude-fable-5-1',  'Claude Fable 5.1'],
+  ];
+  // Models that accept the server-side refusal fallback ("default" form).
+  const FALLBACK_OK = new Set(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-fable-5-1']);
+  const OLD_DEFAULT_SYSTEM =
+    'You are a patient tutor helping someone learn new concepts and research papers. ' +
+    'Explain clearly and precisely, build on what was already said earlier in the conversation, and answer in Markdown. ' +
+    'When the user quotes a passage from one of your earlier answers, focus your explanation on that passage. ' +
+    'Prefer concrete examples and short worked derivations over generalities.';
+  const OLD_DEFAULT_SYSTEM_2 =
+    'You are a patient tutor helping someone learn new concepts and research papers. ' +
+    'Explain clearly and precisely, build on what was already said earlier in the conversation, and answer in Markdown. ' +
+    'Write all math in LaTeX: $...$ for inline math and $$...$$ on its own lines for display math. ' +
+    'When the user quotes a passage from one of your earlier answers, focus your explanation on that passage. ' +
+    'Prefer concrete examples and short worked derivations over generalities.';
+  const DEFAULT_SYSTEM =
+    'You are a tutor helping someone learn concepts and research papers through a conversation they can branch. ' +
+    'Be concise: answer the question that was asked and stop. Default to a few sentences or one short paragraph; ' +
+    'go longer only when the question itself demands a derivation or multi-step explanation. ' +
+    'No preamble, no restating the question, no summary at the end, no lists of related topics. ' +
+    'Do not pre-empt follow-ups: the user will ask if they want more detail on any part. ' +
+    'Build on what was already said earlier in the conversation rather than re-explaining it. ' +
+    'When the user quotes a passage from an earlier answer, explain only that passage. ' +
+    'Answer in Markdown; prefer plain prose, with headings and bullet lists only when they genuinely help. ' +
+    'Write all math in LaTeX: $...$ inline, $$...$$ on its own lines for display math.';
+
+  const $ = (sel) => document.querySelector(sel);
+  const RABBIT_ICON = document.querySelector('.brand .rabbit').outerHTML;
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+  let state = load();
+  let controller = null;     // AbortController for the in-flight request
+  let rafPending = false;    // live-render throttle
+
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && s.nodes && s.settings) {
+        if (!s.settings.system || s.settings.system === OLD_DEFAULT_SYSTEM || s.settings.system === OLD_DEFAULT_SYSTEM_2) s.settings.system = DEFAULT_SYSTEM;
+        s.settings.autoTitle ??= true;
+        s.settings.suggestConcepts ??= true;
+        if (!s.nodes[s.currentId]) s.currentId = s.roots[0] || null;   // current branch may have been deleted
+        return s;
+      }
+    } catch (e) { /* ignore */ }
+    return { nodes: {}, roots: [], currentId: null,
+             settings: { apiKey: '', model: 'claude-opus-5-5', effort: 'medium', system: DEFAULT_SYSTEM, autoTitle: true, suggestConcepts: true } };
+  }
+  function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { console.warn('save failed', e); } }
+
+  // ---------------------------------------------------------------- tree model
+  // A node is one branch of conversation. It inherits the parent's context up to
+  // and including message index `forkIndex` (an index into the parent's *full*
+  // context), then appends its own `messages`.
+  function createNode({ parentId = null, forkIndex = null, quote = '' } = {}) {
+    const n = { id: uid(), parentId, forkIndex, quote, title: '', messages: [], children: [], done: false, created: Date.now() };
+    state.nodes[n.id] = n;
+    if (parentId) state.nodes[parentId].children.push(n.id); else state.roots.push(n.id);
+    return n;
+  }
+  const current = () => state.nodes[state.currentId] || null;
+  function inherited(node) {
+    if (!node.parentId) return [];
+    const p = state.nodes[node.parentId];
+    if (!p) return [];
+    return fullContext(p).slice(0, node.forkIndex + 1);
+  }
+  function fullContext(node) { return inherited(node).concat(node.messages); }
+  // The node that actually owns the message at `idx` of `node`'s full context.
+  function ownerOf(node, idx) {
+    const inhLen = inherited(node).length;
+    if (!node.parentId || idx >= inhLen) return node;
+    return ownerOf(state.nodes[node.parentId], idx);
+  }
+  function pathTo(node) { const p = []; for (let n = node; n; n = state.nodes[n.parentId]) p.unshift(n); return p; }
+  const textOf = (m) => (m.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  function nodeTitle(n) {
+    if (n.title) return n.title;
+    const first = n.messages.find(m => m.role === 'user');
+    const t = first ? (first.ask ?? textOf(first)) : (n.quote ? '“' + n.quote + '”' : 'New topic');
+    return t.length > 48 ? t.slice(0, 48) + '…' : t;
+  }
+  // Switch branch. With `focusIndex`, land on that message of the target
+  // branch's full context (the fork point); with `focusQuote` too, land on the
+  // highlighted passage inside it. The target is placed in the upper third of
+  // the view and glows for a moment.
+  function renameNode(n, value) {
+    const t = (value || '').trim();
+    if (t === nodeTitle(n)) return;
+    n.title = t; n.titleAuto = false; save();
+    renderTree(); renderChat('keep');   // keep the reader's scroll position
+  }
+  // Replace a sidebar row's label with an input. Enter or blur saves, Esc cancels.
+  function startRename(row, n) {
+    const label = row.querySelector('.label'); if (!label || row.querySelector('input.rename')) return;
+    const input = document.createElement('input'); input.className = 'rename'; input.value = nodeTitle(n);
+    let done = false;
+    const finish = (commit) => { if (done) return; done = true; if (commit) renameNode(n, input.value); else renderTree(); };
+    input.onclick = (e) => e.stopPropagation();
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } };
+    input.onblur = () => finish(true);
+    label.replaceWith(input); input.focus(); input.select();
+  }
+  function setCurrent(id, focusIndex = null, focusQuote = '') {
+    state.currentId = id; save(); render('top');
+    if (focusIndex === null) return;
+    const wrap = $('#messages');
+    const el = wrap.querySelector('.msg[data-index="' + focusIndex + '"]');
+    if (!el) return;
+    let target = el, mark = null;
+    if (focusQuote) {
+      const q = focusQuote.toLowerCase();
+      mark = [...el.querySelectorAll('mark.forkmark')].find(m => m.textContent.toLowerCase() === q) || null;
+      if (mark) target = mark;
+    }
+    // Instant scroll (the container's smooth scrolling would animate from the bottom and could stop short).
+    const prev = wrap.style.scrollBehavior; wrap.style.scrollBehavior = 'auto';
+    const top = target.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
+    wrap.scrollTop = Math.max(0, top - wrap.clientHeight / 3);
+    wrap.style.scrollBehavior = prev;
+    el.classList.remove('glow'); void el.offsetWidth; el.classList.add('glow');
+    setTimeout(() => el.classList.remove('glow'), 2700);
+    if (mark) { mark.classList.add('glow'); setTimeout(() => mark.classList.remove('glow'), 3400); }
+  }
+  function goToParent(node) { if (node.parentId) setCurrent(node.parentId, node.forkIndex, node.quote || ''); }
+
+  function deleteNode(id, btn) {
+    if (btn.dataset.armed !== '1') {           // two-step delete, no modal dialogs
+      btn.dataset.armed = '1'; btn.textContent = 'sure?';
+      setTimeout(() => { btn.dataset.armed = ''; btn.textContent = '×'; }, 2500);
+      return;
+    }
+    const n = state.nodes[id]; if (!n) return;
+    const ids = []; (function walk(i) { ids.push(i); (state.nodes[i]?.children || []).forEach(walk); })(id);
+    ids.forEach(i => delete state.nodes[i]);
+    if (n.parentId && state.nodes[n.parentId]) state.nodes[n.parentId].children = state.nodes[n.parentId].children.filter(c => c !== id);
+    else state.roots = state.roots.filter(r => r !== id);
+    if (ids.includes(state.currentId)) state.currentId = n.parentId || state.roots[0] || null;
+    save(); render('top');
+  }
+
+  // Fork from message `ctxIndex` of the current node's full context, optionally
+  // about a quoted passage. The fork attaches to whichever node owns that message.
+  function forkFrom(ctxIndex, quote = '') {
+    const owner = ownerOf(current(), ctxIndex);
+    const child = createNode({ parentId: owner.id, forkIndex: ctxIndex, quote });
+    setCurrent(child.id);
+    $('#input').focus();
+  }
+
+  // ---------------------------------------------------------------- rendering
+  // scroll: 'top' when opening a topic or branch, 'bottom' when a new reply is
+  // coming, 'keep' (default) to leave the reader where they are.
+  function render(scroll = 'keep') { renderTree(); renderChat(scroll); }
+
+  function newTopicRow() {
+    const row = document.createElement('div'); row.className = 'node new-topic'; row.textContent = '+ New topic';
+    row.title = 'Start a new topic'; row.onclick = () => $('#newTopic').click(); return row;
+  }
+  function renderTree() {
+    const el = $('#tree'); el.innerHTML = '';
+    if (!state.roots.length) el.innerHTML = '<p class="hint">No topics yet. Start one below.</p>';
+    else el.appendChild(buildList(state.roots));
+    el.appendChild(newTopicRow());
+  }
+  function buildList(ids) {
+    const ul = document.createElement('ul');
+    for (const id of ids) {
+      const n = state.nodes[id]; if (!n) continue;
+      const li = document.createElement('li');
+      const row = document.createElement('div');
+      row.className = 'node' + (id === state.currentId ? ' current' : '') + (n.done ? ' done' : '');
+      row.innerHTML = '<span class="dot"></span><span class="label"></span><span class="count"></span>' +
+                      '<button class="icon rename" title="Rename">✎</button>' +
+                      '<button class="icon check" title="Mark as understood">✓</button>' +
+                      '<button class="icon del" title="Delete this branch">×</button>';
+      row.querySelector('.label').textContent = nodeTitle(n);
+      row.querySelector('.label').title = nodeTitle(n);
+      row.querySelector('.count').textContent = n.children.length || '';
+      row.onclick = () => setCurrent(id);
+      row.querySelector('.check').onclick = (e) => { e.stopPropagation(); n.done = !n.done; save(); renderTree(); };
+      row.querySelector('.rename').onclick = (e) => { e.stopPropagation(); startRename(row, n); };
+      row.ondblclick = (e) => { e.stopPropagation(); startRename(row, n); };
+      row.querySelector('.del').onclick = (e) => { e.stopPropagation(); deleteNode(id, e.currentTarget); };
+      li.appendChild(row);
+      if (n.children.length) li.appendChild(buildList(n.children));
+      ul.appendChild(li);
+    }
+    return ul;
+  }
+
+  const MAP_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="3" r="1.8"/><circle cx="3.5" cy="12.5" r="1.8"/><circle cx="12.5" cy="12.5" r="1.8"/><path d="M8 4.8v2.4M8 7.2l-3.6 3.8M8 7.2l3.6 3.8"/></svg>';
+  function mapButton() {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small map';
+    b.innerHTML = MAP_ICON + '<span>Learning map</span>'; b.title = 'See how everything in this topic connects';
+    b.onclick = openMap; return b;
+  }
+  function renderCrumbs(node) {
+    const el = $('#crumbs'); el.innerHTML = '';
+    if (!node) { const actions = document.createElement('div'); actions.className = 'actions'; actions.appendChild(mapButton()); el.appendChild(actions); return; }
+    const path = pathTo(node);
+    path.slice(0, -1).forEach((n, i) => {
+      const c = document.createElement('span'); c.className = 'crumb'; c.textContent = nodeTitle(n); c.title = nodeTitle(n);
+      c.onclick = () => setCurrent(n.id, path[i + 1].forkIndex, path[i + 1].quote || '');
+      el.appendChild(c);
+      const sep = document.createElement('span'); sep.className = 'crumb-sep'; sep.textContent = '›'; el.appendChild(sep);
+    });
+    const title = document.createElement('input');
+    title.className = 'title-input'; title.value = nodeTitle(node); title.title = 'Click to rename this topic'; title.placeholder = 'Untitled topic';
+    title.onchange = () => renameNode(node, title.value);
+    title.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); title.blur(); } if (e.key === 'Escape') { title.value = nodeTitle(node); title.blur(); } };
+    el.appendChild(title);
+    const pen = document.createElement('button'); pen.type = 'button'; pen.className = 'icon'; pen.textContent = '✎'; pen.title = 'Rename this topic';
+    pen.style.cssText = 'border:0;background:transparent;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px';
+    pen.onclick = () => { title.focus(); title.select(); };
+    el.appendChild(pen);
+    if (node.messages.some(m => m.role === 'assistant' && !m.pending)) {
+      const tools = document.createElement('span'); tools.className = 'title-tools';
+      const re = document.createElement('button'); re.type = 'button'; re.className = 'icon' + (titling.has(node.id) ? ' busy' : '');
+      re.textContent = '↻'; re.title = 'Ask Claude for a new few-word title';
+      re.onclick = () => { if (needKey('generate titles')) generateTitle(node, true); };
+      tools.appendChild(re); el.appendChild(tools);
+    }
+    const actions = document.createElement('div'); actions.className = 'actions';
+    if (node.parentId) {
+      const up = document.createElement('button'); up.className = 'btn small'; up.textContent = '↑ Back to parent';
+      up.onclick = () => goToParent(node); actions.appendChild(up);
+    }
+    actions.appendChild(mapButton());
+    el.appendChild(actions);
+  }
+
+  // Markdown + LaTeX. Math is pulled out before Markdown parsing (so `_`, `*`
+  // and `\` inside formulas survive), replaced by placeholders, then rendered
+  // with KaTeX after sanitizing. Code spans and fenced blocks are left alone.
+  const MATH_RE = new RegExp([
+    '(```[\\s\\S]*?```|~~~[\\s\\S]*?~~~)',   // 1 fenced code
+    '(`[^`\\n]*`)',                           // 2 inline code
+    '\\$\\$([\\s\\S]+?)\\$\\$',               // 3 $$ display $$
+    '\\\\\\[([\\s\\S]+?)\\\\\\]',             // 4 \[ display \]
+    '\\\\\\(([\\s\\S]+?)\\\\\\)',             // 5 \( inline \)
+    '(?<![\\\\$\\w])\\$(?=[^\\s$])((?:[^$\\n]|\\\\\\$)+?)(?<![\\s\\\\])\\$(?![\\w$])', // 6 $ inline $
+  ].join('|'), 'g');
+  function renderMd(text) {
+    if (!(window.marked && window.DOMPurify)) {
+      const e = document.createElement('div'); e.textContent = text; return '<pre class="plain">' + e.innerHTML + '</pre>';
+    }
+    const math = [];
+    const protectedText = text.replace(MATH_RE, (m, fence, code, dd, bb, pp, d) => {
+      if (fence || code) return m;
+      const tex = dd ?? bb ?? pp ?? d;
+      const display = dd !== undefined || bb !== undefined;
+      math.push({ tex, display });
+      return 'MATHPLACEHOLDER' + (math.length - 1) + 'END';
+    });
+    let html = DOMPurify.sanitize(marked.parse(protectedText, { gfm: true, breaks: false }));
+    if (math.length) {
+      html = html.replace(/MATHPLACEHOLDER(\d+)END/g, (m, i) => {
+        const { tex, display } = math[Number(i)];
+        if (!window.katex) { const e = document.createElement('span'); e.textContent = display ? '$$' + tex + '$$' : '$' + tex + '$'; return e.innerHTML; }
+        try { return katex.renderToString(tex, { displayMode: display, throwOnError: true, strict: 'ignore' }); }
+        catch (err) { const e = document.createElement('span'); e.className = 'math-error'; e.title = err.message; e.textContent = (display ? '$$' : '$') + tex + (display ? '$$' : '$'); return e.outerHTML; }
+      });
+    }
+    return html;
+  }
+
+  function msgEl(m, ctxIndex, node) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + m.role + (m.pending ? ' pending' : '');
+    div.dataset.index = ctxIndex;
+    const body = document.createElement('div'); body.className = 'body';
+    let leftover = [];
+    const forks = m.role === 'assistant' ? node.children.map(id => state.nodes[id]).filter(c => c && c.forkIndex === ctxIndex) : [];
+    if (forks.length) div.classList.add('forked');
+    if (m.role === 'assistant') {
+      const t = textOf(m);
+      body.innerHTML = t ? renderMd(t) : (m.pending ? '<span class="thinking">Thinking…</span>' : '<em>(empty response)</em>');
+      if (forks.length) markForks(body, forks);
+      if (Array.isArray(m.concepts) && m.concepts.length) {
+        // Skip concepts already explored by a branch on this message.
+        const taken = new Set(forks.map(f => (f.quote || '').toLowerCase()).concat(forks.map(f => nodeTitle(f).toLowerCase())));
+        const fresh = m.concepts.filter(c => !taken.has(c.phrase.toLowerCase()) && !taken.has(c.term.toLowerCase()));
+        leftover = injectConcepts(body, fresh, ctxIndex);
+      }
+    } else {
+      body.textContent = m.ask ?? textOf(m);
+    }
+    div.appendChild(body);
+    if (m.note) { const n = document.createElement('div'); n.className = 'note'; n.textContent = m.note; div.appendChild(n); }
+    if (m.role === 'assistant' && !m.pending) {
+      const tools = document.createElement('div'); tools.className = 'tools';
+      const fork = document.createElement('button'); fork.type = 'button'; fork.className = 'btn ghost';
+      fork.textContent = '⑂ Fork from here'; fork.title = 'Start a side-branch that continues from this answer';
+      fork.onclick = () => forkFrom(ctxIndex);
+      tools.appendChild(fork);
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn ghost';
+      const busy = conceptBusy.has(m);
+      cb.textContent = busy ? '✦ finding concepts…' : (Array.isArray(m.concepts) ? '✦ Refresh concepts' : '✦ Concepts');
+      if (busy) cb.classList.add('thinking');
+      cb.title = 'Find the concepts this answer relies on and show them as buttons';
+      cb.onclick = () => { if (needKey('suggest concepts')) extractConcepts(node, m, true); };
+      tools.appendChild(cb);
+      const hint = document.createElement('span'); hint.className = 'note'; hint.style.margin = '0 0 0 auto';
+      hint.textContent = 'Tip: select any text in this answer to ask about just that part';
+      tools.appendChild(hint);
+      div.appendChild(tools);
+      if (leftover.length) {
+        const row = document.createElement('div'); row.className = 'concepts-row';
+        const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'Also builds on:'; row.appendChild(lbl);
+        leftover.forEach(c => row.appendChild(conceptChip(c, ctxIndex)));
+        div.appendChild(row);
+      }
+      if (forks.length) {
+        const row = document.createElement('div'); row.className = 'forks';
+        const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'Branches from here:'; row.appendChild(lbl);
+        forks.forEach(c => {
+          const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'chip' + (c.done ? ' done' : '');
+          chip.textContent = '↳ ' + nodeTitle(c); chip.title = c.quote ? 'About: “' + c.quote + '”' : nodeTitle(c);
+          chip.onclick = () => setCurrent(c.id);
+          row.appendChild(chip);
+        });
+        div.appendChild(row);
+      }
+    }
+    return div;
+  }
+
+  // Build one gutter pin for a group of forks that start on the same line.
+  function makePin(forks, y) {
+    const pin = document.createElement('button'); pin.type = 'button';
+    pin.className = 'fork-pin' + (forks.every(f => f.done) ? ' done' : '');
+    pin.style.top = Math.round(y - 14) + 'px';
+    pin.innerHTML = '⑂' + (forks.length > 1 ? '<span class="n">' + forks.length + '</span>' : '');
+    pin.title = (forks.length === 1 ? 'Forked here: ' : forks.length + ' branches from here:\n') + forks.map(f => nodeTitle(f)).join('\n');
+    pin.onclick = (e) => {
+      e.stopPropagation();
+      const div = pin.closest('.msg');
+      const open = div.querySelector('.fork-menu');
+      if (open) { open.remove(); return; }
+      if (forks.length === 1) { setCurrent(forks[0].id); return; }
+      const menu = document.createElement('div'); menu.className = 'fork-menu'; menu.style.top = Math.round(y + 18) + 'px';
+      const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = 'Branches from this line'; menu.appendChild(lbl);
+      forks.forEach(f => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = f.done ? 'done' : '';
+        b.textContent = '↳ ' + nodeTitle(f);
+        if (f.quote) { const sm = document.createElement('small'); sm.textContent = '“' + f.quote + '”'; b.appendChild(sm); }
+        b.onclick = () => setCurrent(f.id);
+        menu.appendChild(b);
+      });
+      div.appendChild(menu);
+      const close = (ev) => { if (!menu.contains(ev.target) && ev.target !== pin) { menu.remove(); document.removeEventListener('mousedown', close); } };
+      setTimeout(() => document.addEventListener('mousedown', close), 0);
+    };
+    return pin;
+  }
+  // Place pins next to the line each branch started from: the first line of
+  // its highlighted passage, or the "Fork from here" row for whole-answer forks.
+  // Runs after layout (and again on resize, since line wrapping moves things).
+  function placeForkPins() {
+    const node = current(); if (!node) return;
+    const wrap = $('#messages');
+    wrap.querySelectorAll('.fork-pin, .fork-menu').forEach(p => p.remove());
+    wrap.querySelectorAll('.msg.forked').forEach(div => {
+      const idx = Number(div.dataset.index);
+      const forks = node.children.map(id => state.nodes[id]).filter(c => c && c.forkIndex === idx);
+      const divTop = div.getBoundingClientRect().top;
+      const groups = [];
+      forks.forEach(f => {
+        const mark = f.quote ? div.querySelector('mark.forkmark[data-fork-id="' + f.id + '"]') : null;
+        let y;
+        if (mark && mark.getClientRects().length) { const r = mark.getClientRects()[0]; y = r.top - divTop + r.height / 2; }
+        else { const tools = div.querySelector('.tools'); const r = (tools || div).getBoundingClientRect(); y = r.top - divTop + r.height / 2; }
+        const near = groups.find(g => Math.abs(g.y - y) < 18);
+        if (near) near.forks.push(f); else groups.push({ y, forks: [f] });
+      });
+      groups.forEach(g => div.appendChild(makePin(g.forks, g.y)));
+    });
+  }
+  let pinTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(pinTimer); pinTimer = setTimeout(placeForkPins, 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeForkPins());
+
+  function renderChat(scroll = 'keep') {
+    const node = current();
+    const prevScroll = $('#messages').scrollTop;
+    renderCrumbs(node);
+    const wrap = $('#messages'); wrap.innerHTML = '';
+    $('#composer').style.visibility = node ? 'visible' : 'hidden';
+    if (!node) {
+      wrap.innerHTML = '<div class="empty">' + RABBIT_ICON + '<h2>RabbitHole</h2><p>A chat you can fork. Ask about a paper or concept, then branch off any answer, or any highlighted passage of it, to dig deeper. Each branch keeps the parent context, and the tree on the left lets you come back.</p>' +
+        '<p class="tip">Start with “+ Topic”. Set your API key under Settings.</p></div>';
+      return;
+    }
+    const col = document.createElement('div'); col.className = 'col'; wrap.appendChild(col);
+    const inh = inherited(node);
+    if (node.parentId && state.nodes[node.parentId]) {
+      // The parent conversation is sent to Claude as context but not shown here;
+      // the button jumps back to the exact message this branch forked from.
+      const parent = state.nodes[node.parentId];
+      const banner = document.createElement('div'); banner.className = 'fork-banner';
+      const txt = document.createElement('span');
+      txt.innerHTML = 'Branched from <b></b> (' + inh.length + ' earlier message' + (inh.length === 1 ? '' : 's') + ' kept as context)';
+      txt.querySelector('b').textContent = nodeTitle(parent);
+      banner.appendChild(txt);
+      const back = document.createElement('button'); back.type = 'button'; back.className = 'btn small';
+      back.textContent = '↑ Back to parent at the fork point';
+      back.onclick = () => goToParent(node);
+      banner.appendChild(back);
+      col.appendChild(banner);
+    }
+    if (node.quote) {
+      const q = document.createElement('div'); q.className = 'quote-banner';
+      q.innerHTML = '<b>Asking about this passage:</b> <q></q>';
+      q.querySelector('q').textContent = node.quote;
+      col.appendChild(q);
+    }
+    node.messages.forEach((m, i) => col.appendChild(msgEl(m, inh.length + i, node)));
+    if (node._error) {
+      const e = document.createElement('div'); e.className = 'error'; e.textContent = node._error; col.appendChild(e);
+    }
+    const busy = !!controller;
+    $('#send').disabled = busy; $('#stop').hidden = !busy;
+    placeForkPins();
+    wrap.scrollTop = scroll === 'top' ? 0 : scroll === 'bottom' ? wrap.scrollHeight : prevScroll;
+    queueConcepts(node);
+  }
+
+  // Re-render only the streaming message, throttled to animation frames.
+  function liveRender(asst) {
+    if (rafPending) return; rafPending = true;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      const wrap = $('#messages');
+      const el = wrap.querySelector('.msg.pending .body'); if (!el) return;
+      const nearBottom = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 80;
+      const t = textOf(asst);
+      el.innerHTML = t ? renderMd(t) : '<span class="thinking">Thinking…</span>';
+      if (nearBottom) wrap.scrollTop = wrap.scrollHeight;
+    });
+  }
+
+  // ---------------------------------------------------------------- toast
+  let toastTimer = null;
+  function showToast(text, action = null, ms = 6000) {
+    const t = $('#toast'); t.querySelector('.toast-text').textContent = text;
+    const btn = t.querySelector('.toast-action');
+    if (action) { btn.hidden = false; btn.textContent = action.label; btn.onclick = () => { hideToast(); action.run(); }; } else btn.hidden = true;
+    t.querySelector('.toast-close').onclick = hideToast;
+    t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, ms);
+  }
+  function hideToast() { $('#toast').hidden = true; clearTimeout(toastTimer); }
+  // Gate for features that call the API. Returns true when a key is set;
+  // otherwise shows a toast that opens Settings.
+  function needKey(feature) {
+    if (state.settings.apiKey) return true;
+    showToast('Add an API key to ' + feature + '.', { label: 'Open Settings', run: openSettings });
+    return false;
+  }
+
+  // ---------------------------------------------------------------- Claude API
+  async function send() {
+    const input = $('#input');
+    const text = input.value.trim();
+    if (!text || controller) return;
+    if (!needKey('ask questions')) return;
+    const node = current(); if (!node) return;
+    node._error = null;
+
+    const isFirst = node.messages.length === 0;
+    const apiText = (isFirst && node.quote)
+      ? 'Regarding this passage from your earlier answer:\n\n> ' + node.quote.replace(/\n/g, '\n> ') + '\n\n' + text
+      : text;
+    const userMsg = { role: 'user', content: [{ type: 'text', text: apiText }], ask: text };
+    const asst = { role: 'assistant', content: [], pending: true };
+    node.messages.push(userMsg, asst);
+    input.value = ''; input.style.height = '';
+    controller = new AbortController();
+    save(); render('bottom');
+
+    try {
+      await streamReply(node, asst);
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        asst.note = 'Stopped by you.';
+      } else {
+        node.messages.splice(node.messages.indexOf(userMsg), 2);
+        node._error = 'Request failed: ' + (err.message || err);
+        input.value = text;
+      }
+    } finally {
+      // Thinking blocks without a signature (interrupted mid-stream) and empty
+      // text blocks can't be replayed, so drop them.
+      asst.content = asst.content.filter(b => b && !(b.type === 'thinking' && !b.signature) && !(b.type === 'text' && !b.text));
+      if (asst.pending && !asst.content.length && node.messages.includes(asst)) {
+        node.messages.splice(node.messages.indexOf(userMsg), 2); input.value ||= text;
+      }
+      asst.pending = false;
+      controller = null;
+      save(); render();
+      if (state.settings.autoTitle && !node.title && node.messages.length === 2) generateTitle(node);
+    }
+  }
+
+  const API_URL = 'https://api.anthropic.com/v1/messages';
+  function apiHeaders() {
+    return {
+      'content-type': 'application/json',
+      'x-api-key': state.settings.apiKey,
+      'anthropic-version': '2026-10-21',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+  }
+
+  // ---- automatic few-word titles (one cheap Haiku call per branch) ----
+  const titling = new Set();
+  async function generateTitle(node, force = false) {
+    const s = state.settings;
+    if (!s.apiKey || titling.has(node.id) || controller) return;
+    if (node.title && !force) return;
+    const first = node.messages.find(m => m.role === 'user');
+    const reply = node.messages.find(m => m.role === 'assistant' && !m.pending && textOf(m));
+    if (!first || !reply) return;
+    titling.add(node.id); if (state.currentId === node.id) renderCrumbs(node);
+    try {
+      const parent = node.parentId ? state.nodes[node.parentId] : null;
+      let prompt = 'Write a title of two to five words for this learning conversation. ' +
+        'Name the specific concept or question it is about, as a noun phrase, not a sentence. ' +
+        'Reply with the title only: no quotes, no trailing period.\n\n';
+      if (parent) prompt += 'This is a side-branch of a conversation titled "' + nodeTitle(parent) + '", so name what is specific to this branch.\n\n';
+      if (node.quote) prompt += 'It asks about this passage: "' + node.quote.slice(0, 300) + '"\n\n';
+      prompt += 'Question: ' + (first.ask ?? textOf(first)).slice(0, 1500) + '\n\nAnswer (excerpt): ' + textOf(reply).slice(0, 1500);
+      const res = await fetch(API_URL, {
+        method: 'POST', headers: apiHeaders(),
+        body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 2048, output_config: { effort: 'low' },
+                               messages: [{ role: 'user', content: prompt }] }),
+      });
+      if (!res.ok) { let msg = res.status + ''; try { msg = (await res.json()).error?.message || msg; } catch (e) { /* ignore */ } throw new Error(msg); }
+      const j = await res.json();
+      if (j.stop_reason === 'refusal') return;
+      let t = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim().split('\n')[0].trim();
+      t = t.replace(/^["'“”‘’]+|["'“”‘’.]+$/g, '').trim();
+      if (t.length > 60) t = t.slice(0, 60).trim();
+      if (!t) return;
+      node.title = t; node.titleAuto = true; save(); renderTree();
+    } catch (err) {
+      console.warn('Auto-title failed:', err.message);
+    } finally {
+      titling.delete(node.id);
+      if (state.currentId === node.id) renderCrumbs(node);
+    }
+  }
+  // ---- concept suggestions: prerequisite ideas an answer relies on ----
+  const conceptBusy = new WeakSet();   // messages with an extraction in flight
+  const conceptTried = new WeakSet();  // messages tried this session (no retry loops)
+  let conceptQueue = Promise.resolve();
+  const CONCEPT_SCHEMA = {
+    type: 'object',
+    properties: {
+      concepts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            term: { type: 'string', description: 'Name of the concept, 1 to 4 words' },
+            phrase: { type: 'string', description: 'Verbatim excerpt of at most 6 plain words copied exactly from the answer where this concept appears' },
+            question: { type: 'string', description: 'One-sentence question a learner should ask to understand this concept in the context of the answer' },
+          },
+          required: ['term', 'phrase', 'question'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['concepts'],
+    additionalProperties: false,
+  };
+  function queueConcepts(node) {
+    if (!node || !state.settings.suggestConcepts || !state.settings.apiKey) return;
+    node.messages.forEach(m => {
+      if (m.role !== 'assistant' || m.pending || m.concepts !== undefined || conceptTried.has(m) || !textOf(m)) return;
+      conceptTried.add(m);
+      conceptQueue = conceptQueue.then(() => extractConcepts(node, m)).catch(() => {});
+    });
+  }
+  async function extractConcepts(node, m, force = false) {
+    if (!state.settings.apiKey || conceptBusy.has(m)) return;
+    if (Array.isArray(m.concepts) && !force) return;
+    const idx = node.messages.indexOf(m); if (idx < 0) return;
+    const question = node.messages[idx - 1] && node.messages[idx - 1].role === 'user' ? (node.messages[idx - 1].ask ?? textOf(node.messages[idx - 1])) : '';
+    const answer = textOf(m); if (!answer) return;
+    conceptBusy.add(m); conceptTried.add(m);
+    if (state.currentId === node.id) renderChat('keep');
+    try {
+      const covered = node.children.map(id => state.nodes[id]).filter(Boolean).map(c => nodeTitle(c));
+      const prompt =
+        'A learner asked a tutor a question and got the answer below. List 3 to 6 prerequisite concepts that the answer relies on ' +
+        'but does not itself explain, which the learner may need to understand first. Prefer concrete, lookup-able ideas ' +
+        '(a technique, theorem, quantity, or term) over vague themes. Order by how much they matter for understanding the answer.\n\n' +
+        'For each concept give: term (its name, 1 to 4 words); phrase (an exact excerpt of at most 6 words copied character for character ' +
+        'from the answer at the place the concept appears, plain words only, no Markdown or LaTeX symbols, so the excerpt can be found in the text); ' +
+        'question (the single question the learner should ask to understand the concept in this context).\n\n' +
+        (covered.length ? 'Skip concepts already covered by these existing follow-ups: ' + covered.join('; ') + '.\n\n' : '') +
+        'Question:\n' + question.slice(0, 2000) + '\n\nAnswer:\n' + answer.slice(0, 6000);
+      const res = await fetch(API_URL, {
+        method: 'POST', headers: apiHeaders(),
+        body: JSON.stringify({
+          model: 'claude-haiku-5-5', max_tokens: 4096, output_config: { effort: 'low', format: { type: 'json_schema', schema: CONCEPT_SCHEMA } },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      if (!res.ok) { let msg = res.status + ''; try { msg = (await res.json()).error?.message || msg; } catch (e) { /* ignore */ } throw new Error(msg); }
+      const j = await res.json();
+      if (j.stop_reason === 'refusal') { m.concepts = []; return; }
+      const text = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      let data; try { data = JSON.parse(text); } catch (e) { const mt = text.match(/\{[\s\S]*\}/); data = mt ? JSON.parse(mt[0]) : { concepts: [] }; }
+      const seen = new Set();
+      m.concepts = (data.concepts || []).map(c => ({
+        term: String(c.term || '').trim().slice(0, 60),
+        phrase: String(c.phrase || '').trim().slice(0, 120),
+        question: String(c.question || '').trim().slice(0, 300),
+      })).filter(c => c.term && c.phrase && c.question && !seen.has(c.term.toLowerCase()) && seen.add(c.term.toLowerCase())).slice(0, 6);
+      save();
+    } catch (err) {
+      console.warn('Concept extraction failed:', err.message);
+      if (force) { node._error = 'Could not find concepts: ' + err.message; }
+    } finally {
+      conceptBusy.delete(m);
+      if (state.currentId === node.id) renderChat('keep');
+    }
+  }
+  // Find the first occurrence of `phrase` inside a single text node of `body`
+  // (skipping code, rendered math and buttons). Returns {node, index} or null.
+  function findPhrase(body, phrase) {
+    const needle = phrase.toLowerCase(); if (!needle) return null;
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => n.parentElement && n.parentElement.closest('pre, code, .katex, .katex-display, button, mark') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+    });
+    let tn;
+    while ((tn = walker.nextNode())) {
+      const i = tn.nodeValue.toLowerCase().indexOf(needle);
+      if (i >= 0) return { node: tn, index: i };
+    }
+    return null;
+  }
+  // Insert a chip right after each concept's phrase. Returns the concepts whose
+  // phrase could not be located in the text.
+  function injectConcepts(body, concepts, ctxIndex) {
+    const leftover = [];
+    for (const c of concepts) {
+      const hit = findPhrase(body, c.phrase);
+      if (!hit) { leftover.push(c); continue; }
+      const rest = hit.node.splitText(hit.index + c.phrase.length);
+      hit.node.parentNode.insertBefore(conceptChip(c, ctxIndex), rest);
+    }
+    return leftover;
+  }
+  // Highlight the passages that existing branches were forked from; clicking
+  // a highlight opens that branch.
+  function markForks(body, forks) {
+    for (const f of forks) {
+      if (!f.quote) continue;
+      const hit = findPhrase(body, f.quote);
+      if (!hit) continue;
+      const mid = hit.node.splitText(hit.index); mid.splitText(f.quote.length);
+      const mark = document.createElement('mark'); mark.className = 'forkmark' + (f.done ? ' done' : ''); mark.dataset.forkId = f.id;
+      mark.title = 'Forked here: ' + nodeTitle(f) + ' (click to open)';
+      mark.onclick = () => setCurrent(f.id);
+      mid.parentNode.insertBefore(mark, mid); mark.appendChild(mid);
+    }
+  }
+  function conceptChip(c, ctxIndex) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'concept';
+    b.textContent = '✦ ' + c.term; b.title = c.question + '  (opens a branch about this)';
+    b.onclick = (e) => { e.stopPropagation(); askConcept(ctxIndex, c); };
+    return b;
+  }
+  // Open a branch about the concept, quoting where it appeared, and ask the
+  // suggested question right away.
+  function askConcept(ctxIndex, c) {
+    if (controller) return;
+    if (!needKey('ask about a concept')) return;
+    forkFrom(ctxIndex, c.phrase);
+    const node = current(); if (node) node.title = c.term;
+    $('#input').value = c.question;
+    send();
+  }
+
+  // Title any branch that has an exchange but no title yet, one at a time.
+  async function titleMissing() {
+    if (!state.settings.autoTitle || !state.settings.apiKey) return;
+    for (const id of Object.keys(state.nodes)) {
+      const n = state.nodes[id]; if (!n || n.title) continue;
+      await generateTitle(n);
+    }
+  }
+
+  async function streamReply(node, asst) {
+    const s = state.settings;
+    const messages = fullContext(node)
+      .filter(m => m !== asst && !m.pending)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const body = {
+      model: s.model,
+      max_tokens: 64000,
+      stream: true,
+      system: s.system,
+      messages,
+      // Earlier answers carry thinking blocks bound to the exact system prompt,
+      // model and history they were made under. Changing the system prompt or
+      // model, or forking, would otherwise make the API reject them; ask it to
+      // drop stale blocks instead (the answer text is unaffected).
+      thinking: { type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } },
+      output_config: { effort: s.effort },
+      cache_control: { type: 'ephemeral' },   // auto-places a cache breakpoint on the last cacheable block
+    };
+    const headers = apiHeaders();
+    const betas = ['thinking-binding-controls-2026-08-01'];
+    if (FALLBACK_OK.has(s.model)) {
+      // If a safety classifier declines, the server retries on a fallback model.
+      body.fallbacks = 'default';
+      betas.push('server-side-fallback-2026-07-01');
+    }
+    headers['anthropic-beta'] = betas.join(',');
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal,
+    });
+    if (!res.ok) {
+      let msg = res.status + ' ' + res.statusText;
+      try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch (e) { /* ignore */ }
+      throw new Error(msg);
+    }
+
+    const blocks = asst.content;
+    let stopReason = null, stopDetails = null, usedModel = null;
+    const handle = (chunk) => {
+      const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('\n');
+      if (!data) return;
+      let ev; try { ev = JSON.parse(data); } catch (e) { return; }
+      switch (ev.type) {
+        case 'message_start': usedModel = ev.message && ev.message.model; break;
+        case 'content_block_start': blocks[ev.index] = JSON.parse(JSON.stringify(ev.content_block)); break;
+        case 'content_block_delta': {
+          const b = blocks[ev.index]; if (!b) return; const d = ev.delta;
+          if (d.type === 'text_delta') b.text += d.text;
+          else if (d.type === 'thinking_delta') b.thinking += d.thinking;
+          else if (d.type === 'signature_delta') b.signature = d.signature;
+          break;
+        }
+        case 'message_delta': stopReason = ev.delta && ev.delta.stop_reason; stopDetails = ev.delta && ev.delta.stop_details; break;
+        case 'error': throw new Error((ev.error && ev.error.message) || 'stream error');
+      }
+      liveRender(asst);
+    };
+
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i; while ((i = buf.indexOf('\n\n')) >= 0) { const chunk = buf.slice(0, i); buf = buf.slice(i + 2); handle(chunk); }
+    }
+    if (buf.trim()) handle(buf);
+
+    if (stopReason === 'refusal') {
+      asst.note = 'Claude declined this request' + (stopDetails && stopDetails.category ? ' (' + stopDetails.category + ')' : '') + '.';
+    } else if (stopReason === 'max_tokens') {
+      asst.note = 'The answer hit the output token limit and was cut off.';
+    }
+    if (usedModel && usedModel !== s.model) asst.note = (asst.note ? asst.note + ' ' : '') + 'Answered by fallback model ' + usedModel + '.';
+  }
+
+  // ---------------------------------------------------------------- selection → fork
+  function checkSelection() {
+    const pop = $('#selPop');
+    const sel = window.getSelection();
+    const quote = sel && !sel.isCollapsed ? sel.toString().trim() : '';
+    if (!quote) { pop.hidden = true; return; }
+    const range = sel.getRangeAt(0);
+    let n = range.commonAncestorContainer; if (n.nodeType !== 1) n = n.parentElement;
+    const body = n.closest('.msg.assistant:not(.pending) .body');
+    if (!body) { pop.hidden = true; return; }
+    const msg = body.closest('.msg');
+    const rect = range.getBoundingClientRect();
+    pop.hidden = false;
+    pop.dataset.index = msg.dataset.index;
+    pop.dataset.quote = quote.length > 1500 ? quote.slice(0, 1500) + '…' : quote;
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    let left = rect.left + rect.width / 2 - w / 2, top = rect.top - h - 8;
+    if (top < 8) top = rect.bottom + 8;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  document.addEventListener('mouseup', () => setTimeout(checkSelection, 0));
+  document.addEventListener('keyup', (e) => { if (e.shiftKey) setTimeout(checkSelection, 0); });
+  document.addEventListener('mousedown', (e) => { if (!e.target.closest('#selPop')) $('#selPop').hidden = true; });
+  $('#selPop button').addEventListener('click', () => {
+    const pop = $('#selPop'); pop.hidden = true;
+    forkFrom(Number(pop.dataset.index), pop.dataset.quote);
+    window.getSelection()?.removeAllRanges();
+  });
+
+  // ---------------------------------------------------------------- settings
+  function openSettings() {
+    const f = $('#settingsForm');
+    const sel = f.elements.model; sel.innerHTML = '';
+    MODELS.forEach(([id, label]) => { const o = document.createElement('option'); o.value = id; o.textContent = label; sel.appendChild(o); });
+    f.elements.apiKey.value = state.settings.apiKey;
+    f.elements.model.value = state.settings.model;
+    f.elements.effort.value = state.settings.effort;
+    f.elements.system.value = state.settings.system;
+    f.elements.autoTitle.checked = state.settings.autoTitle !== false;
+    f.elements.suggestConcepts.checked = state.settings.suggestConcepts !== false;
+    const noKey = !state.settings.apiKey;
+    $('#settingsCancel').textContent = noKey ? 'Proceed without API key' : 'Cancel';
+    $('#noKeyNote').hidden = !noKey;
+    $('#settings').showModal();
+  }
+  $('#settingsForm').addEventListener('submit', () => {
+    const f = $('#settingsForm');
+    state.settings = { apiKey: f.elements.apiKey.value.trim(), model: f.elements.model.value,
+                       effort: f.elements.effort.value, system: f.elements.system.value.trim() || DEFAULT_SYSTEM,
+                       autoTitle: f.elements.autoTitle.checked, suggestConcepts: f.elements.suggestConcepts.checked };
+    save(); render(); titleMissing();
+  });
+  $('#settingsCancel').onclick = () => {
+    if (!state.settings.apiKey) { state.settings.keyPromptDismissed = true; save(); }   // don't ask again on every load
+    $('#settings').close();
+  };
+  $('#settingsBtn').onclick = openSettings;
+
+  // ---------------------------------------------------------------- misc UI
+  $('#newTopic').onclick = () => { const n = createNode(); setCurrent(n.id); $('#input').focus(); };
+  $('#composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
+  $('#stop').onclick = () => controller && controller.abort();
+  $('#input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  $('#input').addEventListener('input', (e) => { e.target.style.height = ''; e.target.style.height = Math.min(e.target.scrollHeight, window.innerHeight * 0.4) + 'px'; });
+
+
+  // ---------------------------------------------------------------- built-in example
+  // The example file defines window.RABBITHOLE_EXAMPLE (older exports used window.LEARN_GRAPH_EXAMPLE).
+  // It is either one topic ({ version, key, title, turns, children }) or several
+  // ({ version, topics: [ ...one spec per topic ] }).
+  const EXAMPLE_SPEC = () => window.RABBITHOLE_EXAMPLE || window.LEARN_GRAPH_EXAMPLE || null;
+  const exampleVersion = () => (EXAMPLE_SPEC() && EXAMPLE_SPEC().version) || 1;
+  function exampleTopics() {
+    const spec = EXAMPLE_SPEC(); if (!spec) return [];
+    return Array.isArray(spec.topics) ? spec.topics : [spec];
+  }
+  function buildExampleNode(sp, parentId) {
+    const n = createNode({ parentId, forkIndex: sp.forkIndex ?? null, quote: sp.quote || '' });
+    n.title = sp.title || ''; n.done = !!sp.done; n.example = true; n.exampleKey = sp.key || null;
+    (sp.turns || []).forEach(([q, a, concepts], i) => {
+      const apiText = (i === 0 && n.quote)
+        ? 'Regarding this passage from your earlier answer:\n\n> ' + n.quote + '\n\n' + q : q;
+      const reply = { role: 'assistant', content: [{ type: 'text', text: a }] };
+      if (concepts) reply.concepts = concepts;
+      n.messages.push({ role: 'user', content: [{ type: 'text', text: apiText }], ask: q }, reply);
+    });
+    (sp.children || []).forEach(c => buildExampleNode(c, n.id));
+    return n;
+  }
+  // Saved root for a topic spec, matched by key then title.
+  function findExampleRootFor(sp) {
+    return state.roots.map(id => state.nodes[id]).find(n => n && n.example && ((sp.key && n.exampleKey === sp.key) || n.title === sp.title)) || null;
+  }
+  function findExampleRoots() { return exampleTopics().map(findExampleRootFor).filter(Boolean); }
+  function addExample() {
+    const topics = exampleTopics(); if (!topics.length) return null;
+    let first = null;
+    topics.forEach(sp => { const root = buildExampleNode(sp, null); root.exampleVersion = exampleVersion(); first = first || root; });
+    setCurrent(first.id);
+    return first;
+  }
+  // Bring a saved copy of the example up to date with example.js: answer text,
+  // concept buttons, titles and any new branches. Messages and branches the
+  // user added on top of it are left alone.
+  function refreshExample() {
+    const topics = exampleTopics(); if (!topics.length) return null;
+    let first = null;
+    function sync(sp, n) {
+      n.example = true; n.exampleKey = sp.key || n.exampleKey || null;
+      if (!n.title) n.title = sp.title || '';
+      (sp.turns || []).forEach(([q, a, concepts], i) => {
+        const u = n.messages[2 * i], m = n.messages[2 * i + 1];
+        if (!u || !m || u.role !== 'user' || m.role !== 'assistant') return;
+        if (m.content.every(b => b.type === 'text') && textOf(m) !== a) m.content = [{ type: 'text', text: a }];
+        if (concepts) m.concepts = concepts;
+      });
+      (sp.children || []).forEach(cs => {
+        const kids = n.children.map(id => state.nodes[id]).filter(Boolean);
+        const child = kids.find(c => c.exampleKey && c.exampleKey === cs.key)
+          || kids.find(c => c.example && c.title === cs.title)
+          || kids.find(c => c.example && c.forkIndex === cs.forkIndex && (c.quote || '') === (cs.quote || ''));
+        if (child) sync(cs, child); else buildExampleNode(cs, n.id);
+      });
+    }
+    topics.forEach(sp => {
+      let root = findExampleRootFor(sp);
+      if (root) sync(sp, root); else root = buildExampleNode(sp, null);   // a topic added to the file since
+      root.exampleVersion = exampleVersion();
+      first = first || root;
+    });
+    save();
+    return first;
+  }
+  // Convert a topic tree into the example.js format (text only: thinking
+  // blocks are dropped, empty branches skipped, titles/quotes/concepts kept).
+  function toExampleSpec(n, used = new Set()) {
+    const slug = (nodeTitle(n) || 'topic').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'topic';
+    let key = slug, i = 2; while (used.has(key)) key = slug + '-' + i++; used.add(key);
+    const turns = [];
+    for (let j = 0; j + 1 < n.messages.length; j += 2) {
+      const u = n.messages[j], a = n.messages[j + 1];
+      if (u.role !== 'user' || a.role !== 'assistant' || a.pending || !textOf(a)) continue;
+      const turn = [u.ask ?? textOf(u), textOf(a)];
+      if (Array.isArray(a.concepts) && a.concepts.length) turn.push(a.concepts.map(c => ({ term: c.term, phrase: c.phrase, question: c.question })));
+      turns.push(turn);
+    }
+    const spec = { key, title: nodeTitle(n), turns };
+    if (n.parentId) { spec.forkIndex = n.forkIndex; spec.quote = n.quote || ''; }
+    if (n.done) spec.done = true;
+    const children = n.children.map(id => state.nodes[id]).filter(c => c && c.messages.length).map(c => toExampleSpec(c, used));
+    if (children.length) spec.children = children;
+    return spec;
+  }
+  // Export every topic (all roots, with their branches) as an example file.
+  function exampleSource() {
+    const used = new Set();
+    const topics = state.roots.map(id => state.nodes[id]).filter(n => n && n.messages.length).map(n => toExampleSpec(n, used));
+    const spec = { version: exampleVersion() + 1, topics };
+    return '// RabbitHole example sessions, exported ' + new Date().toISOString().slice(0, 10) + ' (' + topics.length + ' topic' + (topics.length === 1 ? '' : 's') + ').\n' +
+      '// Loaded automatically on first run; the Example button adds or refreshes them.\n' +
+      '// Format: { version, topics: [{ key, title, turns: [[question, answer, concepts?], ...], children: [{ forkIndex, quote, ... }] }] }\n' +
+      'window.RABBITHOLE_EXAMPLE = ' + JSON.stringify(spec, null, 2) + ';\n';
+  }
+  window.RabbitHole = { toExampleSpec, exampleSource, current };
+  $('#saveExampleBtn').onclick = () => {
+    if (!state.roots.length) return;
+    const blob = new Blob([exampleSource()], { type: 'text/javascript' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'example.js'; a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  // ---------------------------------------------------------------- learning map
+  const MAP = { w: 200, h: 64, hgap: 26, vgap: 64, pad: 30 };
+  // Lay out the given root ids (by default only the topic containing the
+  // current branch, so the map stays focused on what you are learning now).
+  function layoutForest(rootIds) {
+    const placed = []; let cursor = MAP.pad;
+    function place(n, depth) {
+      const kids = n.children.map(id => state.nodes[id]).filter(Boolean);
+      let cx;
+      if (!kids.length) { cx = cursor + MAP.w / 2; cursor += MAP.w + MAP.hgap; }
+      else { const cs = kids.map(k => place(k, depth + 1)); cx = (cs[0].x + cs[cs.length - 1].x) / 2; }
+      const pos = { n, x: cx, y: MAP.pad + depth * (MAP.h + MAP.vgap) + MAP.h / 2, parent: null };
+      placed.push(pos);
+      return pos;
+    }
+    rootIds.forEach(id => { const n = state.nodes[id]; if (n) { place(n, 0); cursor += MAP.hgap * 2; } });
+    const byId = new Map(placed.map(p => [p.n.id, p]));
+    placed.forEach(p => { if (p.n.parentId) p.parent = byId.get(p.n.parentId) || null; });
+    return placed;
+  }
+  const view = { x: 0, y: 0, k: 1, w: 0, h: 0 };   // pan/zoom state and content size
+  let mapClickTimer = null;
+  function applyView() { $('#mapView').setAttribute('transform', 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')'); }
+  function fitMap() {
+    const body = $('#mapSvg').parentElement; const bw = body.clientWidth, bh = body.clientHeight;
+    if (!view.w || !view.h) { view.x = 0; view.y = 0; view.k = 1; applyView(); return; }
+    view.k = Math.min(1, (bw - 40) / view.w, (bh - 40) / view.h);
+    view.x = (bw - view.w * view.k) / 2; view.y = (bh - view.h * view.k) / 2;
+    applyView();
+  }
+  function renderMap() {
+    const g = $('#mapView'); const NS = 'http://www.w3.org/2000/svg';
+    while (g.firstChild) g.removeChild(g.firstChild);
+    const body = $('#mapSvg').parentElement; body.querySelector('.map-empty')?.remove();
+    const cur = current();
+    const showAll = $('#mapAll').checked || !cur;
+    const rootIds = showAll ? state.roots : [pathTo(cur)[0].id];
+    const placed = layoutForest(rootIds);
+    if (!placed.length) {
+      const e = document.createElement('div'); e.className = 'map-empty'; e.textContent = 'Nothing here yet. Start a topic and fork a few questions, then come back.';
+      body.appendChild(e); view.w = view.h = 0; return;
+    }
+    view.w = Math.max(...placed.map(p => p.x)) + MAP.w / 2 + MAP.pad;
+    view.h = Math.max(...placed.map(p => p.y)) + MAP.h / 2 + MAP.pad;
+    // edges first so boxes draw over them
+    placed.forEach(p => {
+      if (!p.parent) return;
+      const x1 = p.parent.x, y1 = p.parent.y + MAP.h / 2, x2 = p.x, y2 = p.y - MAP.h / 2, my = (y1 + y2) / 2;
+      const path = document.createElementNS(NS, 'path'); path.setAttribute('class', 'edge');
+      path.setAttribute('d', 'M' + x1 + ',' + y1 + ' C' + x1 + ',' + my + ' ' + x2 + ',' + my + ' ' + x2 + ',' + y2);
+      g.appendChild(path);
+    });
+    placed.forEach(p => {
+      const node = document.createElementNS(NS, 'g');
+      node.setAttribute('class', 'mnode' + (p.n.done ? ' done' : '') + (p.n.id === state.currentId ? ' current' : ''));
+      node.setAttribute('transform', 'translate(' + (p.x - MAP.w / 2) + ',' + (p.y - MAP.h / 2) + ')');
+      const rect = document.createElementNS(NS, 'rect'); rect.setAttribute('class', 'box');
+      rect.setAttribute('width', MAP.w); rect.setAttribute('height', MAP.h); node.appendChild(rect);
+      const fo = document.createElementNS(NS, 'foreignObject'); fo.setAttribute('width', MAP.w); fo.setAttribute('height', MAP.h);
+      const lab = document.createElement('div'); lab.className = 'lab'; lab.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      const t = document.createElement('div'); t.className = 't'; t.textContent = nodeTitle(p.n); lab.appendChild(t);
+      const q = document.createElement('div'); q.className = 'q';
+      const turns = p.n.messages.filter(m => m.role === 'user').length;
+      q.textContent = p.n.quote ? '“' + p.n.quote + '”' : (turns ? turns + ' question' + (turns === 1 ? '' : 's') : 'empty');
+      lab.appendChild(q); fo.appendChild(lab); node.appendChild(fo);
+      const title = document.createElementNS(NS, 'title'); title.textContent = nodeTitle(p.n) + (p.n.quote ? '\nAbout: “' + p.n.quote + '”' : ''); node.appendChild(title);
+      // A single click opens the branch after a short delay so that a
+      // double-click (rename) can cancel it.
+      node.addEventListener('click', () => {
+        if (drag.moved || lab.querySelector('input')) return;
+        clearTimeout(mapClickTimer);
+        mapClickTimer = setTimeout(() => { closeMap(); setCurrent(p.n.id); }, 260);
+      });
+      node.addEventListener('dblclick', (e) => {
+        e.stopPropagation(); clearTimeout(mapClickTimer);
+        if (lab.querySelector('input')) return;
+        const input = document.createElement('input'); input.value = nodeTitle(p.n);
+        let done = false;
+        const finish = (commit) => { if (done) return; done = true; if (commit) { renameNode(p.n, input.value); } renderMap(); };
+        input.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } ev.stopPropagation(); };
+        input.onblur = () => finish(true);
+        input.onpointerdown = (ev) => ev.stopPropagation();
+        t.replaceWith(input); input.focus(); input.select();
+      });
+      g.appendChild(node);
+    });
+  }
+  function openMap() { renderMap(); $('#map').hidden = false; fitMap(); $('#mapClose').focus(); }
+  function closeMap() { $('#map').hidden = true; }
+  $('#mapClose').onclick = closeMap;
+  $('#mapFit').onclick = fitMap;
+  $('#mapAll').onchange = () => { renderMap(); fitMap(); };
+  $('#map').addEventListener('mousedown', (e) => { if (e.target === $('#map')) closeMap(); });   // click on the backdrop
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#map').hidden) closeMap(); });
+
+  // Drag to pan (pointer events cover mouse and touch); wheel to zoom about the cursor.
+  const drag = { on: false, moved: false, sx: 0, sy: 0, ox: 0, oy: 0 };
+  const mapBody = $('#mapSvg').parentElement;
+  // No pointer capture here: capturing would re-target the click to the canvas
+  // and node boxes would stop opening. Window listeners track the drag instead.
+  const onDragMove = (e) => {
+    if (!drag.on) return;
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    view.x = drag.ox + dx; view.y = drag.oy + dy; applyView();
+  };
+  const endDrag = () => {
+    if (!drag.on) return;
+    drag.on = false; mapBody.classList.remove('dragging');
+    window.removeEventListener('pointermove', onDragMove); window.removeEventListener('pointerup', endDrag); window.removeEventListener('pointercancel', endDrag);
+    setTimeout(() => { drag.moved = false; }, 0);
+  };
+  mapBody.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    drag.on = true; drag.moved = false; drag.sx = e.clientX; drag.sy = e.clientY; drag.ox = view.x; drag.oy = view.y;
+    mapBody.classList.add('dragging');
+    window.addEventListener('pointermove', onDragMove); window.addEventListener('pointerup', endDrag); window.addEventListener('pointercancel', endDrag);
+  });
+  mapBody.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = mapBody.getBoundingClientRect(); const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    const k2 = Math.min(3, Math.max(0.25, view.k * factor)); const ratio = k2 / view.k;
+    view.x = mx - (mx - view.x) * ratio; view.y = my - (my - view.y) * ratio; view.k = k2; applyView();
+  }, { passive: false });
+  window.addEventListener('resize', () => { if (!$('#map').hidden) fitMap(); });
+
+  if (!localStorage.getItem(LS_KEY) && !state.roots.length) addExample();   // first run: seed the example
+  else { const ex = findExampleRoots(); if (ex.length && ex.some(n => (n.exampleVersion || 1) < exampleVersion())) refreshExample(); }
+  render('top');
+  if (!state.settings.apiKey) { if (!state.settings.keyPromptDismissed) openSettings(); } else titleMissing();
+})();
+</script>
+</body>
+</html>
