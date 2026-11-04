@@ -4,7 +4,9 @@
 <head>
     {% include 'snippets/meta.html'%}
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f0eee6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1f1e1d" media="(prefers-color-scheme: dark)">
 <title>RabbitHole</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22 aria-hidden=%22true%22%3E%3Cellipse cx=%2216%22 cy=%2224.5%22 rx=%2212%22 ry=%224.5%22 fill=%22%23141413%22/%3E%3Cg clip-path=%22url(%23rh-clip)%22%3E%3Cpath d=%22M11.6 15.5 C 9.6 11.5, 7.6 6.5, 8.8 3.6 C 9.4 2.1, 11.9 2.2, 12.5 3.8 C 13.9 7.3, 14.4 11.5, 14.6 15.5 Z%22 fill=%22%23faf9f5%22 stroke=%22%23141413%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M17.4 15.5 C 17.1 11, 17.3 5.8, 18.6 2.6 C 19.2 1.2, 21.6 1.2, 22.1 2.7 C 23.2 6, 22.3 11, 21 15.5 Z%22 fill=%22%23faf9f5%22 stroke=%22%23141413%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Crect x=%229.5%22 y=%2213.5%22 width=%2213%22 height=%2216%22 rx=%226.5%22 fill=%22%23faf9f5%22 stroke=%22%23141413%22 stroke-width=%222%22/%3E%3C/g%3E%3Cellipse cx=%2213.6%22 cy=%2219.6%22 rx=%221%22 ry=%221.4%22 fill=%22%23141413%22/%3E%3Cellipse cx=%2218.4%22 cy=%2219.6%22 rx=%221%22 ry=%221.4%22 fill=%22%23141413%22/%3E%3Cellipse cx=%2216%22 cy=%2222.7%22 rx=%221.3%22 ry=%22.9%22 fill=%22%23d97757%22/%3E%3Cdefs%3E%3CclipPath id=%22rh-clip%22%3E%3Crect x=%220%22 y=%220%22 width=%2232%22 height=%2224.5%22/%3E%3C/clipPath%3E%3C/defs%3E%3C/svg%3E">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
@@ -689,7 +691,11 @@ window.RABBITHOLE_EXAMPLE = {
   html, body { height: 100%; margin: 0; }
   body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
   button, input, textarea, select { font: inherit; color: inherit; }
-  #app { display: grid; grid-template-columns: 290px 1fr; height: 100vh; }
+  #app { display: grid; grid-template-columns: 290px 1fr; height: 100vh; height: 100dvh; }
+  #sideBackdrop { display: none; }
+  .menu-btn { display: none; }
+  .drawer-close { display: none; }
+  .side-head-actions { display: inline-flex; gap: 6px; align-items: center; }
 
   /* ---------- sidebar ---------- */
   #sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
@@ -876,10 +882,46 @@ window.RABBITHOLE_EXAMPLE = {
   dialog .fine { font-size: 12px; color: var(--muted); }
 
   @media (max-width: 760px) {
-    #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-    #sidebar { max-height: 36vh; border-right: 0; border-bottom: 1px solid var(--line); }
-    .msg.user { margin-left: 16px; } .msg.assistant { margin-right: 0; }
-    #messages { padding: 14px 16px 8px; }
+    #app { grid-template-columns: 1fr; }
+    /* sidebar becomes a slide-in drawer */
+    #sidebar { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); z-index: 46; border-right: 1px solid var(--line); box-shadow: var(--shadow); transform: translateX(-104%); transition: transform .22s ease; padding-bottom: env(safe-area-inset-bottom); }
+    #sidebar.open { transform: translateX(0); }
+    #sideBackdrop { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(20,20,19,.4); opacity: 0; pointer-events: none; transition: opacity .22s; }
+    #sideBackdrop.show { opacity: 1; pointer-events: auto; }
+    .side-head { padding: 12px 12px 10px; padding-top: calc(12px + env(safe-area-inset-top)); }
+    .menu-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; flex: none; }
+    .menu-btn svg { width: 18px; height: 18px; }
+    .drawer-close { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+    #crumbs { padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); gap: 6px; min-height: 48px; }
+    .crumb { max-width: 90px; }
+    .title-input { font-size: 17px; min-width: 80px; }
+    .title-tools { display: none; }
+    #crumbs .actions { gap: 6px; }
+    .btn.map span { display: none; }
+    .btn.map, #crumbs .actions .btn.small { padding: 6px 10px; }
+    #messages { padding: 12px 10px 8px; }
+    .col { padding-left: 30px; }
+    .fork-pin { left: -30px; width: 22px; height: 22px; line-height: 22px; font-size: 11px; }
+    .fork-pin::after { left: 22px; top: 10px; width: 8px; }
+    .msg { padding: 12px 13px; margin-bottom: 12px; border-radius: 12px; }
+    .msg.user { margin-left: 24px; } .msg.assistant { margin-right: 0; }
+    .msg .tools { flex-wrap: wrap; gap: 4px; }
+    .msg .tools .note { display: none; }   /* the "select text" tip, not useful on touch */
+    .fork-banner { font-size: 12.5px; padding: 8px 10px; }
+    .fork-banner .btn { margin-left: 0; width: 100%; justify-content: center; }
+    #composer { padding: 8px 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+    #input { font-size: 16px; padding: 10px 12px; border-radius: 12px; }   /* 16px stops iOS zooming on focus */
+    #composer .btn.primary { padding: 10px 14px; }
+    #toast { bottom: calc(84px + env(safe-area-inset-bottom)); font-size: 13px; }
+    /* map and dialogs go full-screen */
+    #map { padding: 0; }
+    .map-panel { width: 100%; height: 100%; border-radius: 0; border: 0; }
+    .map-head { padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); }
+    .map-head .fine { display: none; }
+    dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
+    dialog form { padding: 18px 16px; padding-top: calc(18px + env(safe-area-inset-top)); overflow: auto; height: 100%; }
+    dialog input, dialog select, dialog textarea { font-size: 16px; }
+    #selPop button { padding: 9px 14px; font-size: 14px; }
   }
 </style>
 </head>
@@ -888,7 +930,10 @@ window.RABBITHOLE_EXAMPLE = {
   <aside id="sidebar">
     <div class="side-head">
       <span class="brand"><svg class="rabbit" viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="24.5" rx="12" ry="4.5" fill="currentColor"/><g clip-path="url(#rh-clip)"><path d="M11.6 15.5 C 9.6 11.5, 7.6 6.5, 8.8 3.6 C 9.4 2.1, 11.9 2.2, 12.5 3.8 C 13.9 7.3, 14.4 11.5, 14.6 15.5 Z" fill="var(--panel)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17.4 15.5 C 17.1 11, 17.3 5.8, 18.6 2.6 C 19.2 1.2, 21.6 1.2, 22.1 2.7 C 23.2 6, 22.3 11, 21 15.5 Z" fill="var(--panel)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="9.5" y="13.5" width="13" height="16" rx="6.5" fill="var(--panel)" stroke="currentColor" stroke-width="2"/></g><ellipse cx="13.6" cy="19.6" rx="1" ry="1.4" fill="currentColor"/><ellipse cx="18.4" cy="19.6" rx="1" ry="1.4" fill="currentColor"/><ellipse cx="16" cy="22.7" rx="1.3" ry=".9" fill="var(--accent)"/><defs><clipPath id="rh-clip"><rect x="0" y="0" width="32" height="24.5"/></clipPath></defs></svg>RabbitHole</span>
-      <button id="newTopic" class="btn small">+ Topic</button>
+      <span class="side-head-actions">
+        <button id="newTopic" class="btn small">+ Topic</button>
+        <button id="drawerClose" class="drawer-close" type="button" aria-label="Close topics">×</button>
+      </span>
     </div>
     <div id="tree"></div>
     <div class="side-foot">
@@ -910,6 +955,7 @@ window.RABBITHOLE_EXAMPLE = {
   </main>
 </div>
 
+<div id="sideBackdrop"></div>
 <div id="selPop" hidden><button type="button">Ask about this ↳</button></div>
 <div id="toast" role="status" aria-live="polite" hidden><span class="toast-text"></span><button type="button" class="toast-action"></button><button type="button" class="toast-close" aria-label="Dismiss">×</button></div>
 
@@ -1069,6 +1115,7 @@ window.RABBITHOLE_EXAMPLE = {
   }
   function setCurrent(id, focusIndex = null, focusQuote = '') {
     state.currentId = id; save(); render('top');
+    openDrawer(false);
     if (focusIndex === null) return;
     const wrap = $('#messages');
     const el = wrap.querySelector('.msg[data-index="' + focusIndex + '"]');
@@ -1161,8 +1208,15 @@ window.RABBITHOLE_EXAMPLE = {
     b.innerHTML = MAP_ICON + '<span>Learning map</span>'; b.title = 'See how everything in this topic connects';
     b.onclick = openMap; return b;
   }
+  const MENU_ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h14"/></svg>';
+  function menuButton() {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'menu-btn'; b.innerHTML = MENU_ICON; b.title = 'Topics';
+    b.setAttribute('aria-label', 'Open topics'); b.onclick = () => openDrawer(true); return b;
+  }
+  function openDrawer(open) { $('#sidebar').classList.toggle('open', open); $('#sideBackdrop').classList.toggle('show', open); }
   function renderCrumbs(node) {
     const el = $('#crumbs'); el.innerHTML = '';
+    el.appendChild(menuButton());
     if (!node) { const actions = document.createElement('div'); actions.className = 'actions'; actions.appendChild(mapButton()); el.appendChild(actions); return; }
     const path = pathTo(node);
     path.slice(0, -1).forEach((n, i) => {
@@ -1758,6 +1812,8 @@ window.RABBITHOLE_EXAMPLE = {
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
   }
   document.addEventListener('mouseup', () => setTimeout(checkSelection, 0));
+  let selTimer = null;
+  document.addEventListener('selectionchange', () => { clearTimeout(selTimer); selTimer = setTimeout(checkSelection, 350); });
   document.addEventListener('keyup', (e) => { if (e.shiftKey) setTimeout(checkSelection, 0); });
   document.addEventListener('mousedown', (e) => { if (!e.target.closest('#selPop')) $('#selPop').hidden = true; });
   $('#selPop button').addEventListener('click', () => {
@@ -1797,10 +1853,17 @@ window.RABBITHOLE_EXAMPLE = {
 
   // ---------------------------------------------------------------- misc UI
   $('#newTopic').onclick = () => { const n = createNode(); setCurrent(n.id); $('#input').focus(); };
+  $('#sideBackdrop').onclick = () => openDrawer(false);
+  $('#drawerClose').onclick = () => openDrawer(false);
+  // Phones: short placeholder, and Enter makes a new line (the Send button sends).
+  const coarse = window.matchMedia('(pointer: coarse)');
+  const narrow = window.matchMedia('(max-width: 760px)');
+  const applyPhoneHints = () => { $('#input').placeholder = narrow.matches ? 'Ask a question…' : 'Ask a question…  (Enter to send, Shift+Enter for a new line)'; };
+  applyPhoneHints(); narrow.addEventListener('change', applyPhoneHints);
   $('#composer').addEventListener('submit', (e) => { e.preventDefault(); send(); });
   $('#stop').onclick = () => controller && controller.abort();
   $('#input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Enter' && !e.shiftKey && !coarse.matches) { e.preventDefault(); send(); }
   });
   $('#input').addEventListener('input', (e) => { e.target.style.height = ''; e.target.style.height = Math.min(e.target.scrollHeight, window.innerHeight * 0.4) + 'px'; });
 
@@ -2010,20 +2073,39 @@ window.RABBITHOLE_EXAMPLE = {
   const mapBody = $('#mapSvg').parentElement;
   // No pointer capture here: capturing would re-target the click to the canvas
   // and node boxes would stop opening. Window listeners track the drag instead.
+  // Two fingers pinch to zoom (touch); one pointer drags.
+  const pts = new Map(); let pinch = null;
+  const midOf = () => { const [a, b] = [...pts.values()]; const r = mapBody.getBoundingClientRect(); return { x: (a.x + b.x) / 2 - r.left, y: (a.y + b.y) / 2 - r.top, d: Math.hypot(a.x - b.x, a.y - b.y) }; };
   const onDragMove = (e) => {
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) {
+      const m = midOf(); drag.moved = true;
+      const k2 = Math.min(3, Math.max(0.25, pinch.k * (m.d / pinch.d)));
+      view.k = k2; view.x = m.x - pinch.cx * k2; view.y = m.y - pinch.cy * k2; applyView();
+      return;
+    }
     if (!drag.on) return;
     const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
     if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
     view.x = drag.ox + dx; view.y = drag.oy + dy; applyView();
   };
-  const endDrag = () => {
-    if (!drag.on) return;
+  const endDrag = (e) => {
+    if (e) pts.delete(e.pointerId);
+    pinch = null;
+    if (pts.size) { drag.on = false; return; }   // other finger still down: stop until it lifts
+    if (!drag.on && !e) return;
     drag.on = false; mapBody.classList.remove('dragging');
     window.removeEventListener('pointermove', onDragMove); window.removeEventListener('pointerup', endDrag); window.removeEventListener('pointercancel', endDrag);
     setTimeout(() => { drag.moved = false; }, 0);
   };
   mapBody.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) {
+      const m = midOf();
+      pinch = { d: m.d, k: view.k, cx: (m.x - view.x) / view.k, cy: (m.y - view.y) / view.k };   // content point under the fingers
+      drag.on = false; drag.moved = true; return;
+    }
     drag.on = true; drag.moved = false; drag.sx = e.clientX; drag.sy = e.clientY; drag.ox = view.x; drag.oy = view.y;
     mapBody.classList.add('dragging');
     window.addEventListener('pointermove', onDragMove); window.addEventListener('pointerup', endDrag); window.addEventListener('pointercancel', endDrag);
