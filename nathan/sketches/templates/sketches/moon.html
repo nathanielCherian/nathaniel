@@ -154,7 +154,7 @@
     h1 { margin-bottom: 8px; }
     .hint { display: none; }
     input[type=number] { width: 60px; }
-    #place { max-width: 120px; }
+    #place { max-width: 130px; }
     #facts { padding: 9px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
     #phase { font-size: 15px; font-weight: 400; }
     #sub { margin: 0; white-space: nowrap; }
@@ -312,7 +312,7 @@ const eclVec = (lon, lat, out) =>
 
 /* ───────────── State ───────────── */
 const PLACES = [
-  ['New York', 40.71, -74.01], ['London', 51.51, -0.13], ['Reykjavík', 64.15, -21.94],
+  ['New York', 40.71, -74.01], ['West Lafayette', 40.43, -86.91], ['London', 51.51, -0.13], ['Reykjavík', 64.15, -21.94],
   ['Cairo', 30.04, 31.24], ['Nairobi', -1.29, 36.82], ['Mumbai', 19.08, 72.88],
   ['Tokyo', 35.68, 139.69], ['Sydney', -33.87, 151.21], ['Honolulu', 21.31, -157.86],
   ['Quito', -0.18, -78.47], ['São Paulo', -23.55, -46.63], ['Cape Town', -33.92, 18.42],
@@ -602,7 +602,7 @@ const mkLabel = (cls, text) => {
 const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].map((n, i) =>
   ({ el: mkLabel('card' + (i % 2 ? ' minor' : ''), n), az: i * 45 }));
 // Far-off places, shown as bearings along the ground.
-const MARKS = [['North Pole', 90, 0], ['New York', 40.71, -74.01], ['London', 51.51, -0.13],
+const MARKS = [['North Pole', 90, 0], ['New York', 40.71, -74.01], ['West Lafayette', 40.43, -86.91], ['London', 51.51, -0.13],
   ['Tokyo', 35.68, 139.69], ['Sydney', -33.87, 151.21], ['São Paulo', -23.55, -46.63]]
   .map(([name, lat, lon]) => ({ name, lat, lon, el: mkLabel('mark', name), az: 0, show: true }));
 function aimMarks() {
