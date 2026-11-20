@@ -177,7 +177,7 @@ def rabbithole(request):
 
 def moon(request):
     meta = {
-        "title":"Moon",
+        "title":"Live 3D Moon Phase Simulator",
         "description":"A live 3D model of the Sun, Earth and Moon next to the sky from wherever you stand. Scrub through a lunar month and watch where the phases come from.",
         "image":"meta/moon.png"
     }
