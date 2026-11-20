@@ -175,6 +175,14 @@ def rabbithole(request):
     }
     return render(request, "sketches/rabbithole.html", context=meta)
 
+def moon(request):
+    meta = {
+        "title":"Moon",
+        "description":"A live 3D model of the Sun, Earth and Moon next to the sky from wherever you stand. Scrub through a lunar month and watch where the phases come from.",
+        "image":"meta/moon.png"
+    }
+    return render(request, "sketches/moon.html", context=meta)
+
 pages = [
     ['', indexv2, 'sketch-index-v2'],
     ['v1/', index, 'sketch-index'],
@@ -200,4 +208,5 @@ pages = [
     ['wordhunt-solver/', wordhunt, 'wordhunt'],
     ['rubiks-state-graph/', rubiks, 'rubiks'],
     ['rabbithole/', rabbithole, 'rabbithole'],
+    ['moon/', moon, 'moon'],
 ]
