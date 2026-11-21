@@ -1,0 +1,1644 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    {% include 'snippets/meta.html'%}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Nathaniel Cherian">
+<meta name="theme-color" content="#06070a">
+<meta name="application-name" content="Empyrean">
+<meta name="apple-mobile-web-app-title" content="Empyrean">
+<meta property="og:site_name" content="Empyrean">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Empyrean",
+  "alternateName": "Empyrean Night Sky Simulator",
+  "description": "Interactive planetarium and 3D star map. Shows the stars, planets, Sun, Moon and constellations as seen from any location on Earth at any date and time from 3000 BC to 3000 AD, next to a 3D map of their true directions and distances around the Sun. Includes a light pollution slider, historic skies, constellation explorer and shareable links.",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Any",
+  "browserRequirements": "Requires JavaScript and WebGL",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "about": [
+    { "@type": "Thing", "name": "Night sky" },
+    { "@type": "Thing", "name": "Constellation" },
+    { "@type": "Thing", "name": "Planet" },
+    { "@type": "Thing", "name": "Star" },
+    { "@type": "Thing", "name": "Astronomy" }
+  ],
+  "keywords": "night sky simulator, interactive star map, online planetarium, 3D star map, constellations, planets tonight, sky on any date, historical night sky, star distances, light pollution simulator, precession, pole star",
+  "author": { "@type": "Person", "name": "Nathaniel Cherian", "url": "https://nathanielc.com" }
+}
+</script>
+<style>
+  :root {
+    --bg: #06070a;
+    --fg: #e6e4df;
+    --mute: #7d7f85;
+    --line: rgba(255, 255, 255, .1);
+    --accent: #e9b872;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.5 ui-sans-serif, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 42vw);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .pane { position: relative; overflow: hidden; min-height: 0; }
+  .pane canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #sky canvas { cursor: move; }
+  #space canvas { cursor: grab; }
+  #side { display: flex; flex-direction: column; border-left: 1px solid var(--line); min-height: 0; }
+  #space { flex: 1 1 0; min-height: 220px; }
+  #bar { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+
+  /* overlays */
+  .hud { position: absolute; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  .tl { top: 18px; left: 20px; }
+  .bl { bottom: 16px; left: 20px; display: flex; gap: 6px; flex-wrap: wrap; }
+  h1 { font-size: 13px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; margin-bottom: 14px; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .hint, .cap { color: var(--mute); font-size: 11px; }
+  .hint { margin-top: 8px; }
+  .cap { position: absolute; left: 14px; top: 12px; right: 14px; letter-spacing: .04em; pointer-events: none; }
+
+  /* labels pinned to things in the 3D views */
+  .lb {
+    position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap;
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--mute);
+    will-change: transform;
+  }
+  .lb > span { position: absolute; transform: translate(-50%, 9px); }
+  #sky .lb { color: rgba(255, 255, 255, .78); text-shadow: 0 0 6px rgba(0, 0, 0, .7); }
+  .lb.star > span { letter-spacing: .05em; text-transform: none; font-size: 10.5px; opacity: .75; }
+  .lb.body > span { color: var(--fg); }
+  .lb.home > span { color: var(--accent); }
+  .lb.con > span { transform: translate(-50%, -50%); font-size: 9px; letter-spacing: .3em; opacity: .38; pointer-events: auto; cursor: pointer; transition: opacity .15s; }
+  .lb.con > span:hover { opacity: .85; }
+  .lb.con.on > span { opacity: 1; color: var(--accent); }
+  .lb.card > span { transform: translate(-50%, -22px); font-size: 11px; }
+  .lb.card.minor > span { opacity: .5; font-size: 9px; }
+  .lb.ring > span { transform: translate(-50%, -50%); letter-spacing: .06em; text-transform: none; opacity: .75; }
+  .lb.dir > span { transform: translate(-50%, -50%); color: var(--fg); opacity: .8; }
+  .lb.up > span { transform: translate(-50%, -18px); color: var(--accent); letter-spacing: .1em; font-size: 8.5px; }
+  /* mini compass: the dial turns so the way you are facing is at the top, under the pointer */
+  #compass { top: 14px; right: 14px; width: 76px; text-align: center; }
+  #compass svg { display: block; width: 76px; height: 76px; overflow: visible; border-radius: 50%; background: rgba(6, 7, 10, .45); backdrop-filter: blur(6px); }
+  #compass circle { fill: none; stroke: rgba(255, 255, 255, .28); }
+  #compass line { stroke: rgba(255, 255, 255, .4); }
+  #compass path { fill: var(--fg); }
+  #compass text { fill: rgba(255, 255, 255, .8); font-size: 12px; text-anchor: middle; dominant-baseline: central; cursor: pointer; user-select: none; }
+  #compass text:hover { fill: #fff; }
+  #compass text.n { fill: var(--accent); font-weight: 600; }
+  #facing { margin-top: 5px; font-size: 10px; letter-spacing: .08em; color: rgba(255, 255, 255, .78); text-shadow: 0 0 6px rgba(0, 0, 0, .7); font-variant-numeric: tabular-nums; }
+  .lb.sel > span {
+    width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%);
+    border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233, 184, 114, .16);
+  }
+  .verse {
+    position: absolute; right: 20px; bottom: 18px; pointer-events: auto; cursor: default;
+    font-size: 9.5px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: rgba(255, 255, 255, .55); text-shadow: 0 0 6px rgba(0, 0, 0, .6);
+  }
+
+  /* about */
+  #about {
+    margin: auto; width: min(580px, calc(100vw - 32px)); max-height: min(88vh, 760px); padding: 0; overflow: auto;
+    color: var(--fg); background: #0b0c10; border: 1px solid var(--line); border-radius: 10px;
+  }
+  #about::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(3px); }
+  #about .in { position: relative; padding: 26px 28px 22px; }
+  #about h2 { font-size: 13px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; margin-bottom: 14px; }
+  #about h3 { font-size: 10px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--mute); margin: 22px 0 8px; }
+  #about p { font-size: 13px; line-height: 1.6; color: #b9b8b4; margin-bottom: 10px; }
+  #about p.fine { font-size: 11px; color: var(--mute); margin: 0 0 6px; }
+  #about p a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  #about p a:hover { color: var(--fg); border-color: var(--mute); }
+  #aboutClose { position: absolute; top: 16px; right: 16px; width: 28px; padding: 0; font-size: 16px; line-height: 1; }
+  #skies { list-style: none; padding: 0; }
+  #skies a { display: block; margin: 0 -11px; padding: 9px 11px; border-radius: 6px; color: inherit; text-decoration: none; }
+  #skies a:hover, #skies a:focus-visible { background: rgba(255, 255, 255, .06); outline: none; }
+  #skies b { font-size: 13px; font-weight: 500; }
+  #skies small { margin-left: 8px; font-size: 11px; color: var(--mute); white-space: nowrap; }
+  #skies span { display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #a5a49f; }
+
+  /* loading screen */
+  #loading {
+    position: fixed; inset: 0; z-index: 20; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    transition: opacity .4s ease, visibility 0s .4s;
+  }
+  #loading.done { opacity: 0; visibility: hidden; pointer-events: none; }
+  #loading .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--fg); animation: twinkle 1.8s ease-in-out infinite; }
+  @keyframes twinkle { 0%, 100% { opacity: .25; box-shadow: 0 0 0 0 rgba(230, 228, 223, 0); } 50% { opacity: 1; box-shadow: 0 0 14px 2px rgba(230, 228, 223, .5); } }
+  #loading h2 { font-size: 13px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; margin-right: -.32em; }
+  #loadMsg { color: var(--mute); font-size: 11px; min-height: 1.5em; text-align: center; padding: 0 20px; }
+  @media (prefers-reduced-motion: reduce) { #loading .dot { animation: none; } }
+
+  /* controls */
+  button, select, input {
+    font: inherit; color: var(--fg); background: transparent;
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; height: 28px;
+    outline: none; transition: border-color .15s, color .15s;
+  }
+  button { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  button:hover, select:hover, input:hover { border-color: rgba(255, 255, 255, .28); }
+  button:focus-visible, select:focus-visible, input:focus-visible { border-color: var(--accent); }
+  button.on { color: var(--accent); border-color: rgba(233, 184, 114, .5); }
+  button svg { width: 9px; height: 9px; fill: currentColor; }
+  button.ico { width: 30px; padding: 0; }
+  button.ico svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  button.ico svg .dot { fill: currentColor; stroke: none; }
+  select { padding-right: 4px; }
+  select option { background: #111317; }
+  input[type=number] { width: 78px; -moz-appearance: textfield; }
+  /* date control: every part is its own small field */
+  .date { display: inline-flex; align-items: center; height: 28px; padding: 0 4px; border: 1px solid var(--line); border-radius: 6px; transition: border-color .15s; }
+  .date:hover { border-color: rgba(255, 255, 255, .28); }
+  .date:focus-within { border-color: var(--accent); }
+  #bar .date input, #bar .date select, #bar .date button {
+    height: 22px; padding: 0 3px; border: 0; border-radius: 4px; background: transparent; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .date input { width: 3ch; box-sizing: content-box; }
+  .date select { appearance: none; -webkit-appearance: none; cursor: pointer; }
+  .date button { color: var(--mute); }
+  .date button:hover { color: var(--fg); }
+  .date input:focus, .date select:focus, .date button:focus-visible { background: rgba(255, 255, 255, .1); }
+  .date .gap { width: 8px; }
+  .date .colon { color: var(--mute); }
+  input[type=number]::-webkit-inner-spin-button { display: none; }
+  input[type=range] { padding: 0; border: 0; height: 28px; accent-color: var(--fg); flex: 1; min-width: 120px; }
+  .search { position: relative; }
+  #place { width: 170px; text-overflow: ellipsis; }
+  #find { width: 150px; }
+  .drop {
+    position: absolute; z-index: 4; top: 33px; left: 0; width: max-content; min-width: 100%; max-width: min(320px, 86vw);
+    max-height: min(300px, 42vh); overflow-y: auto; list-style: none; padding: 4px;
+    border: 1px solid var(--line); border-radius: 6px; background: rgba(10, 11, 14, .96); backdrop-filter: blur(8px);
+  }
+  .search.up .drop { top: auto; bottom: 33px; }                    /* opens upward from the bottom of the pane */
+  .drop li { padding: 6px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drop li small { color: var(--mute); font-size: 11px; margin-left: 7px; }
+  .drop li[aria-selected=true], .drop li[role=option]:hover { background: rgba(255, 255, 255, .08); }
+  .drop li.note { cursor: default; color: var(--mute); font-size: 10px; letter-spacing: .04em; padding-top: 7px; }
+  .glow {
+    display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; white-space: nowrap;
+    border: 1px solid var(--line); border-radius: 6px; background: rgba(6, 7, 10, .55); backdrop-filter: blur(6px);
+  }
+  .glow input[type=range] { flex: 0 0 110px; min-width: 0; height: 20px; background: none; backdrop-filter: none; }
+  #glowCap { color: var(--mute); min-width: 82px; }
+  .hud button, .hud select, .hud input { background: rgba(6, 7, 10, .55); backdrop-filter: blur(6px); }
+
+  #bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 20px; }
+  .grp { display: flex; gap: 6px; align-items: center; }
+  .grow { flex: 1 1 220px; }
+  .mute { color: var(--mute); white-space: nowrap; }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  .credit { font-size: 11px; margin-left: auto; }
+  .credit a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); transition: color .15s, border-color .15s; }
+  .credit a:hover, .credit a:focus-visible { color: var(--fg); border-color: var(--mute); outline: none; }
+
+  /* facts */
+  #facts { border-top: 1px solid var(--line); padding: 18px 20px 20px; }
+  #name { font-size: 22px; font-weight: 300; letter-spacing: .01em; line-height: 1.2; }
+  #sub { color: var(--mute); margin: 4px 0 14px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 18px; }
+  dt { color: var(--mute); }
+  dd { text-align: right; font-variant-numeric: tabular-nums; }
+  dl:not(.picked) .o { display: none; }
+
+  /* Phones and narrow windows: everything fits one screen. */
+  @media (max-width: 820px) {
+    body { overflow: hidden; }
+    #app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
+    #sky { flex: 1.2 1 0; }
+    #side { flex: 1.2 1 0; border-left: 0; border-top: 1px solid var(--line); }
+    #space { min-height: 0; }
+    .tl { top: 12px; left: 12px; right: 12px; }
+    #compass { top: 82px; right: 10px; width: 58px; }
+    #compass svg { width: 58px; height: 58px; }
+    .bl { left: 12px; bottom: 10px; }
+    h1 { margin-bottom: 8px; }
+    .hint, .verse, .glow > span:first-child { display: none; }   /* no room for the verse beside the controls */
+    .glow input[type=range] { flex-basis: 80px; }
+    input[type=number] { width: 60px; }
+    #place, #find { width: 132px; font-size: 16px; }             /* 16px stops iOS zooming the page on focus */
+    #facts { padding: 9px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    #name { font-size: 15px; font-weight: 400; }
+    #sub { margin: 0; text-align: right; }
+    #facts dl { display: none; }
+    #bar { padding: 8px 12px; gap: 6px 8px; justify-content: center; }
+    #bar button, #bar select, #bar input { height: 30px; }
+    .grow { flex: 1 1 130px; }
+    .grow .mute { display: none; }
+    .credit { margin: 0; width: 100%; text-align: center; font-size: 10px; }
+  }
+  @media (max-height: 620px) { #facts dl { display: none; } #sub { margin-bottom: 0; } #space { min-height: 0; } }
+</style>
+</head>
+<body>
+<div id="loading" role="status" aria-live="polite">
+  <div class="dot" aria-hidden="true"></div>
+  <h2>Empyrean</h2>
+  <p id="loadMsg">Loading</p>
+</div>
+<script>
+  // If the 3D library never arrives (offline, CDN blocked), say so instead of spinning forever.
+  window.__loadTimer = setTimeout(function () {
+    document.getElementById('loadMsg').textContent = 'Still loading — this needs an internet connection for the 3D library.';
+  }, 10000);
+</script>
+<main id="app">
+  <section id="sky" class="pane">
+    <canvas role="img" aria-label="The sky as seen from the chosen place and time"></canvas>
+    <div class="lb sel" id="selSky"><span></span></div>
+    <header class="hud tl">
+      <h1>Empyrean</h1>
+      <p class="sr">Empyrean is an interactive night sky simulator and 3D star map. It shows the stars, planets, Sun, Moon and
+        constellations as they appear in the sky from any place on Earth at any time from 3000 BC to 3000 AD,
+        next to a 3D map of where each of them really is in space around the Sun.</p>
+      <div class="row">
+        <div class="search">
+          <input id="place" type="text" role="combobox" aria-label="Search for a city" aria-expanded="false" aria-controls="placeList"
+            aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search a city">
+          <ul id="placeList" class="drop" role="listbox" aria-label="Cities" hidden></ul>
+        </div>
+        <input id="lat" type="number" min="-90" max="90" step="0.01" aria-label="Latitude" title="Latitude (°N)">
+        <input id="lon" type="number" min="-180" max="180" step="0.01" aria-label="Longitude" title="Longitude (°E)">
+        <button id="geo" title="Use my location">Locate me</button>
+      </div>
+      <p class="hint">Drag to look around · scroll to zoom · click a star, planet or constellation name</p>
+      <p class="hint" id="skyCap" style="margin-top:2px"></p>
+    </header>
+    <div class="hud" id="compass" title="Which way the sky view is facing — click a letter to turn that way">
+      <svg viewBox="-50 -50 100 100" role="img" aria-label="Compass">
+        <circle r="40"/>
+        <g id="dial"></g>
+        <path d="M0-49 4.5-40h-9z"/>
+      </svg>
+      <div id="facing"></div>
+    </div>
+    <div class="hud bl">
+      <button id="conBtn" class="on" title="Show constellation figures and names in the sky">Constellations</button>
+      <button id="dayBtn" title="Turn on to see the sky as it really looks by day; off shows the stars that daylight hides">Daylight</button>
+      <div class="search up">
+        <input id="find" type="text" role="combobox" aria-label="Find a star, planet or constellation" aria-expanded="false" aria-controls="findList"
+          aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Find a star, planet…">
+        <ul id="findList" class="drop" role="listbox" aria-label="Matches" hidden></ul>
+      </div>
+      <label class="glow" title="How much city light washes out the sky">
+        <span>Light pollution</span>
+        <input id="glow" type="range" min="0" max="1" step="0.01" value="0.15" aria-label="Light pollution">
+        <span id="glowCap"></span>
+      </label>
+    </div>
+    <div class="verse" title="“The heavens declare the glory of God; the skies proclaim the work of his hands.”">Psalm 19:1</div>
+  </section>
+
+  <aside id="side">
+    <section id="space" class="pane">
+      <canvas role="img" aria-label="3D map of the planets and stars around the Sun"></canvas>
+      <div class="lb sel" id="selSpace"><span></span></div>
+      <div class="cap" id="spaceCap"></div>
+      <div class="hud bl">
+        <button id="scaleBtn" title="Switch between a logarithmic and a true distance scale">Distance · logarithmic</button>
+        <button id="hzBtn" class="on" title="Mark the half of space that is above your horizon right now">My horizon</button>
+        <button id="figBtn" class="on" hidden title="Join up the selected constellation's stars on the map">Lines</button>
+        <button id="fovBtn" class="on" title="Show the part of space the sky view on the left is looking at. Click to switch: straight (simplified) → true (bent, as the log scale really makes it) → off">Field of view · straight</button>
+      </div>
+    </section>
+    <section id="facts">
+      <div id="name">—</div>
+      <div id="sub">—</div>
+      <dl id="rows">
+        <dt class="o">Distance from Earth</dt><dd class="o" id="fDist"></dd>
+        <dt class="o">Its light left</dt><dd class="o" id="fLight"></dd>
+        <dt class="o">Brightness</dt><dd class="o" id="fMag"></dd>
+        <dt class="o">Altitude</dt><dd class="o" id="fAlt"></dd>
+        <dt class="o">Azimuth</dt><dd class="o" id="fAz"></dd>
+        <dt>Up now</dt><dd id="fUp"></dd>
+        <dt>Sun</dt><dd id="fSun"></dd>
+        <dt>Local solar time</dt><dd id="fSolar"></dd>
+        <dt>UTC</dt><dd id="fUtc"></dd>
+      </dl>
+    </section>
+  </aside>
+
+  <footer id="bar">
+    <div class="grp">
+      <div id="when" class="date" role="group" aria-label="Date and time at the chosen place"
+        title="Click a part to type, or press ↑ ↓ to step it. Dates use today's Gregorian calendar throughout, even before it existed.">
+        <input data-part="day" inputmode="numeric" maxlength="2" aria-label="Day">
+        <select data-part="month" aria-label="Month"></select>
+        <input data-part="year" inputmode="numeric" maxlength="6" aria-label="Year">
+        <button data-part="era" aria-label="Era — click to switch between AD and BC">AD</button>
+        <span class="gap"></span>
+        <input data-part="hour" inputmode="numeric" maxlength="2" aria-label="Hour"><span class="colon">:</span><input data-part="minute" inputmode="numeric" maxlength="2" aria-label="Minute">
+        <button data-part="ampm" aria-label="am or pm — click to switch">am</button>
+      </div>
+      <span class="mute" id="tz" title="The clock shown is the time at the chosen place. Where the place has no known time zone, and for any date before 1900 (before time zones were in use), it is mean solar time for that longitude."></span>
+      <button id="now">Now</button>
+      <span class="mute" id="eraNote" hidden title="Planets and Moon are modelled for 3000 BC – 3000 AD; outside that they drift">approximate this far out</span>
+    </div>
+    <div class="grp">
+      <button data-step="-86400000" title="Back one day">−1 d</button>
+      <button data-step="-3600000" title="Back one hour">−1 h</button>
+      <button id="rev" aria-label="Play backward" title="Play backward"><svg viewBox="0 0 10 10"><path d="M9 0v10L1 5z"/></svg></button>
+      <button id="pause" aria-label="Pause" title="Pause"><svg viewBox="0 0 10 10"><path d="M1 0h3v10H1zM6 0h3v10H6z"/></svg></button>
+      <button id="fwd" aria-label="Play forward" title="Play forward"><svg viewBox="0 0 10 10"><path d="M1 0v10l8-5z"/></svg></button>
+      <button data-step="3600000" title="Forward one hour">+1 h</button>
+      <button data-step="86400000" title="Forward one day">+1 d</button>
+    </div>
+    <div class="grp">
+      <select id="rate" aria-label="Speed">
+        <option value="1">Real time</option>
+        <option value="60">1 min / s</option>
+        <option value="600">10 min / s</option>
+        <option value="3600">1 hour / s</option>
+        <option value="86400">1 day / s</option>
+        <option value="604800">1 week / s</option>
+        <option value="2592000">1 month / s</option>
+        <option value="31557600">1 year / s</option>
+        <option value="315576000">10 years / s</option>
+        <option value="3155760000">100 years / s</option>
+      </select>
+    </div>
+    <div class="grp grow">
+      <input id="scrub" type="range" min="-1" max="1" step="0.0005" value="0" aria-label="Scrub through a day either side" title="Drag to scrub up to a day either side">
+    </div>
+    <div class="grp">
+      <button id="share" class="ico" aria-label="Share this sky" title="Share this sky — copy a link that opens this exact place, moment, direction and settings">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M5 4.6 8 1.6l3 3M3.5 7.5v6h9v-6"/></svg></button>
+      <button id="music" class="ico" aria-label="Music" title="Play background music on loop" aria-pressed="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12.4V3.2l6.8-1.4v9.3"/><circle class="dot" cx="4.2" cy="12.4" r="1.9"/><circle class="dot" cx="11" cy="11.1" r="1.9"/></svg></button>
+      <button id="aboutBtn" class="ico" aria-label="About" title="About — what this is, and some skies worth seeing" style="font-size:13px">?</button>
+    </div>
+    <div class="credit mute"><a href="https://nathanielc.com/sketches/moon/" target="_blank" rel="noopener">Lunation</a> · Created by <a href="https://nathanielc.com" target="_blank" rel="noopener">Nathaniel Cherian</a> with Fable 5.2</div>
+  </footer>
+</main>
+<dialog id="about" aria-labelledby="aboutTitle">
+  <div class="in">
+    <button id="aboutClose" aria-label="Close">×</button>
+    <h2 id="aboutTitle">Empyrean</h2>
+    <p>The sky from any place on Earth, at any moment from 3000 BC to 3000 AD, beside a map of where each of those lights really is.</p>
+    <p>The left view is what you would see looking up. The right view puts the same stars and planets at their true directions and
+      distances around the Sun. Click anything to find it in both.</p>
+    <h3>Skies worth seeing</h3>
+    <ul id="skies"></ul>
+    <h3>Made with</h3>
+    <p class="fine">Created by <a href="https://nathanielc.com" target="_blank" rel="noopener">Nathaniel Cherian</a> with Fable 5.2.
+      Companion to <a href="https://nathanielc.com/sketches/moon/" target="_blank" rel="noopener">Lunation</a>.</p>
+    <p class="fine">Stars: HYG database (CC BY-SA). Constellation figures: d3-celestial. Planets: JPL approximate elements. Moon: Meeus.
+      Precession: Vondrák, Capitaine &amp; Wallace. Historical dates use the Gregorian calendar throughout, and clock times in the
+      distant past are uncertain by minutes to hours because Earth’s spin is not perfectly steady.</p>
+  </div>
+</dialog>
+<noscript>
+  <div style="position:fixed;inset:0;z-index:30;background:#06070a;padding:24px">
+    <h1>Empyrean — Interactive Night Sky and 3D Star Map</h1>
+    <p>Empyrean shows the night sky from any place on Earth at any moment from 3000 BC to 3000 AD: the stars, planets, Sun,
+      Moon and constellations, beside a 3D map of where each of them really is in space. It needs JavaScript and WebGL to run.</p>
+  </div>
+</noscript>
+
+<script src="{% static 'sketches/sky/sky-data.js' %}"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const DATA = window.SKY_DATA;
+if (!DATA) { document.getElementById('loadMsg').textContent = 'Star data is missing — sky-data.js must sit next to this page.'; throw new Error('sky-data.js not loaded'); }
+
+const RAD = Math.PI / 180, DAY = 864e5, EARTH_KM = 6378.14, AU_KM = 149597870.7, LY_AU = 63241.08, EARTH_AU = EARTH_KM / AU_KM;
+const $ = s => document.querySelector(s);
+const norm360 = x => ((x % 360) + 360) % 360;
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const V = () => new THREE.Vector3();
+const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), O = new THREE.Vector3();
+
+/* ───────────── Astronomy ─────────────
+   Working frame: ecliptic and equinox of J2000. x → vernal equinox, y → ecliptic north, z = −(lon 90°).
+   Built to stay within a fraction of a degree from 3000 BC to 3000 AD:
+   · Planets and Sun: JPL "Approximate Positions of the Planets" (Standish), the 3000 BC – 3000 AD element set.
+   · Moon: the main terms of Meeus' lunar theory (Astronomical Algorithms ch. 47), whose arguments carry the slow
+     accelerations that matter over millennia.
+   · Precession of Earth's axis and of the ecliptic: Vondrák, Capitaine & Wallace (2011) long-term model.
+   · Stars drift by their measured proper motion and radial velocity.
+   · ΔT (how far Earth's slowing spin has drifted from uniform time): Espenak & Meeus polynomials. This is the one
+     thing nobody knows exactly for ancient dates — positions among the stars stay right, clock times get vaguer. */
+const daysJ2000 = ms => ms / DAY - 10957.5;
+const sind = d => Math.sin(d * RAD), cosd = d => Math.cos(d * RAD);
+const eclVec = (lon, lat, out) =>
+  out.set(Math.cos(lat) * Math.cos(lon), Math.sin(lat), -Math.cos(lat) * Math.sin(lon));
+const ARCSEC = RAD / 3600, OBLIQ0 = 84381.406 * ARCSEC, SIN0 = Math.sin(OBLIQ0), COS0 = Math.cos(OBLIQ0);
+// A vector given in the usual J2000 equatorial axes (x → equinox, y → RA 6h, z → north pole), put into the working frame.
+const fromEq = (x, y, z, out) => out.set(x, -y * SIN0 + z * COS0, -(y * COS0 + z * SIN0));
+
+// ΔT = TT − UT in seconds, for a decimal year.
+function deltaT(y) {
+  const poly = (t, c) => c.reduceRight((acc, k) => acc * t + k, 0);
+  if (y < -500 || y >= 2150) return -20 + 32 * ((y - 1820) / 100) ** 2;
+  if (y < 500) return poly(y / 100, [10583.6, -1014.41, 33.78311, -5.952053, -0.1798452, 0.022174192, 0.0090316521]);
+  if (y < 1600) return poly((y - 1000) / 100, [1574.2, -556.01, 71.23472, 0.319781, -0.8503463, -0.005050998, 0.0083572073]);
+  if (y < 1700) return poly(y - 1600, [120, -0.9808, -0.01532, 1 / 7129]);
+  if (y < 1800) return poly(y - 1700, [8.83, 0.1603, -0.0059285, 0.00013336, -1 / 1174000]);
+  if (y < 1860) return poly(y - 1800, [13.72, -0.332447, 0.0068612, 0.0041116, -0.00037436, 0.0000121272, -0.0000001699, 0.000000000875]);
+  if (y < 1900) return poly(y - 1860, [7.62, 0.5737, -0.251754, 0.01680668, -0.0004473624, 1 / 233174]);
+  if (y < 1920) return poly(y - 1900, [-2.79, 1.494119, -0.0598939, 0.0061966, -0.000197]);
+  if (y < 1941) return poly(y - 1920, [21.20, 0.84493, -0.076100, 0.0020936]);
+  if (y < 1961) return poly(y - 1950, [29.07, 0.407, -1 / 233, 1 / 2547]);
+  if (y < 1986) return poly(y - 1975, [45.45, 1.067, -1 / 260, -1 / 718]);
+  if (y < 2005) return poly(y - 2000, [63.86, 0.3345, -0.060374, 0.0017275, 0.000651814, 0.00002373599]);
+  if (y < 2050) return poly(y - 2000, [62.92, 0.32217, 0.005589]);
+  return -20 + 32 * ((y - 1820) / 100) ** 2 - 0.5628 * (2150 - y);
+}
+
+// Long-term precession: unit vectors toward the celestial pole and the ecliptic pole of date. T in Julian centuries from J2000.
+const ECL_PER = [[708.15, -5486.751211, -684.661560, 667.666730, -5523.863691], [2309.00, -17.127623, 2446.283880, -2354.886252, -549.747450],
+  [1620.00, -617.517403, 399.671049, -428.152441, -310.998056], [492.20, 413.442940, -356.652376, 376.202861, 421.535876],
+  [1183.00, 78.614193, -186.387003, 184.778874, -36.776172], [622.00, -180.732815, -316.800070, 335.321713, -145.278396],
+  [882.00, -87.676083, 198.296701, -185.138669, -34.744450], [547.00, 46.140315, 101.135679, -120.972830, 22.885731]];
+const ECL_POL = [[5851.607687, -0.1189000, -0.00028913, 0.000000101], [-1600.886300, 1.1689818, -0.00000020, -0.000000437]];
+const EQU_PER = [[256.75, -819.940624, 75004.344875, 81491.287984, 1558.515853], [708.15, -8444.676815, 624.033993, 787.163481, 7774.939698],
+  [274.20, 2600.009459, 1251.136893, 1251.296102, -2219.534038], [241.45, 2755.175630, -1102.212834, -1257.950837, -2523.969396],
+  [2309.00, -167.659835, -2660.664980, -2966.799730, 247.850422], [492.20, 871.855056, 699.291817, 639.744522, -846.485643],
+  [396.10, 44.769698, 153.167220, 131.600209, -1393.124055], [288.90, -512.313065, -950.865637, -445.040117, 368.526116],
+  [231.10, -819.415595, 499.754645, 584.522874, 749.045012], [1610.00, -538.071099, -145.188210, -89.756563, 444.704518],
+  [620.00, -189.793622, 558.116553, 524.429630, 235.934465], [157.87, -402.922932, -23.923029, -13.549067, 374.049623],
+  [220.30, 179.516345, -165.405086, -210.157124, -171.330180], [1200.00, -9.814756, 9.344131, -44.919798, -22.899655]];
+const EQU_POL = [[5453.282155, 0.4252841, -0.00037173, -0.000000152], [-73750.930350, -0.7675452, -0.00018725, 0.000000231]];
+function precSeries(T, per, pol) {
+  let a = 0, b = 0, w = 1;
+  for (const [period, ca, cb, sa, sb] of per) {
+    const arg = 2 * Math.PI * T / period, s = Math.sin(arg), c = Math.cos(arg);
+    a += c * ca + s * sa; b += c * cb + s * sb;
+  }
+  for (let i = 0; i < 4; i++) { a += pol[0][i] * w; b += pol[1][i] * w; w *= T; }
+  return [a * ARCSEC, b * ARCSEC];
+}
+function polesOfDate(T, pole, eclPole) {
+  const [x, y] = precSeries(T, EQU_PER, EQU_POL), [p, q] = precSeries(T, ECL_PER, ECL_POL);
+  const w = Math.sqrt(Math.max(0, 1 - p * p - q * q));
+  fromEq(x, y, Math.sqrt(Math.max(0, 1 - x * x - y * y)), pole);
+  fromEq(p, -q * COS0 - w * SIN0, -q * SIN0 + w * COS0, eclPole);
+}
+
+// Moon: [D, M, M′, F multipliers, longitude 1e-6° (sine), distance m (cosine)], then [D, M, M′, F, latitude 1e-6° (sine)].
+const MOON_LR = [[0, 0, 1, 0, 6288774, -20905355], [2, 0, -1, 0, 1274027, -3699111], [2, 0, 0, 0, 658314, -2955968], [0, 0, 2, 0, 213618, -569925],
+  [0, 1, 0, 0, -185116, 48888], [0, 0, 0, 2, -114332, -3149], [2, 0, -2, 0, 58793, 246158], [2, -1, -1, 0, 57066, -152138],
+  [2, 0, 1, 0, 53322, -170733], [2, -1, 0, 0, 45758, -204586], [0, 1, -1, 0, -40923, -129620], [1, 0, 0, 0, -34720, 108743],
+  [0, 1, 1, 0, -30383, 104755], [2, 0, 0, -2, 15327, 10321], [0, 0, 1, 2, -12528, 0], [0, 0, 1, -2, 10980, 79661],
+  [4, 0, -1, 0, 10675, -34782], [0, 0, 3, 0, 10034, -23210], [4, 0, -2, 0, 8548, -21636], [2, 1, -1, 0, -7888, 24208],
+  [2, 1, 0, 0, -6766, 30824], [1, 0, -1, 0, -5163, -8379], [1, 1, 0, 0, 4987, -16675], [2, -1, 1, 0, 4036, -12831],
+  [2, 0, 2, 0, 3994, -10445], [4, 0, 0, 0, 3861, -11650], [2, 0, -3, 0, 3665, 14403]];
+const MOON_B = [[0, 0, 0, 1, 5128122], [0, 0, 1, 1, 280602], [0, 0, 1, -1, 277693], [2, 0, 0, -1, 173237], [2, 0, -1, 1, 55413],
+  [2, 0, -1, -1, 46271], [2, 0, 0, 1, 32573], [0, 0, 2, 1, 17198], [2, 0, 1, -1, 9266], [0, 0, 2, -1, 8822],
+  [2, -1, 0, -1, 8216], [2, 0, -2, -1, 4324], [2, 0, 1, 1, 4200], [2, 1, 0, -1, -3359]];
+function moonEcl(T) {                                            // ecliptic of date; r in Earth radii
+  const T2 = T * T, T3 = T2 * T, T4 = T3 * T;
+  const Lp = 218.3164477 + 481267.88123421 * T - 0.0015786 * T2 + T3 / 538841 - T4 / 65194000;
+  const D = 297.8501921 + 445267.1114034 * T - 0.0018819 * T2 + T3 / 545868 - T4 / 113065000;
+  const M = 357.5291092 + 35999.0502909 * T - 0.0001536 * T2 + T3 / 24490000;
+  const Mp = 134.9633964 + 477198.8675055 * T + 0.0087414 * T2 + T3 / 69699 - T4 / 14712000;
+  const F = 93.2720950 + 483202.0175233 * T - 0.0036539 * T2 - T3 / 3526000 + T4 / 863310000;
+  const E = 1 - 0.002516 * T - 0.0000074 * T2, A1 = 119.75 + 131.849 * T, A2 = 53.09 + 479264.290 * T, A3 = 313.45 + 481266.484 * T;
+  let sl = 3958 * sind(A1) + 1962 * sind(Lp - F) + 318 * sind(A2), sr = 0;
+  let sb = -2235 * sind(Lp) + 382 * sind(A3) + 175 * sind(A1 - F) + 175 * sind(A1 + F) + 127 * sind(Lp - Mp) - 115 * sind(Lp + Mp);
+  for (const [d, m, mp, f, l, r] of MOON_LR) {
+    const arg = d * D + m * M + mp * Mp + f * F, e = m ? E : 1;
+    sl += l * e * sind(arg); sr += r * e * cosd(arg);
+  }
+  for (const [d, m, mp, f, b] of MOON_B) sb += b * (m ? E : 1) * sind(d * D + m * M + mp * Mp + f * F);
+  return { lon: (Lp + sl / 1e6) * RAD, lat: sb / 1e6 * RAD, r: (385000.56 + sr / 1000) / EARTH_KM };
+}
+
+// name, colour, [a (AU), e, I°, L°, ϖ°, Ω°] at J2000, the same per Julian century, magnitude at 1 AU, phase coefficient,
+// and for the outer planets the extra mean-anomaly terms [b, c, s, f] that keep them right over six thousand years.
+const PLANETS = [
+  ['Mercury', 0xb9b2a8, [0.38709843, 0.20563661, 7.00559432, 252.25166724, 77.45771895, 48.33961819],
+    [0.00000000, 0.00002123, -0.00590158, 149472.67486623, 0.15940013, -0.12214182], -0.42, 0.038],
+  ['Venus', 0xf3e7c4, [0.72332102, 0.00676399, 3.39777545, 181.97970850, 131.76755713, 76.67261496],
+    [-0.00000026, -0.00005107, 0.00043494, 58517.81560260, 0.05679648, -0.27274174], -4.40, 0.012],
+  ['Earth', 0x6fa8dc, [1.00000018, 0.01673163, -0.00054346, 100.46691572, 102.93005885, -5.11260389],
+    [-0.00000003, -0.00003661, -0.01337178, 35999.37306329, 0.31795260, -0.24123856], 0, 0],
+  ['Mars', 0xe2734d, [1.52371243, 0.09336511, 1.85181869, -4.56813164, -23.91744784, 49.71320984],
+    [0.00000097, 0.00009149, -0.00724757, 19140.29934243, 0.45223625, -0.26852431], -1.52, 0.016],
+  ['Jupiter', 0xe3c9a1, [5.20248019, 0.04853590, 1.29861416, 34.33479152, 14.27495244, 100.29282654],
+    [-0.00002864, 0.00018026, -0.00322699, 3034.90371757, 0.18199196, 0.13024619], -9.40, 0.005, [-0.00012452, 0.06064060, -0.35635438, 38.35125000]],
+  ['Saturn', 0xe6d49a, [9.54149883, 0.05550825, 2.49424102, 50.07571329, 92.86136063, 113.63998702],
+    [-0.00003065, -0.00032044, 0.00451969, 1222.11494724, 0.54179478, -0.25015002], -8.88, 0.004, [0.00025899, -0.13434469, 0.87320147, 38.35125000]],
+  ['Uranus', 0xa8e0e3, [19.18797948, 0.04685740, 0.77298127, 314.20276625, 172.43404441, 73.96250215],
+    [-0.00020455, -0.00001550, -0.00180155, 428.49512595, 0.09266985, 0.05739699], -7.19, 0.002, [0.00058331, -0.97731848, 0.17689245, 7.67025000]],
+  ['Neptune', 0x6f8ff0, [30.06952752, 0.00895439, 1.77005520, 304.22289287, 46.68158724, 131.78635853],
+    [0.00006447, 0.00000818, 0.00022400, 218.46515314, 0.01009938, -0.00606302], -6.87, 0.001, [-0.00041348, 0.68346318, -0.10162547, 7.67025000]],
+];
+const NP = PLANETS.length, EARTH = 2;
+// Heliocentric position in AU. `anomaly` (radians) overrides the mean anomaly, for tracing the whole orbit.
+function helio(k, T, out, anomaly) {
+  const el = PLANETS[k][2], dl = PLANETS[k][3], x = PLANETS[k][6];
+  const a = el[0] + dl[0] * T, e = el[1] + dl[1] * T, I = (el[2] + dl[2] * T) * RAD,
+    L = el[3] + dl[3] * T, wb = el[4] + dl[4] * T, Om = (el[5] + dl[5] * T) * RAD;
+  const extra = x ? x[0] * T * T + x[1] * cosd(x[3] * T) + x[2] * sind(x[3] * T) : 0;
+  const M = anomaly ?? (norm360(L - wb + extra + 180) - 180) * RAD, w = wb * RAD - Om;
+  let E = M + e * Math.sin(M);
+  for (let i = 0; i < 8; i++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  const xp = a * (Math.cos(E) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
+  const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(Om), sO = Math.sin(Om), cI = Math.cos(I), sI = Math.sin(I);
+  const X1 = (cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp;
+  const Y1 = (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp;
+  const Z1 = sw * sI * xp + cw * sI * yp;
+  return out.set(X1, Z1, -Y1);
+}
+
+/* ───────────── State ───────────── */
+const PLACES = [
+  ['New York', 40.71, -74.01, 'America/New_York'], ['West Lafayette', 40.43, -86.91, 'America/Indiana/Indianapolis'], ['London', 51.51, -0.13, 'Europe/London'], ['Reykjavík', 64.15, -21.94, 'Atlantic/Reykjavik'],
+  ['Cairo', 30.04, 31.24, 'Africa/Cairo'], ['Nairobi', -1.29, 36.82, 'Africa/Nairobi'], ['Mumbai', 19.08, 72.88, 'Asia/Kolkata'],
+  ['Tokyo', 35.68, 139.69, 'Asia/Tokyo'], ['Sydney', -33.87, 151.21, 'Australia/Sydney'], ['Honolulu', 21.31, -157.86, 'Pacific/Honolulu'],
+  ['Quito', -0.18, -78.47, 'America/Guayaquil'], ['São Paulo', -23.55, -46.63, 'America/Sao_Paulo'], ['Cape Town', -33.92, 18.42, 'Africa/Johannesburg'],
+  ['Longyearbyen', 78.22, 15.65, 'Arctic/Longyearbyen'], ['McMurdo Station', -77.85, 166.67, 'Antarctica/McMurdo'],
+];
+const S = {
+  t: Date.now(), dir: 1, rate: 1, anchor: Date.now(),
+  lat: PLACES[0][1], lon: PLACES[0][2],
+  tz: null,                               // the place's time zone (IANA name) when known
+  az: 180, alt: 28, aim: null, turn: null,            // sky camera, and the object it is turning toward
+  con: null,                              // the one constellation picked out, if any
+  cons: true, daylight: false, horizon: true, fov: 1,                                 // field-of-view beam: 0 off, 1 straight (simplified), 2 true shape
+  figure: true, linear: false,
+  glow: 0.15,                             // light pollution: 0 wilderness … 1 city centre
+  sel: null,
+};
+
+/* ───────────── Catalogue ───────────── */
+const STRIDE = 8, NS = DATA.stars.length / STRIDE;
+const star = (i, f) => DATA.stars[i * STRIDE + f];               // f: 0 RA°, 1 Dec°, 2 mag, 3 light-years, 4 B−V, 5–6 proper motion, 7 radial velocity
+const eqVec = (raDeg, decDeg, out) => eclVec(raDeg * RAD, decDeg * RAD, out).applyAxisAngle(X, -OBLIQ0);
+// Where each star is, how far and how bright — for the year being shown (see driftStars).
+const starDir = new Float32Array(NS * 3), starMag = new Float32Array(NS), starLy = new Float32Array(NS), starTint = new Float32Array(NS * 3);
+const BV = [[-0.4, .62, .72, 1], [0, .82, .87, 1], [0.4, 1, .98, .95], [0.7, 1, .94, .82], [1.1, 1, .84, .64], [1.5, 1, .73, .5], [2, 1, .62, .42]];
+function bvColor(bv, out, at) {
+  let i = 0; while (i < BV.length - 2 && bv > BV[i + 1][0]) i++;
+  const a = BV[i], b = BV[i + 1], k = clamp((bv - a[0]) / (b[0] - a[0]), 0, 1);
+  for (let c = 0; c < 3; c++) out[at + c] = a[c + 1] + (b[c + 1] - a[c + 1]) * k;
+}
+for (let i = 0; i < NS; i++) bvColor(star(i, 4), starTint, i * 3);
+// Carry every star along its straight path through space to `years` from J2000: direction, distance and brightness all shift.
+const MAS = ARCSEC / 1000, C_KMS = 299792.458;
+function driftStars(years) {
+  const v = V();
+  for (let i = 0; i < NS; i++) {
+    const ra = star(i, 0) * RAD, dec = star(i, 1) * RAD, ly = star(i, 3);
+    const cr = Math.cos(ra), sr = Math.sin(ra), cd = Math.cos(dec), sd = Math.sin(dec);
+    const ma = star(i, 5) * MAS * years, md = star(i, 6) * MAS * years, rr = ly > 0 ? 1 + star(i, 7) / C_KMS * years / ly : 1;
+    const x = cd * cr * rr - sr * ma - sd * cr * md, y = cd * sr * rr + cr * ma - sd * sr * md, z = sd * rr + cd * md, len = Math.hypot(x, y, z);
+    fromEq(x / len, y / len, z / len, v).toArray(starDir, i * 3);
+    starLy[i] = ly * len; starMag[i] = star(i, 2) + 5 * Math.log10(len);
+  }
+}
+driftStars(0);
+// Everything that can be labelled, found and selected.
+const objects = [{ kind: 'sun', name: 'Sun' }, { kind: 'moon', name: 'Moon' }];
+PLANETS.forEach((p, k) => objects.push({ kind: 'planet', name: p[0], k }));
+const starObj = [];
+for (let i = 0; i < NS; i++) objects.push(starObj[i] = { kind: 'star', name: DATA.names[i] || '', i });
+// Constellations: the stars that make up each figure, and where its lines sit in the shared line buffer.
+const cons = [];
+{
+  let at = 0;
+  for (const [id, seg] of DATA.lines) {
+    const c = DATA.cons[id];
+    if (c) cons.push({ kind: 'con', id, name: c[0], dir: eqVec(c[1], c[2], V()), stars: [...new Set(seg)].sort((a, b) => a - b), segStart: at, segCount: seg.length });
+    at += seg.length;
+  }
+}
+const sunObj = objects[0], moonObj = objects[1], planetObj = k => objects[2 + k];
+
+/* ───────────── Shared drawing bits ───────────── */
+function makeRenderer(canvas) {
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true });
+  r.setPixelRatio(Math.min(devicePixelRatio, 2));
+  return r;
+}
+const PX_RATIO = Math.min(devicePixelRatio, 2);
+function glowTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'), r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  r.addColorStop(0, 'rgba(255,246,228,1)'); r.addColorStop(.15, 'rgba(255,240,210,1)');
+  r.addColorStop(.19, 'rgba(255,220,160,.4)'); r.addColorStop(.5, 'rgba(255,200,130,.08)');
+  r.addColorStop(1, 'rgba(255,190,120,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const glow = glowTexture();
+const sunSprite = () => new THREE.Sprite(new THREE.SpriteMaterial(
+  { map: glow, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false }));
+// Points sized by magnitude. uLim is the faintest magnitude visible; uUp (when uFade is on) dims the half of space below the horizon.
+const pointMaterial = () => new THREE.ShaderMaterial({
+  transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+  uniforms: { uLim: { value: 100 }, uPx: { value: PX_RATIO }, uFade: { value: 0 }, uUp: { value: V() } },
+  vertexShader: `attribute float mag; attribute vec3 tint;
+    uniform float uLim, uPx, uFade; uniform vec3 uUp;
+    varying vec3 vCol; varying float vA;
+    void main() {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = clamp(7.8 - 1.2 * mag, 1.8, 14.0) * uPx;
+      float a = clamp(1.12 - 0.15 * mag, 0.3, 1.0) * smoothstep(-0.3, 1.2, uLim - mag);
+      if (uFade > 0.5 && dot(position, uUp) < 0.0) a *= 0.16;
+      vCol = tint; vA = a;
+    }`,
+  fragmentShader: `varying vec3 vCol; varying float vA;
+    void main() {
+      float r = length(gl_PointCoord - 0.5) * 2.0;
+      gl_FragColor = vec4(vCol, vA * smoothstep(1.0, 0.2, r));
+      #include <colorspace_fragment>
+    }`,
+});
+function makePoints(n, mags, tints) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  g.setAttribute('mag', new THREE.BufferAttribute(mags, 1));
+  g.setAttribute('tint', new THREE.BufferAttribute(tints, 3));
+  const p = new THREE.Points(g, pointMaterial()); p.frustumCulled = false; return p;
+}
+const lineMat = (color, opacity) => new THREE.LineBasicMaterial({ color, opacity, transparent: true, depthTest: false, depthWrite: false });
+const SEG = DATA.lines.flatMap(l => l[1]);                       // star-index pairs for every constellation line
+const makeLines = n => {
+  const l = new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)), lineMat(0x9fb6d8, .2));
+  l.frustumCulled = false; return l;
+};
+const planetTint = new Float32Array(NP * 3);
+PLANETS.forEach((p, k) => new THREE.Color(p[1]).toArray(planetTint, k * 3));
+
+/* ───────────── Sky view (observer's horizon frame: x east, y up, z south) ───────────── */
+const skEl = $('#sky'), skCanvas = skEl.querySelector('canvas');
+const rK = makeRenderer(skCanvas);
+const sceneK = new THREE.Scene();
+const camK = new THREE.PerspectiveCamera(70, 1, 0.1, 9000);
+const DISC = 4;                                                   // Sun and Moon discs are drawn this many times too big
+const dome = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 24), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, depthTest: false,
+  uniforms: { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() } },
+  vertexShader: `varying vec3 vDir;
+    void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform vec3 top; uniform vec3 hor; varying vec3 vDir;
+    void main() {
+      float t = pow(1.0 - clamp(normalize(vDir).y, 0.0, 1.0), 4.0);
+      gl_FragColor = vec4(mix(top, hor, t), 1.0);
+      #include <colorspace_fragment>
+    }`,
+}));
+dome.renderOrder = -1;
+const starsK = makePoints(NS, starMag, starTint);
+const linesK = makeLines(SEG.length);
+const planetMagK = new Float32Array(NP), planetsK = makePoints(NP, planetMagK, planetTint);
+const moonMat = new THREE.MeshLambertMaterial({ color: 0xb8b6b0, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false });
+const moonK = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), moonMat);
+const lightK = new THREE.DirectionalLight(0xffffff, 3.2);
+const sunK = sunSprite();
+
+// Ground: a flat plane at eye height below the camera, drawn last so it hides everything under the horizon.
+const EYE = 1.7, GROUND_R = 4000;
+const overlay = o => ({ transparent: true, depthTest: false, depthWrite: false, ...o });
+const ground = new THREE.Mesh(new THREE.CircleGeometry(GROUND_R, 96).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial(overlay({})));
+const ringPts = (r, n = 128) => Array.from({ length: n }, (_, i) =>
+  new THREE.Vector3(Math.cos(i / n * 2 * Math.PI) * r, 0, Math.sin(i / n * 2 * Math.PI) * r));
+const gridPts = [];
+for (const r of [4, 8, 16, 32, 64, 128, 256, 512]) {
+  const ring = ringPts(r, 96); ring.forEach((q, i) => gridPts.push(q, ring[(i + 1) % ring.length]));
+}
+for (let a = 0; a < 360; a += 15)
+  gridPts.push(new THREE.Vector3(Math.sin(a * RAD) * 4, 0, -Math.cos(a * RAD) * 4),
+               new THREE.Vector3(Math.sin(a * RAD) * GROUND_R, 0, -Math.cos(a * RAD) * GROUND_R));
+const grid = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(gridPts),
+  new THREE.LineBasicMaterial(overlay({ color: 0xffffff, opacity: .07 })));
+const horizonK = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ringPts(GROUND_R)),
+  new THREE.LineBasicMaterial(overlay({ color: 0xffffff, opacity: .5 })));
+ground.position.y = grid.position.y = horizonK.position.y = -EYE;
+ground.renderOrder = 10; grid.renderOrder = 11; horizonK.renderOrder = 12;
+sceneK.add(dome, linesK, starsK, planetsK, moonK, lightK, sunK, ground, grid, horizonK, new THREE.AmbientLight(0xffffff, .035));
+
+/* ───────────── Space view: a map centred on the Sun ─────────────
+   Directions are true; distance is drawn on a log scale (each ring is 10× farther than the last), because the nearest
+   star is ~9,000× farther than Neptune. The "true scale" toggle shows the same map without the compression. */
+const spEl = $('#space'), spCanvas = spEl.querySelector('canvas');
+const rS = makeRenderer(spCanvas); rS.setClearColor(0x06070a);
+const sceneS = new THREE.Scene();
+const camS = new THREE.PerspectiveCamera(40, 1, 0.01, 1000); camS.position.set(-9, 14, 18);
+const orbit = new OrbitControls(camS, spCanvas);
+orbit.enableDamping = true; orbit.enablePan = false;
+const mapR = au => S.linear ? au : Math.log10(1 + 10 * au);     // AU → scene units
+const mapVec = (v, out) => { const d = v.length(); return d ? out.copy(v).multiplyScalar(mapR(d) / d) : out.set(0, 0, 0); };
+const LOG_EDGE = 9.45;                                            // just outside the farthest star on the log map
+
+const starsS = makePoints(NS, new Float32Array(NS), starTint);
+const starPos = starsS.geometry.attributes.position;
+const linesS = makeLines(SEG.length); linesS.material.opacity = .45; linesS.visible = false;   // only ever shows the picked constellation's figure
+const planetTintS = planetTint.slice(), planetsS = makePoints(NP, new Float32Array(NP).fill(-1.5), planetTintS);
+planetsS.geometry.attributes.mag.array[EARTH] = -3;
+const sunS = sunSprite();
+const ORB_N = 256;
+const orbits = PLANETS.map((p, k) => {
+  const l = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array((ORB_N + 1) * 3), 3)),
+    lineMat(k === EARTH ? 0xe9b872 : 0xffffff, k === EARTH ? .45 : .2));
+  l.frustumCulled = false; return l;
+});
+const RINGS = [[1, '1 AU'], [10, '10 AU'], [100, '100 AU'], [1000, '1,000 AU'], [10000, '10,000 AU'],
+  [LY_AU, '1 light-year'], [10 * LY_AU, '10 ly'], [100 * LY_AU, '100 ly'], [1000 * LY_AU, '1,000 ly']];
+const unitRing = new THREE.BufferGeometry().setFromPoints(ringPts(1, 192));
+const rings = RINGS.map(([au, text]) => ({ au, text, line: new THREE.LineLoop(unitRing, lineMat(0xffffff, .09)), el: null }));
+const RING_DIR = new THREE.Vector3(Math.cos(215 * RAD), 0, Math.sin(215 * RAD));
+// Sight lines from the observer: the horizon circle, a spoke pointing straight overhead, and the sky camera's view
+// pyramid. All start at Earth and run straight to where their true direction meets the far edge of the map. (On the log
+// map a truly straight sight line would bend a little near the solar system; drawn straight it is easier to read, and
+// it is still exact out among the stars.)
+const HZ_N = 128, RAY_N = 24, BEAM_M = 4, BEAM_P = BEAM_M * 4;      // samples round the horizon, along a ray, and round the view frame
+const T_EDGE = 10 ** LOG_EDGE / 10;                              // AU at the edge of the log map
+const bufGeo = n => new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+const noCull = o => { o.frustumCulled = false; return o; };
+const hzRing = noCull(new THREE.LineLoop(bufGeo(HZ_N), lineMat(0xe9b872, .5)));
+const upLine = noCull(new THREE.Line(bufGeo(2), lineMat(0xe9b872, .5)));
+const beamEdges = noCull(new THREE.LineSegments(bufGeo(4 * RAY_N * 2 + BEAM_P * 2), lineMat(0xffffff, .5)));
+const beamFaces = noCull(new THREE.Mesh(bufGeo(BEAM_P * RAY_N * 6),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: .05, transparent: true, side: THREE.DoubleSide, depthTest: false, depthWrite: false })));
+const hz = new THREE.Group(); hz.add(hzRing, upLine);
+const beam = new THREE.Group(); beam.add(beamFaces, beamEdges);
+const sightLine = new THREE.Line(
+  new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)), lineMat(0xe9b872, .7));
+sightLine.frustumCulled = false; sightLine.visible = false;
+sceneS.add(...rings.map(r => r.line), ...orbits, linesS, starsS, beam, hz, sightLine, planetsS, sunS);
+
+// Which stars the map draws: all of them, or only a picked constellation's (a little enlarged so the faint ones show).
+const onMap = i => starLy[i] > 0 && (!S.con || S.con.stars.includes(i));
+function filterMap() {
+  const sm = starsS.geometry.attributes.mag;
+  if (S.con) { sm.array.fill(999); for (const i of S.con.stars) if (starLy[i] > 0) sm.array[i] = starMag[i] - 1.5; }
+  else for (let i = 0; i < NS; i++) sm.array[i] = starLy[i] > 0 ? starMag[i] : 999;   // unknown distance → not drawn
+  sm.needsUpdate = true;
+}
+// Move the stars to where they are in the year being shown, in both views.
+let starEpoch = NaN;
+function placeStars(years) {
+  starEpoch = years; driftStars(years);
+  const kp = starsK.geometry.attributes.position, lp = linesK.geometry.attributes.position, sm = starsS.geometry.attributes.mag;
+  for (let i = 0; i < NS * 3; i++) kp.array[i] = starDir[i] * 400;
+  SEG.forEach((s, j) => lp.setXYZ(j, starDir[s * 3] * 400, starDir[s * 3 + 1] * 400, starDir[s * 3 + 2] * 400));
+  filterMap();
+  kp.needsUpdate = lp.needsUpdate = sm.needsUpdate = starsK.geometry.attributes.mag.needsUpdate = true;
+  layoutSpace();
+}
+// Rebuild everything whose place depends on the distance scale.
+const tv = V(), tv2 = V();
+function layoutSpace() {
+  for (let i = 0; i < NS; i++) {
+    const r = starLy[i] > 0 ? mapR(starLy[i] * LY_AU) : 0;
+    starPos.setXYZ(i, starDir[i * 3] * r, starDir[i * 3 + 1] * r, starDir[i * 3 + 2] * r);
+  }
+  starPos.needsUpdate = true;
+  const lp = linesS.geometry.attributes.position;
+  for (let j = 0; j < SEG.length; j += 2) {                       // a line is only drawn if both its stars have a known distance
+    const a = SEG[j], b = SEG[j + 1], ok = starLy[a] > 0 && starLy[b] > 0;
+    lp.setXYZ(j, ok ? starPos.getX(a) : 0, ok ? starPos.getY(a) : 0, ok ? starPos.getZ(a) : 0);
+    lp.setXYZ(j + 1, ok ? starPos.getX(b) : 0, ok ? starPos.getY(b) : 0, ok ? starPos.getZ(b) : 0);
+  }
+  lp.needsUpdate = true;
+  const T = now.T;
+  orbits.forEach((l, k) => {
+    const op = l.geometry.attributes.position;
+    for (let i = 0; i <= ORB_N; i++) { mapVec(helio(k, T, tv, i / ORB_N * 2 * Math.PI), tv2); op.setXYZ(i, tv2.x, tv2.y, tv2.z); }
+    op.needsUpdate = true;
+  });
+  for (const r of rings) r.line.scale.setScalar(mapR(r.au));
+}
+function setScale(linear) {
+  S.linear = linear;
+  const dir = camS.position.clone().sub(orbit.target).normalize();
+  orbit.target.set(0, 0, 0); fly = null;
+  camS.position.copy(dir.multiplyScalar(linear ? 95 : 31));       // true scale opens on the planets' orbits
+  orbit.minDistance = linear ? 1.5 : .2; orbit.maxDistance = linear ? 6e8 : 70; orbit.zoomSpeed = linear ? 3 : 1;
+  $('#scaleBtn').textContent = `Distance · ${linear ? 'true scale' : 'logarithmic'}`;
+  $('#scaleBtn').classList.toggle('on', linear);
+  $('#spaceCap').textContent = linear
+    ? 'True scale, Sun at the centre · these are the planets — the nearest star is 9,000× farther than Neptune, so keep scrolling out'
+    : 'Sun at the centre · true directions, distance on a log scale: each ring is 10× farther out';
+  layoutSpace();
+  if (S.con) focusMap(S.con, true);                                // its stars have moved on the new scale — stay centred on them
+}
+// Centre the map on a constellation's stars so you can orbit around the figure itself (or, with none, back on the Sun).
+let fly = null;                                                   // where the map camera is gliding to: { target, dist }
+function focusMap(c, snap) {
+  const target = V(); let dist = S.linear ? 95 : 31;
+  if (c) {
+    const known = c.stars.filter(i => starLy[i] > 0); if (!known.length) return;
+    for (const i of known) target.add(tv.fromBufferAttribute(starPos, i));
+    target.divideScalar(known.length);
+    let spread = 0; for (const i of known) spread = Math.max(spread, tv.fromBufferAttribute(starPos, i).distanceTo(target));
+    dist = Math.max(spread * 3.6, S.linear ? 1 : .6);
+  }
+  fly = { target, dist };
+  if (snap) { tv.copy(camS.position).sub(orbit.target).setLength(dist); orbit.target.copy(target); camS.position.copy(target).add(tv); fly = null; }
+}
+orbit.addEventListener('start', () => { fly = null; });           // grabbing the map cancels the glide
+
+/* ───────────── Per-frame solution ───────────── */
+const helioP = PLANETS.map(V), geoP = PLANETS.map(V), localP = PLANETS.map(V), spaceP = PLANETS.map(V);
+const sunGeo = V(), moonGeo = V(), sunLocal = V(), moonLocal = V(), up = V(), pole = V(), north = V(), east = V(), south = V(), tmp = V();
+const eclPole = V(), equinox = V(), third = V(), eqZ = V(), mBasis = new THREE.Matrix4();
+const qEq = new THREE.Quaternion(), qEclDate = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), qEarth = new THREE.Quaternion(),
+  qLocal = new THREE.Quaternion(), qLocalInv = new THREE.Quaternion(), mLocal = new THREE.Matrix4();
+const skyCol = new THREE.Color(), horCol = new THREE.Color(), gndCol = new THREE.Color(), tmpCol = new THREE.Color();
+const SKY_STOPS = [[-18, 0x05070b], [-10, 0x0c1220], [-4, 0x22304a], [1, 0x4a6490], [12, 0x6f9bd0]];
+const HOR_STOPS = [[-18, 0x151c2b], [-10, 0x243046], [-4, 0x6a6172], [1, 0xa9bcd2], [12, 0xc3d8ee]];
+const GND_STOPS = [[-18, 0x121416], [-6, 0x171a1b], [2, 0x2b2f2c], [12, 0x3a3f3a]];
+const LIM_STOPS = [[-18, 6.8], [-12, 5], [-6, 2.5], [-2, 0], [0, -2.5], [6, -5]];   // faintest magnitude visible vs Sun altitude
+function ramp(stops, h, out) {
+  let i = 0; while (i < stops.length - 2 && h > stops[i + 1][0]) i++;
+  const [h0, c0] = stops[i], [h1, c1] = stops[i + 1];
+  return out.set(c0).lerp(tmpCol.set(c1), clamp((h - h0) / (h1 - h0), 0, 1));
+}
+function rampNum(stops, h) {
+  let i = 0; while (i < stops.length - 2 && h > stops[i + 1][0]) i++;
+  const [h0, v0] = stops[i], [h1, v1] = stops[i + 1];
+  return v0 + (v1 - v0) * clamp((h - h0) / (h1 - h0), 0, 1);
+}
+const now = { T: daysJ2000(S.t) / 36525, sunAlt: 0, lim: 6.5, moonDist: 60, moonAng: 1, gmst: 0, sunRA: 0, planetMag: new Float32Array(NP), planetDist: new Float32Array(NP) };
+
+function solve() {
+  // Earth's rotation follows clock time (UT); everything else runs on uniform time, which is ΔT ahead of it.
+  const dUT = daysJ2000(S.t), Tu = dUT / 36525, d = dUT + deltaT(2000 + dUT / 365.25) / 86400, T = now.T = d / 36525;
+  const gmst = norm360(280.46061837 + 360.98564736629 * dUT + 0.000387933 * Tu * Tu - Tu * Tu * Tu / 38710000) * RAD;
+  if (!(Math.abs(d / 365.25 - starEpoch) < 1)) placeStars(d / 365.25);
+  // Precession: where the celestial pole, the ecliptic pole and the equinox point now, as J2000 vectors. From them,
+  // the rotations that take "equator of date" and "ecliptic of date" coordinates into the J2000 frame.
+  polesOfDate(T, pole, eclPole); equinox.crossVectors(pole, eclPole).normalize();
+  qEq.setFromRotationMatrix(mBasis.makeBasis(equinox, pole, third.crossVectors(equinox, pole)));
+  eqZ.copy(third);
+  qEclDate.setFromRotationMatrix(mBasis.makeBasis(equinox, eclPole, third.crossVectors(equinox, eclPole)));
+
+  for (let k = 0; k < NP; k++) helio(k, T, helioP[k]);
+  const earthP = helioP[EARTH], R = earthP.length();
+  sunGeo.copy(earthP).negate();                                  // AU
+  const m = moonEcl(T);
+  eclVec(m.lon, m.lat, moonGeo).applyQuaternion(qEclDate);       // unit, J2000
+  for (let k = 0; k < NP; k++) {
+    if (k === EARTH) continue;
+    geoP[k].copy(helioP[k]).sub(earthP);
+    const r = helioP[k].length(), D = geoP[k].length();
+    const phase = Math.acos(clamp((r * r + D * D - R * R) / (2 * r * D), -1, 1)) / RAD;
+    now.planetDist[k] = D;
+    now.planetMag[k] = PLANETS[k][4] + 5 * Math.log10(r * D) + PLANETS[k][5] * phase;
+  }
+
+  // Earth's orientation, then the observer's horizon frame — all expressed in the J2000 ecliptic frame.
+  qEarth.copy(qEq).multiply(qSpin.setFromAxisAngle(Y, gmst));
+  const la = clamp(S.lat, -89.9, 89.9) * RAD, lo = S.lon * RAD;
+  eclVec(lo, la, up).applyQuaternion(qEarth);
+  north.copy(pole).addScaledVector(up, -pole.dot(up)).normalize();
+  east.crossVectors(north, up); south.copy(north).negate();
+  mLocal.makeBasis(east, up, south).transpose(); qLocal.setFromRotationMatrix(mLocal); qLocalInv.copy(qLocal).invert();
+
+  sunLocal.copy(sunGeo).normalize().applyQuaternion(qLocal);
+  tmp.copy(moonGeo).multiplyScalar(m.r).sub(up);                 // topocentric (parallax included), Earth radii
+  now.moonDist = tmp.length(); now.moonAng = 100 * 0.2727 / now.moonDist;
+  moonLocal.copy(tmp).applyQuaternion(qLocal).normalize();
+  now.sunAlt = Math.asin(clamp(sunLocal.y, -1, 1)) / RAD; now.gmst = gmst;
+  now.sunRA = Math.atan2(-sunGeo.dot(eqZ), sunGeo.dot(equinox));     // right ascension of date
+
+  // Sky scene
+  const h = S.daylight ? now.sunAlt : -30;
+  // Light pollution caps the faintest star you can see (6.8 in wilderness → 2.5 downtown) and adds a murky glow at night.
+  now.lim = Math.min(rampNum(LIM_STOPS, h), 6.8 - 4.3 * S.glow);
+  ramp(SKY_STOPS, h, skyCol); ramp(HOR_STOPS, h, horCol); ramp(GND_STOPS, h, gndCol);
+  const murk = S.glow * clamp((-h - 4) / 8, 0, 1);
+  skyCol.lerp(tmpCol.set(0x2c2a31), murk * .75); horCol.lerp(tmpCol.set(0x6d5848), murk * .6);
+  dome.material.uniforms.top.value.copy(skyCol); dome.material.uniforms.hor.value.copy(horCol);
+  ground.material.color.copy(gndCol);
+  starsK.quaternion.copy(qLocal); linesK.quaternion.copy(qLocal);
+  starsK.material.uniforms.uLim.value = planetsK.material.uniforms.uLim.value = now.lim;
+  linesK.visible = S.cons || !!S.con; linesK.material.opacity = S.con ? .5 : .22 * clamp((now.lim - 1) / 3, 0, 1);
+  const pp = planetsK.geometry.attributes.position;
+  for (let k = 0; k < NP; k++) {
+    if (k === EARTH) { planetMagK[k] = 999; continue; }
+    localP[k].copy(geoP[k]).normalize().applyQuaternion(qLocal);
+    pp.setXYZ(k, localP[k].x * 400, localP[k].y * 400, localP[k].z * 400);
+    planetMagK[k] = Math.min(now.planetMag[k], 5.5);              // keep Uranus and Neptune findable
+  }
+  pp.needsUpdate = planetsK.geometry.attributes.mag.needsUpdate = true;
+  moonK.position.copy(moonLocal).multiplyScalar(100); moonK.scale.setScalar(now.moonAng * DISC);
+  moonMat.color.setScalar(.72 * (1 - .5 * clamp((h + 6) / 12, 0, 1)));
+  lightK.position.copy(sunLocal).multiplyScalar(10);
+  sunK.position.copy(sunLocal).multiplyScalar(300);
+  sunK.scale.setScalar(300 * Math.tan(0.267 * RAD) * DISC / .16 * 2);
+
+  // Space scene
+  const ps = planetsS.geometry.attributes.position;
+  for (let k = 0; k < NP; k++) {
+    mapVec(helioP[k], spaceP[k]); ps.setXYZ(k, spaceP[k].x, spaceP[k].y, spaceP[k].z);
+    const f = !S.horizon || k === EARTH || geoP[k].dot(up) > 0 ? 1 : .3;
+    for (let c = 0; c < 3; c++) planetTintS[k * 3 + c] = planetTint[k * 3 + c] * f;
+  }
+  ps.needsUpdate = planetsS.geometry.attributes.tint.needsUpdate = true;
+  starsS.material.uniforms.uFade.value = S.horizon ? 1 : 0; starsS.material.uniforms.uUp.value.copy(up);
+  hz.visible = S.horizon; beam.visible = S.fov > 0;
+}
+
+/* ───────────── Objects: where each one is, and what to say about it ───────────── */
+function localDir(o, out) {                                       // unit vector in the horizon frame
+  if (o.kind === 'sun') return out.copy(sunLocal);
+  if (o.kind === 'moon') return out.copy(moonLocal);
+  if (o.kind === 'planet') return o.k === EARTH ? null : out.copy(localP[o.k]);
+  if (o.kind === 'con') return out.copy(o.dir).applyQuaternion(qLocal);
+  return out.fromArray(starDir, o.i * 3).applyQuaternion(qLocal);
+}
+function spacePos(o, out) {                                       // position on the space map
+  if (o.kind === 'sun') return out.set(0, 0, 0);
+  if (o.kind === 'moon') return out.copy(spaceP[EARTH]);
+  if (o.kind === 'planet') return out.copy(spaceP[o.k]);
+  return onMap(o.i) ? out.fromBufferAttribute(starPos, o.i) : null;
+}
+const magOf = o => o.kind === 'star' ? starMag[o.i] : o.kind === 'planet' ? now.planetMag[o.k] : o.kind === 'sun' ? -26.7 : -12;
+const inSky = o => o.kind === 'sun' || o.kind === 'moon' || (o.kind === 'planet' ? Math.min(magOf(o), 5.5) : magOf(o)) < now.lim + .4;
+const compass = az => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(az / 45) % 8];
+const colourWord = bv => bv < 0 ? 'Blue-white' : bv < .3 ? 'White' : bv < .58 ? 'Yellow-white' : bv < .85 ? 'Yellow' : bv < 1.4 ? 'Orange' : 'Red';
+const sig = (x, n = 3) => Number(x.toPrecision(n)).toLocaleString();
+const fmtYear = y => y > 0 ? (y < 1000 ? `${y} AD` : `${y}`) : `${1 - y} BC`;
+function fmtSpan(minutes) {
+  return minutes < 1 ? `${(minutes * 60).toFixed(1)} seconds ago` : minutes < 90 ? `${minutes.toFixed(1)} minutes ago` : `${(minutes / 60).toFixed(1)} hours ago`;
+}
+const textCache = {};
+function setText(id, s) { if (textCache[id] !== s) { textCache[id] = s; document.getElementById(id).textContent = s; } }
+const LIGHT_MIN_PER_AU = 8.3168;
+
+function readouts() {
+  const h = now.sunAlt, o = S.sel;
+  const upNow = [];
+  for (let k = 0; k < NP; k++) if (k !== EARTH && localP[k].y > 0) upNow.push(PLANETS[k][0]);
+  if (moonLocal.y > 0) upNow.push('Moon');
+  setText('fUp', upNow.join(', ') || 'No planets');
+  setText('fSun', `${h.toFixed(1)}° · ${h > -0.8 ? 'day' : h > -18 ? 'twilight' : 'night'}`);
+  const hrs = norm360((now.gmst - now.sunRA) / RAD + S.lon + 180) / 15;
+  setText('fSolar', `${String(Math.floor(hrs)).padStart(2, '0')}:${String(Math.floor(hrs % 1 * 60)).padStart(2, '0')}`);
+  const utc = new Date(S.t), uy = utc.getUTCFullYear(), iso = isFinite(S.t) ? utc.toISOString() : '';
+  setText('fUtc', !iso ? '—' : uy >= 1000 && uy <= 9999 ? iso.slice(0, 16).replace('T', ' ') : `${fmtYear(uy)} · ${iso.slice(-19, -8).replace('T', ' ')}`);
+  $('#rows').classList.toggle('picked', !!(o || S.con));
+  if (!o && S.con) {                                              // a constellation: how spread out in depth its stars really are
+    const c = S.con, known = c.stars.filter(i => starLy[i] > 0), near = known.reduce((a, b) => starLy[a] < starLy[b] ? a : b), far = known.reduce((a, b) => starLy[a] > starLy[b] ? a : b);
+    const lyText = i => `${starLy[i] < 100 ? starLy[i].toFixed(1) : sig(starLy[i])}${DATA.names[i] ? ' (' + DATA.names[i] + ')' : ''}`;
+    setText('name', c.name); setText('sub', `Constellation · ${c.stars.length} stars in its figure · click its name again to let go`);
+    setText('fDist', `${lyText(near)} to ${lyText(far)} light-years`); setText('fLight', '—');
+    setText('fMag', `brightest: ${DATA.names[c.stars[0]] || 'unnamed'}, magnitude ${starMag[c.stars[0]].toFixed(1).replace('-', '−')}`);
+    localDir(c, tmp);
+    const alt = Math.asin(clamp(tmp.y, -1, 1)) / RAD, az = norm360(Math.atan2(tmp.x, -tmp.z) / RAD);
+    setText('fAlt', `${alt.toFixed(1)}°${alt < 0 ? ' · below horizon' : ''}`); setText('fAz', `${az.toFixed(1)}° ${compass(az)}`);
+    return;
+  }
+  if (!o) {
+    setText('name', h > -0.8 ? 'Daytime sky' : h > -18 ? 'Twilight sky' : 'Night sky');
+    setText('sub', `From ${placeName} · click any star or planet`);
+    return;
+  }
+  const year = new Date(S.t).getUTCFullYear();
+  let dist = '—', light = '—', sub = '';
+  if (o.kind === 'star') {
+    const ly = starLy[o.i], con = DATA.cons[o.name.split(' ').pop()];
+    sub = `${colourWord(star(o.i, 4))} star${con && /^[α-ω]/.test(o.name) ? ' in ' + con[0] : ''}`;
+    if (ly > 0) {
+      dist = `${ly < 100 ? ly.toFixed(1) : sig(ly)} light-years`;
+      light = `around ${fmtYear(ly < 100 ? Math.round(year - ly) : Math.round((year - ly) / 10) * 10)}`;
+    } else dist = light = 'not well measured';
+  } else if (o.kind === 'moon') {
+    sub = 'Earth’s moon · see it properly in Lunation';
+    dist = `${(Math.round(now.moonDist * EARTH_KM / 100) * 100).toLocaleString()} km`;
+    light = fmtSpan(now.moonDist * EARTH_AU * LIGHT_MIN_PER_AU);
+  } else if (o.kind === 'planet' && o.k === EARTH) {
+    sub = 'Planet · you are standing on it';
+  } else {
+    const au = o.kind === 'sun' ? sunGeo.length() : now.planetDist[o.k];
+    sub = o.kind === 'sun' ? 'Our star' : 'Planet';
+    dist = `${au.toFixed(3)} AU · ${sig(au * AU_KM / 1e6)} million km`;
+    light = fmtSpan(au * LIGHT_MIN_PER_AU);
+  }
+  setText('name', o.name || 'Unnamed star'); setText('sub', sub);
+  setText('fDist', dist); setText('fLight', light);
+  const earth = o.kind === 'planet' && o.k === EARTH, m = magOf(o);
+  setText('fMag', earth ? '—' : `magnitude ${m.toFixed(1).replace('-', '−')}${o.kind === 'sun' || o.kind === 'moon' ? '' : m > 6 ? ' · needs a telescope' : m > 4.5 ? ' · dark skies only' : ''}`);
+  if (earth || !localDir(o, tmp)) { setText('fAlt', '—'); setText('fAz', '—'); return; }
+  const alt = Math.asin(clamp(tmp.y, -1, 1)) / RAD, az = norm360(Math.atan2(tmp.x, -tmp.z) / RAD);
+  setText('fAlt', `${alt.toFixed(1)}°${alt < 0 ? ' · below horizon' : ''}`);
+  setText('fAz', `${az.toFixed(1)}° ${compass(az)}`);
+}
+
+/* ───────────── Rendering ───────────── */
+function fit(renderer, el, cam) {
+  const w = el.clientWidth, h = el.clientHeight;
+  if (el._w !== w || el._h !== h) {
+    el._w = w; el._h = h; renderer.setSize(w, h, false);
+    cam.aspect = w / Math.max(1, h); cam.updateProjectionMatrix();
+  }
+  return [w, h];
+}
+let PX = 0, PY = 0;                                               // screen position of the last label placed
+const pv = V();
+function show(el, on) { if (el._on !== on) { el._on = on; el.style.display = on ? '' : 'none'; } return on; }
+function place(el, v, cam, w, h, on = true) {
+  if (on) { pv.copy(v).project(cam); on = pv.z < 1 && Math.abs(pv.x) < 1.05 && Math.abs(pv.y) < 1.05; }
+  if (!show(el, on)) return false;
+  PX = (pv.x + 1) / 2 * w; PY = (1 - pv.y) / 2 * h;
+  el.style.transform = `translate(${PX.toFixed(1)}px,${PY.toFixed(1)}px)`;
+  return true;
+}
+const mkLabel = (parent, cls, text) => {
+  const el = document.createElement('div'); el.className = 'lb ' + cls;
+  el.appendChild(document.createElement('span')).textContent = text;
+  parent.insertBefore(el, parent.querySelector('.sel')); el._on = true;
+  el._hw = text.length * (/star|ring/.test(cls) ? 3.1 : 4.6) + 5;   // rough half-width, for keeping labels off each other
+  return el;
+};
+// Call after place(): hides the label if an earlier (more important) one already sits there.
+const taken = [];
+function claim(el) {
+  for (const t of taken) if (Math.abs(t[0] - PX) < t[2] + el._hw && Math.abs(t[1] - PY) < 13) return show(el, false);
+  taken.push([PX, PY, el._hw]); return true;
+}
+// Sky labels: compass points, constellations, Sun/Moon/planets, and named stars (more of them as you zoom in).
+const cardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].map((n, i) => ({ el: mkLabel(skEl, 'card' + (i % 2 ? ' minor' : ''), n), az: i * 45 }));
+const conLabels = cons.map(c => {
+  const el = c.el = mkLabel(skEl, 'con', c.name);
+  el.firstChild.addEventListener('click', () => selectCon(S.con === c ? null : c));   // click again to let go
+  return { c, el };
+});
+const selName = mkLabel(spEl, 'star', '');                        // the map names only the star you have selected
+const NAME_MAG = 4.2;
+const skyLabels = objects.filter(o => o.kind !== 'star' ? o.k !== EARTH : o.name && starMag[o.i] < NAME_MAG && !/^[α-ω]/.test(o.name))
+  .map(o => ({ o, el: mkLabel(skEl, o.kind === 'star' ? 'star' : 'body', o.name) }));
+const spaceLabels = objects.filter(o => o.kind === 'sun' || o.kind === 'planet')
+  .map(o => ({ o, el: mkLabel(spEl, o.kind === 'star' ? 'star' : o.k === EARTH ? 'body home' : 'body', o.name) }));
+const RANK = ['Sun', 'Earth', 'Jupiter', 'Saturn', 'Mars', 'Venus', 'Neptune', 'Uranus', 'Mercury'];   // who keeps their label in a crowd
+spaceLabels.sort((a, b) => (RANK.indexOf(a.o.name) + 99) % 99 - (RANK.indexOf(b.o.name) + 99) % 99);
+for (const r of rings) r.el = mkLabel(spEl, 'ring', r.text);
+const upLabel = mkLabel(spEl, 'up', 'Overhead'), hzLabel = mkLabel(spEl, 'up', 'Horizon');
+const selSky = $('#selSky'), selSpace = $('#selSpace');
+const look = V(), p = V();
+const azAlt = (az, alt, out, r = 1) => out.set(
+  Math.sin(az * RAD) * Math.cos(alt * RAD) * r, Math.sin(alt * RAD) * r, -Math.cos(az * RAD) * Math.cos(alt * RAD) * r);
+
+// Mini compass
+const dial = $('#dial'), SVG_NS = 'http://www.w3.org/2000/svg';
+for (let a = 0; a < 360; a += 30) {
+  const l = dial.appendChild(document.createElementNS(SVG_NS, 'line')), r = a % 90 ? 36 : 40;
+  if (a % 90) { l.setAttribute('x1', sind(a) * r); l.setAttribute('y1', -cosd(a) * r); l.setAttribute('x2', sind(a) * 40); l.setAttribute('y2', -cosd(a) * 40); }
+}
+const dialLetters = ['N', 'E', 'S', 'W'].map((t, i) => {
+  const el = dial.appendChild(document.createElementNS(SVG_NS, 'text')); el.textContent = t;
+  el._x = (sind(i * 90) * 27).toFixed(1); el._y = (-cosd(i * 90) * 27).toFixed(1);
+  el.setAttribute('x', el._x); el.setAttribute('y', el._y); if (!i) el.classList.add('n');
+  el.addEventListener('click', () => { S.aim = null; S.turn = i * 90; });
+  return el;
+});
+let dialAz = NaN;
+function turnDial() {
+  const az = Math.round(S.az * 2) / 2 % 360; if (az === dialAz) return;
+  dialAz = az; dial.setAttribute('transform', `rotate(${-az})`);
+  for (const el of dialLetters) el.setAttribute('transform', `rotate(${az} ${el._x} ${el._y})`);   // keep the letters upright
+  setText('facing', `${compass(az)} ${Math.round(az) % 360}°`);
+}
+
+function renderSky() {
+  const [w, h] = fit(rK, skEl, camK);
+  if (S.aim) {                                                    // turn toward whatever was just picked elsewhere
+    localDir(S.aim, p);                                           // if it has set, face where it is with the horizon in view
+    const da = norm360(Math.atan2(p.x, -p.z) / RAD - S.az + 180) - 180, db = clamp(Math.asin(clamp(p.y, -1, 1)) / RAD, 8, 89) - S.alt;
+    S.az = norm360(S.az + da * .12); S.alt += db * .12;
+    if (Math.abs(da) < .05 && Math.abs(db) < .05) S.aim = null;
+  }
+  if (S.turn !== null) {                                          // a compass letter was clicked
+    const da = norm360(S.turn - S.az + 180) - 180; S.az = norm360(S.az + da * .15);
+    if (Math.abs(da) < .05) { S.az = S.turn; S.turn = null; }
+  }
+  turnDial();
+  camK.lookAt(azAlt(S.az, S.alt, look));
+  rK.setClearColor(skyCol); rK.render(sceneK, camK);
+
+  for (const c of cardinals) place(c.el, azAlt(c.az, 0, p, 100), camK, w, h);
+  const consOn = S.cons && now.lim > 3;
+  for (const { c, el } of conLabels) { p.copy(c.dir).applyQuaternion(qLocal); place(el, p.multiplyScalar(100), camK, w, h, (S.con ? S.con === c : consOn) && p.y > 2); }
+  const nameMag = camK.fov < 32 ? NAME_MAG : camK.fov < 55 ? 2.4 : 1.6;
+  taken.length = 0;
+  for (const { o, el } of skyLabels) {
+    localDir(o, p);
+    if (place(el, p.multiplyScalar(100), camK, w, h, p.y > -1 && inSky(o) && (o.kind !== 'star' || starMag[o.i] < nameMag || o === S.sel))) claim(el);
+  }
+  const s = S.sel && localDir(S.sel, p);                         // (S.sel is never a constellation — those live in S.con)
+  place(selSky, p.multiplyScalar(100), camK, w, h, !!s && p.y > -1);
+}
+
+// A point `t` AU from Earth in direction `dir`, placed on the map.
+const fromEarth = (dir, t, out) => mapVec(out.copy(helioP[EARTH]).addScaledVector(dir, t), out);
+const corners = [V(), V(), V(), V()], frameMid = V(), q = V();
+const rayT = new Float64Array(RAY_N + 1), beamDirs = Array.from({ length: BEAM_P }, V), beamGrid = new Float32Array(BEAM_P * (RAY_N + 1) * 3);
+const DIRS = [['Up', 0], ['Right', 1], ['Down', 2], ['Left', 3]].map(([text, edge]) => ({ edge, el: mkLabel(spEl, 'dir', text) }));
+function updateSight(reach) {                                     // reach: how far out the lines run, in AU
+  const home = spaceP[EARTH];
+  if (S.horizon) {
+    const hp = hzRing.geometry.attributes.position, lp = upLine.geometry.attributes.position;
+    for (let j = 0; j < HZ_N; j++) {
+      const a = j / HZ_N * 2 * Math.PI;
+      fromEarth(q.set(Math.cos(a), 0, Math.sin(a)).applyQuaternion(qLocalInv), reach, p); hp.setXYZ(j, p.x, p.y, p.z);
+    }
+    lp.setXYZ(0, home.x, home.y, home.z); fromEarth(up, reach, p); lp.setXYZ(1, p.x, p.y, p.z);
+    hp.needsUpdate = lp.needsUpdate = true;
+  }
+  if (!S.fov) return;
+  // The sky camera's view pyramid: apex at Earth, corners where the edges of the sky view meet the far edge of the map.
+  // "Straight" joins Earth to those corners with straight lines. "True" traces each sight line outward in real space
+  // and puts every point through the distance scale, which on the log map bends the pyramid near the solar system.
+  const ty = Math.tan(camK.fov / 2 * RAD), tx = ty * camK.aspect, C = [[-tx, ty], [tx, ty], [tx, -ty], [-tx, -ty]];
+  const t0 = S.linear ? reach / 1000 : .02;
+  for (let i = 1; i <= RAY_N; i++) rayT[i] = t0 * (reach / t0) ** ((i - 1) / (RAY_N - 1));
+  for (let c = 0; c < 4; c++) for (let j = 0; j < BEAM_M; j++) {  // directions round the edge of the sky view, in the J2000 frame
+    const a = C[c], b = C[(c + 1) % 4], k = j / BEAM_M;
+    beamDirs[c * BEAM_M + j].set(a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, -1).normalize().applyQuaternion(camK.quaternion).applyQuaternion(qLocalInv);
+  }
+  for (let c = 0; c < 4; c++) fromEarth(beamDirs[c * BEAM_M], reach, corners[c]);
+  const at = (j, i) => (j * (RAY_N + 1) + i) * 3;
+  for (let j = 0; j < BEAM_P; j++) {
+    if (S.fov === 2) { for (let i = 0; i <= RAY_N; i++) fromEarth(beamDirs[j], rayT[i], p).toArray(beamGrid, at(j, i)); continue; }
+    const c = Math.floor(j / BEAM_M);
+    q.copy(corners[c]).lerp(corners[(c + 1) % 4], (j % BEAM_M) / BEAM_M);                // a flat far frame
+    for (let i = 0; i <= RAY_N; i++) p.copy(home).lerp(q, i / RAY_N).toArray(beamGrid, at(j, i));
+  }
+  const ep = beamEdges.geometry.attributes.position, fp = beamFaces.geometry.attributes.position;
+  let e = 0, f = 0;
+  const put = (attr, n, j, i) => attr.array.set(beamGrid.subarray(at(j, i), at(j, i) + 3), n * 3);
+  for (let j = 0; j < BEAM_P; j++) {
+    const j2 = (j + 1) % BEAM_P;
+    put(ep, e++, j, RAY_N); put(ep, e++, j2, RAY_N);              // far frame
+    for (let i = 0; i < RAY_N; i++) {
+      if (j % BEAM_M === 0) { put(ep, e++, j, i); put(ep, e++, j, i + 1); }             // the four corner rays
+      put(fp, f++, j, i); put(fp, f++, j, i + 1); put(fp, f++, j2, i + 1);
+      put(fp, f++, j, i); put(fp, f++, j2, i + 1); put(fp, f++, j2, i);
+    }
+  }
+  ep.needsUpdate = fp.needsUpdate = true;
+  frameMid.copy(corners[0]).add(corners[1]).add(corners[2]).add(corners[3]).multiplyScalar(.25);
+}
+
+function renderSpace() {
+  const [w, h] = fit(rS, spEl, camS);
+  if (fly) {                                                      // glide to the new centre, keeping the viewing direction
+    const off = tv.copy(camS.position).sub(orbit.target), len = off.length();
+    orbit.target.lerp(fly.target, .14); off.setLength(len + (fly.dist - len) * .14);
+    camS.position.copy(orbit.target).add(off);
+    if (orbit.target.distanceTo(fly.target) < fly.dist * 1e-3 && Math.abs(off.length() - fly.dist) < fly.dist * 1e-2) fly = null;
+  }
+  orbit.update();
+  const dist = camS.position.distanceTo(orbit.target), sunDist = camS.position.length();
+  camS.near = Math.min(dist, sunDist || dist) * 1e-3; camS.far = S.linear ? sunDist + 2e9 : 1000; camS.updateProjectionMatrix();
+  sunS.scale.setScalar(sunDist * .05);
+  const reach = S.linear ? sunDist * .42 : T_EDGE;
+  updateSight(reach);
+  const sl = sightLine.geometry.attributes.position, sp = S.sel && spacePos(S.sel, p);
+  sightLine.visible = !!sp && S.sel !== planetObj(EARTH);
+  if (sightLine.visible) { sl.setXYZ(0, spaceP[EARTH].x, spaceP[EARTH].y, spaceP[EARTH].z); sl.setXYZ(1, p.x, p.y, p.z); sl.needsUpdate = true; }
+  rS.render(sceneS, camS);
+
+  place(selSpace, sp ? p : O, camS, w, h, !!sp);
+  taken.length = 0;
+  for (const { o, el } of spaceLabels) if (place(el, spacePos(o, p), camS, w, h)) claim(el);
+  place(selName, selName._o && spacePos(selName._o, p) || O, camS, w, h, !!selName._o && selName._o === S.sel && !!spacePos(selName._o, p));
+  rings.forEach((r, i) => { if (place(r.el, p.copy(RING_DIR).multiplyScalar(mapR(r.au) * (i % 2 ? -1 : 1)), camS, w, h)) claim(r.el); });
+  place(upLabel, fromEarth(up, reach, p), camS, w, h, S.horizon);
+  place(hzLabel, fromEarth(north, reach, p), camS, w, h, S.horizon);   // pinned to the ring's due-north point
+  for (const d of DIRS)                                           // which way is up/down/left/right in the sky view
+    place(d.el, p.copy(corners[d.edge]).add(corners[(d.edge + 1) % 4]).multiplyScalar(.5).lerp(frameMid, -.12), camS, w, h, S.fov > 0);
+}
+
+/* ───────────── Picking ───────────── */
+function selectCon(c, aim) {
+  if (c === S.con) return;
+  if (S.con) S.con.el.classList.remove('on');
+  S.con = c;
+  if (c) c.el.classList.add('on');
+  linesK.geometry.setDrawRange(c ? c.segStart : 0, c ? c.segCount : Infinity);   // only its lines in the sky
+  linesS.visible = !!c && S.figure; $('#figBtn').hidden = !c; if (c) linesS.geometry.setDrawRange(c.segStart, c.segCount);   // and the same figure joined up in 3D on the map
+  filterMap();                                                                    // only its stars on the map
+  focusMap(c);                                                                    // and the map centres on them
+  if (c && aim) { S.aim = c; S.turn = null; }
+  if (S.sel && S.sel.kind === 'star' && c && !c.stars.includes(S.sel.i)) S.sel = null;
+}
+function select(o, aim) {
+  if (o && S.con && !(o.kind === 'star' && S.con.stars.includes(o.i))) selectCon(null);   // anything but one of the held constellation's stars lets it go
+  S.sel = o;
+  selName._o = o && o.kind === 'star' && o.name ? o : null;
+  if (selName._o) selName.firstChild.textContent = o.name;
+  S.aim = o && aim && localDir(o, tmp) ? o : null; if (S.aim) S.turn = null;
+  $('#find').value = '';
+}
+// Nearest object to a click, favouring brighter ones when several are close.
+function pick(e, canvas, cam, posOf, ok) {
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, reach = e.pointerType === 'touch' ? 22 : 13;
+  let best = null, score = Infinity;
+  for (const o of objects) {
+    if (!ok(o) || !posOf(o, p)) continue;
+    p.project(cam); if (p.z >= 1) continue;
+    const dpx = Math.hypot((p.x + 1) / 2 * r.width - x, (1 - p.y) / 2 * r.height - y);
+    const sc = dpx + (o.kind === 'star' ? starMag[o.i] : -3);
+    if (dpx < reach && sc < score) { score = sc; best = o; }
+  }
+  return best;
+}
+function onTap(canvas, fn) {                                      // a click that wasn't a drag
+  let down = null;
+  canvas.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+  canvas.addEventListener('pointerup', e => {
+    if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) <= (e.pointerType === 'touch' ? 10 : 4)) fn(e);
+    down = null;
+  });
+}
+// A click on empty space lets go of the selected object first, then of the constellation.
+const tapped = (o, aim) => { if (!o && !S.sel) selectCon(null); select(o, aim); };
+onTap(skCanvas, e => tapped(pick(e, skCanvas, camK, (o, out) => localDir(o, out) && out.y > -.02 && out.multiplyScalar(100), inSky), false));
+onTap(spCanvas, e => tapped(pick(e, spCanvas, camS, spacePos, o => o.kind !== 'moon'), true));
+
+/* ───────────── UI ───────────── */
+const whenEl = $('#when'), scrubEl = $('#scrub'), placeEl = $('#place'), latEl = $('#lat'), lonEl = $('#lon');
+const pad = n => String(n).padStart(2, '0');
+/* The clock: the date control shows the time at the chosen place. With a known time zone and a date from 1900 on, that
+   is the zone's civil time (daylight saving included). Otherwise — typed coordinates, or any earlier date, when towns
+   kept their own time by the Sun — it is mean solar time for the longitude. */
+const ZONES_FROM = Date.UTC(1900, 0, 1), zoneFmt = {};
+function validZone(tz) { try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return tz || null; } catch { return null; } }
+const zoned = ms => !!S.tz && ms >= ZONES_FROM;
+function zoneOffset(ms) {                                          // minutes east of UTC
+  if (!zoned(ms)) return Math.round(S.lon * 4);
+  const f = zoneFmt[S.tz] ||= new Intl.DateTimeFormat('en-US', { timeZone: S.tz, hourCycle: 'h23',
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  const p = {}; for (const x of f.formatToParts(ms)) p[x.type] = +x.value;
+  const wall = new Date(0); wall.setUTCFullYear(p.year, p.month - 1, p.day); wall.setUTCHours(p.hour, p.minute, p.second, 0);
+  return Math.round((wall.getTime() - Math.floor(ms / 1000) * 1000) / 6e4);
+}
+const wallDate = ms => new Date(ms + zoneOffset(ms) * 6e4);        // read it with the getUTC…() methods
+const fromWall = wallMs => wallMs - zoneOffset(wallMs - zoneOffset(wallMs) * 6e4) * 6e4;
+function zoneLabel(ms) {
+  const off = zoneOffset(ms), h = Math.floor(Math.abs(off) / 60), m = Math.abs(off) % 60, utc = `UTC${off < 0 ? '−' : '+'}${h}${m ? ':' + pad(m) : ''}`;
+  if (!zoned(ms)) return `solar time · ${utc}`;
+  const abbr = (new Intl.DateTimeFormat('en-US', { timeZone: S.tz, timeZoneName: 'short' }).formatToParts(ms).find(x => x.type === 'timeZoneName') || {}).value || '';
+  return /^[A-Z]{2,5}$/.test(abbr) && !/^(GMT|UTC)/.test(abbr) ? `${abbr} · ${utc}` : `local time · ${utc}`;
+}
+
+// The date control: day, month, year, era, hour, minute (and am/pm where the visitor's own clock uses it).
+const part = Object.fromEntries([...whenEl.querySelectorAll('[data-part]')].map(el => [el.dataset.part, el]));
+part.month.append(...['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => {
+  const o = document.createElement('option'); o.value = i; o.textContent = m; return o;
+}));
+const H12 = !!new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12;
+part.ampm.hidden = !H12;
+let shownMinute = NaN;
+function writeDate(force) {                                        // put the current moment into the fields
+  if (!force && whenEl.contains(document.activeElement)) return;  // never fight someone who is typing
+  const minute = Math.floor(S.t / 6e4); if (!force && minute === shownMinute) return;
+  const d = wallDate(S.t); if (isNaN(d)) return;
+  shownMinute = minute;
+  const y = d.getUTCFullYear(), h = d.getUTCHours();
+  part.day.value = d.getUTCDate(); part.month.value = d.getUTCMonth();
+  part.year.value = y > 0 ? y : 1 - y; part.year.style.width = `${String(part.year.value).length + .5}ch`;
+  part.era.textContent = y > 0 ? 'AD' : 'BC';
+  part.hour.value = H12 ? h % 12 || 12 : pad(h); part.minute.value = pad(d.getUTCMinutes());
+  part.ampm.textContent = h < 12 ? 'am' : 'pm';
+}
+function readDate() {                                              // take the fields as the new moment
+  const n = el => parseInt(el.value, 10), day = n(part.day), yr = n(part.year), mi = n(part.minute); let h = n(part.hour);
+  if (![day, yr, h, mi].every(Number.isFinite) || day < 1 || day > 31 || yr < 1 || mi < 0 || mi > 59 || h < 0 || h > 23) return writeDate(true);
+  if (H12 && h <= 12) h = h % 12 + (part.ampm.textContent === 'pm' ? 12 : 0);
+  const d = new Date(0); d.setUTCFullYear(part.era.textContent === 'AD' ? yr : 1 - yr, +part.month.value, day); d.setUTCHours(h, mi, 0, 0);
+  if (isFinite(d.getTime())) { setTime(fromWall(d.getTime())); setDir(0); }
+  writeDate(true);
+}
+function stepDate(name, by) {                                      // ↑ ↓ on a field moves just that unit
+  const d = wallDate(S.t);
+  if (name === 'day') d.setUTCDate(d.getUTCDate() + by);
+  else if (name === 'month') d.setUTCMonth(d.getUTCMonth() + by);
+  else if (name === 'year') d.setUTCFullYear(d.getUTCFullYear() + (d.getUTCFullYear() > 0 ? by : -by));   // "586 BC" is earlier than "585 BC"
+  else if (name === 'hour') d.setUTCHours(d.getUTCHours() + by);
+  else if (name === 'minute') d.setUTCMinutes(d.getUTCMinutes() + by);
+  else return;
+  setTime(fromWall(d.getTime()), false); writeDate(true);
+}
+for (const [name, el] of Object.entries(part)) {
+  if (el.tagName === 'BUTTON') { el.onclick = () => { el.textContent = { AD: 'BC', BC: 'AD', am: 'pm', pm: 'am' }[el.textContent]; readDate(); }; continue; }
+  el.addEventListener('change', readDate);
+  if (el.tagName !== 'INPUT') continue;
+  el.addEventListener('focus', () => el.select());
+  el.addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); stepDate(name, e.key === 'ArrowUp' ? 1 : -1); el.select(); }
+    else if (e.key === 'Enter') el.blur();
+  });
+}
+function setDir(dir) {
+  S.dir = dir;
+  $('#rev').classList.toggle('on', dir < 0); $('#pause').classList.toggle('on', dir === 0); $('#fwd').classList.toggle('on', dir > 0);
+}
+function setTime(ms, reanchor = true) { if (isFinite(ms)) { S.t = ms; if (reanchor) S.anchor = ms; } }
+
+$('#rev').onclick = () => setDir(-1);
+$('#pause').onclick = () => setDir(0);
+$('#fwd').onclick = () => setDir(1);
+$('#rate').onchange = e => { S.rate = +e.target.value; };
+$('#now').onclick = () => { setTime(Date.now()); S.rate = 1; $('#rate').value = '1'; setDir(1); };
+document.querySelectorAll('[data-step]').forEach(b => b.onclick = () => setTime(S.t + +b.dataset.step, false));
+let scrubbing = false;
+scrubEl.addEventListener('pointerdown', () => { scrubbing = true; });
+addEventListener('pointerup', () => { scrubbing = false; });
+scrubEl.oninput = () => { setDir(0); S.t = S.anchor + +scrubEl.value * DAY; };
+addEventListener('keydown', e => {
+  if (/INPUT|SELECT/.test(e.target.tagName)) return;
+  if (e.code === 'Space') { e.preventDefault(); setDir(S.dir ? 0 : 1); }
+  if (e.code === 'ArrowRight') setTime(S.t + (e.shiftKey ? DAY : 36e5), false);
+  if (e.code === 'ArrowLeft') setTime(S.t - (e.shiftKey ? DAY : 36e5), false);
+  if (e.code === 'Escape') { select(null); selectCon(null); }
+});
+
+const toggle = (id, key, after) => { $(id).onclick = e => { S[key] = !S[key]; e.currentTarget.classList.toggle('on', S[key]); if (after) after(); }; };
+toggle('#conBtn', 'cons'); toggle('#dayBtn', 'daylight'); toggle('#hzBtn', 'horizon'); $('#fovBtn').onclick = e => {                                    // straight → true → off → straight
+  S.fov = S.fov === 1 ? 2 : S.fov === 2 ? 0 : 1;
+  e.currentTarget.classList.toggle('on', S.fov > 0);
+  e.currentTarget.textContent = `Field of view · ${['off', 'straight', 'true'][S.fov]}`;
+}; toggle('#figBtn', 'figure', () => { linesS.visible = !!S.con && S.figure; });
+$('#scaleBtn').onclick = () => setScale(!S.linear);
+const glowEl = $('#glow');
+(glowEl.oninput = () => {
+  const g = S.glow = +glowEl.value;
+  $('#glowCap').textContent = g < .08 ? 'Wilderness' : g < .3 ? 'Countryside' : g < .55 ? 'Suburb' : g < .8 ? 'City' : 'City centre';
+})();
+
+// Music: plays music.mp3 from the same folder as this page, looped. Nothing is fetched until the button is pressed.
+const MUSIC_SRC = "{% static 'sketches/moon/music.mp3' %}";
+let music = null;
+$('#music').onclick = e => {
+  const b = e.currentTarget;
+  if (music && !music.paused) { music.pause(); b.classList.remove('on'); b.setAttribute('aria-pressed', false); return; }
+  if (!music) {
+    music = new Audio(); music.loop = true; music.preload = 'none';
+    music.addEventListener('error', () => { b.classList.remove('on'); b.title = 'No music.mp3 found next to this page'; music = null; });
+    music.src = MUSIC_SRC;
+  }
+  music.play().then(() => { b.classList.add('on'); b.setAttribute('aria-pressed', true); }).catch(() => {});
+};
+
+// Find: Sun, Moon, planets and every named star.
+const byName = new Map(objects.filter(o => o.name && o.name !== 'Earth').map(o => [o.name.toLowerCase(), o]));
+for (const c of cons) if (!byName.has(c.name.toLowerCase())) byName.set(c.name.toLowerCase(), c);
+// Type a few letters and pick from the best matches: names that start with what you typed first, brighter things first.
+const findEl = $('#find'), findList = $('#findList');
+const GREEK = { α: 'alpha', β: 'beta', γ: 'gamma', δ: 'delta', ε: 'epsilon', ζ: 'zeta', η: 'eta', θ: 'theta', ι: 'iota', κ: 'kappa', λ: 'lambda', μ: 'mu',
+  ν: 'nu', ξ: 'xi', ο: 'omicron', π: 'pi', ρ: 'rho', σ: 'sigma', τ: 'tau', υ: 'upsilon', φ: 'phi', χ: 'chi', ψ: 'psi', ω: 'omega' };
+const FIND = [...byName.values()].map(o => ({
+  o, key: o.name.toLowerCase().replace(/^[α-ω]/, g => GREEK[g] || g),                // so "alpha cen" finds α Cen
+  sub: o.kind === 'con' ? 'Constellation' : o.kind === 'star' ? 'Star' : o.kind === 'planet' ? 'Planet' : '',
+  rank: o.kind === 'star' ? starMag[o.i] : o.kind === 'con' ? -2 : -30 }));
+let found = [], foundAt = -1;
+function markFound() {
+  [...findList.children].forEach((li, i) => li.setAttribute('aria-selected', i === foundAt));
+  findEl.setAttribute('aria-activedescendant', foundAt >= 0 ? `findOpt${foundAt}` : '');
+  if (foundAt >= 0) findList.children[foundAt].scrollIntoView({ block: 'nearest' });
+}
+function closeFind() { findList.hidden = true; findEl.setAttribute('aria-expanded', false); findEl.setAttribute('aria-activedescendant', ''); found = []; foundAt = -1; }
+function chooseFound(i) {
+  const f = found[i]; if (!f) return;
+  if (f.o.kind === 'con') { select(null); selectCon(f.o, true); } else select(f.o, true);
+  findEl.value = ''; findEl.blur();
+}
+function showFound() {
+  const q = findEl.value.trim().toLowerCase(); if (!q) return closeFind();
+  const score = f => f.key.startsWith(q) ? 0 : f.key.includes(' ' + q) ? 1 : f.key.includes(q) ? 2 : 9;
+  found = FIND.map(f => [score(f), f]).filter(x => x[0] < 9).sort((a, b) => a[0] - b[0] || a[1].rank - b[1].rank).slice(0, 8).map(x => x[1]);
+  foundAt = found.length ? 0 : -1;
+  findList.replaceChildren(...found.map((f, i) => {
+    const li = document.createElement('li'); li.setAttribute('role', 'option'); li.id = `findOpt${i}`; li.textContent = f.o.name;
+    if (f.sub) li.appendChild(document.createElement('small')).textContent = f.sub;
+    li.addEventListener('mousedown', e => { e.preventDefault(); chooseFound(i); });
+    return li;
+  }));
+  if (!found.length) { const n = findList.appendChild(document.createElement('li')); n.className = 'note'; n.setAttribute('role', 'presentation'); n.textContent = 'No matches'; }
+  findList.hidden = false; findEl.setAttribute('aria-expanded', true); markFound();
+}
+findEl.addEventListener('input', showFound);
+findEl.addEventListener('focus', showFound);
+findEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); if (!found.length) return;
+    foundAt = (foundAt + (e.key === 'ArrowDown' ? 1 : -1) + found.length) % found.length; markFound();
+  } else if (e.key === 'Enter') { e.preventDefault(); chooseFound(Math.max(foundAt, 0)); }
+  else if (e.key === 'Escape') findEl.blur();
+});
+findEl.addEventListener('blur', () => { closeFind(); findEl.value = ''; });
+
+const coordLabel = () => `${Math.abs(S.lat).toFixed(1)}°${S.lat >= 0 ? 'N' : 'S'} ${Math.abs(S.lon).toFixed(1)}°${S.lon >= 0 ? 'E' : 'W'}`;
+let placeName = '';
+function setLocation(lat, lon, name, tz) {
+  if (!isFinite(lat) || !isFinite(lon)) return;
+  S.tz = validZone(tz); shownMinute = NaN;                        // the clock follows the place
+  S.lat = clamp(lat, -90, 90); S.lon = norm360(lon + 180) - 180;
+  placeName = name || coordLabel();
+  if (document.activeElement !== placeEl) placeEl.value = placeName;
+  if (document.activeElement !== latEl) latEl.value = S.lat.toFixed(2);
+  if (document.activeElement !== lonEl) lonEl.value = S.lon.toFixed(2);
+  $('#skyCap').textContent = `Sky from ${placeName} · Sun and Moon drawn ×${DISC}`;
+}
+
+// City search: built-in cities as suggestions, Open-Meteo's geocoder once the user types (no key needed).
+const listEl = $('#placeList');
+let opts = [], active = -1, searchTimer = 0, searchCtl = null, searchSeq = 0;
+const builtin = q => PLACES.filter(c => c[0].toLowerCase().includes(q.toLowerCase())).map(([name, lat, lon, tz]) => ({ name, lat, lon, tz, sub: '' }));
+function highlight() {
+  [...listEl.children].forEach((li, i) => { if (li.getAttribute('role') === 'option') li.setAttribute('aria-selected', i === active); });
+  placeEl.setAttribute('aria-activedescendant', active >= 0 ? `placeOpt${active}` : '');
+  if (active >= 0) listEl.children[active].scrollIntoView({ block: 'nearest' });
+}
+function showOptions(items, note, preselect) {
+  opts = items; active = preselect && items.length ? 0 : -1;
+  listEl.replaceChildren(...items.map((o, i) => {
+    const li = document.createElement('li'); li.setAttribute('role', 'option'); li.id = `placeOpt${i}`; li.textContent = o.name;
+    if (o.sub) li.appendChild(document.createElement('small')).textContent = o.sub;
+    li.addEventListener('mousedown', e => { e.preventDefault(); choose(i); });
+    return li;
+  }));
+  const n = listEl.appendChild(document.createElement('li')); n.className = 'note'; n.setAttribute('role', 'presentation'); n.textContent = note;
+  listEl.hidden = false; placeEl.setAttribute('aria-expanded', true); highlight();
+}
+function closeList() {
+  clearTimeout(searchTimer); searchSeq++; if (searchCtl) searchCtl.abort();
+  listEl.hidden = true; placeEl.setAttribute('aria-expanded', false); placeEl.setAttribute('aria-activedescendant', '');
+}
+function choose(i) { const o = opts[i]; if (!o) return; setLocation(o.lat, o.lon, o.name, o.tz); placeEl.blur(); }
+async function searchCities(q) {
+  const seq = ++searchSeq; if (searchCtl) searchCtl.abort(); searchCtl = new AbortController();
+  try {
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`,
+      { signal: searchCtl.signal });
+    if (!r.ok) throw new Error(r.status);
+    const found = ((await r.json()).results || []).map(c => ({
+      name: c.name, lat: c.latitude, lon: c.longitude, tz: c.timezone, sub: [c.admin1, c.country].filter(x => x && x !== c.name).join(', ') }));
+    if (seq === searchSeq) showOptions(found, found.length ? 'City search by Open-Meteo' : 'No matches', true);
+  } catch (err) {
+    if (seq === searchSeq) showOptions(builtin(q), 'Search unavailable — built-in cities only', true);
+  }
+}
+placeEl.addEventListener('focus', () => placeEl.select());         // no suggestions until you type
+placeEl.addEventListener('input', () => {
+  const q = placeEl.value.trim(); clearTimeout(searchTimer);
+  if (q.length < 2) { closeList(); return; }
+  searchTimer = setTimeout(() => searchCities(q), 250);
+});
+placeEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); if (!opts.length) return;
+    active = (active + (e.key === 'ArrowDown' ? 1 : -1) + opts.length + (active < 0 && e.key === 'ArrowUp' ? 1 : 0)) % opts.length; highlight();
+  } else if (e.key === 'Enter') { e.preventDefault(); choose(active >= 0 ? active : 0); }
+  else if (e.key === 'Escape') placeEl.blur();
+});
+placeEl.addEventListener('blur', () => { closeList(); placeEl.value = placeName; });
+latEl.oninput = lonEl.oninput = () => setLocation(parseFloat(latEl.value), parseFloat(lonEl.value));
+$('#geo').onclick = () => {
+  const b = $('#geo'); if (!navigator.geolocation) { b.textContent = 'Unavailable'; return; }
+  b.textContent = 'Locating…';
+  navigator.geolocation.getCurrentPosition(
+    g => { setLocation(g.coords.latitude, g.coords.longitude, '', Intl.DateTimeFormat().resolvedOptions().timeZone); b.textContent = 'Locate me'; },
+    () => { b.textContent = 'Unavailable'; setTimeout(() => b.textContent = 'Locate me', 2000); });
+};
+
+// Drag the sky to look around; scroll to zoom.
+let drag = null;
+skCanvas.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; skCanvas.setPointerCapture(e.pointerId); });
+skCanvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const k = camK.fov / skEl.clientHeight, dx = e.clientX - drag[0], dy = e.clientY - drag[1];
+  if (Math.hypot(dx, dy) > 2) S.aim = S.turn = null;
+  S.az = norm360(S.az - dx * k); S.alt = clamp(S.alt + dy * k, -30, 89);
+  drag = [e.clientX, e.clientY];
+});
+skCanvas.addEventListener('pointerup', () => { drag = null; });
+skCanvas.addEventListener('pointercancel', () => { drag = null; });
+skCanvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  camK.fov = clamp(camK.fov * Math.exp(e.deltaY * .0015), 12, 100); camK.updateProjectionMatrix();
+}, { passive: false });
+
+/* ───────────── Sharing ─────────────
+   A shared link carries the moment, place, viewing direction, zoom and sky settings after the #, so opening it shows
+   exactly the sky the sender had on screen, frozen at that moment. */
+function shareLink() {
+  const q = new URLSearchParams({ t: Math.round(S.t), lat: S.lat.toFixed(4), lon: S.lon.toFixed(4), place: placeName,
+    az: S.az.toFixed(1), alt: S.alt.toFixed(1), fov: camK.fov.toFixed(1), lp: S.glow.toFixed(2) });
+  if (S.tz) q.set('tz', S.tz);
+  if (S.daylight) q.set('day', '1');
+  if (!S.cons) q.set('lines', '0');
+  if (S.con) q.set('con', S.con.id);
+  if (S.sel) q.set('sel', S.sel.kind === 'star' && !S.sel.name ? '*' + S.sel.i : S.sel.name);
+  return location.href.split('#')[0] + '#' + q;
+}
+function applyShared() {
+  const q = new URLSearchParams(location.hash.slice(1)); if (!q.has('t')) return;
+  const num = (k, d) => { const v = parseFloat(q.get(k)); return isFinite(v) ? v : d; };
+  const flag = (id, key, v) => { S[key] = v; $(id).classList.toggle('on', v); };
+  setLocation(num('lat', S.lat), num('lon', S.lon), (q.get('place') || '').slice(0, 80), q.get('tz'));
+  setTime(num('t', S.t)); setDir(0);
+  S.az = norm360(num('az', S.az)); S.alt = clamp(num('alt', S.alt), -30, 89); S.aim = S.turn = null;
+  camK.fov = clamp(num('fov', camK.fov), 12, 100); camK.updateProjectionMatrix();
+  glowEl.value = clamp(num('lp', S.glow), 0, 1); glowEl.oninput();
+  flag('#dayBtn', 'daylight', q.get('day') === '1'); flag('#conBtn', 'cons', q.get('lines') !== '0');
+  const sel = q.get('sel'), o = !sel ? null : sel[0] === '*' ? starObj[+sel.slice(1)] : byName.get(sel.toLowerCase());
+  selectCon(null); select(o && o.kind !== 'con' ? o : null, false);
+  selectCon(cons.find(c => c.id === q.get('con')) || null);
+}
+const shareIcon = $('#share').innerHTML;
+$('#share').onclick = async e => {
+  const b = e.currentTarget, url = shareLink();
+  history.replaceState(null, '', url);                             // the address bar now holds the link too
+  let copied = false;
+  try { await navigator.clipboard.writeText(url); copied = true; } catch {}
+  b.classList.remove('ico'); b.classList.add('on'); b.textContent = copied ? 'Link copied' : 'Link is in the address bar';
+  clearTimeout(b._t); b._t = setTimeout(() => { b.innerHTML = shareIcon; b.classList.add('ico'); b.classList.remove('on'); }, 2500);
+};
+
+// About: a short introduction, and a few moments worth visiting. Each is an ordinary shared-sky link.
+const SKIES = [
+  ['The pole star of the pyramid builders', 'Giza · 2560 BC', 'Earth’s axis slowly wobbles. When the Great Pyramid was rising, north was marked by Thuban, not Polaris.',
+    { t: -142914517200000, lat: 29.98, lon: 31.13, place: 'Giza', az: 0, alt: 28, fov: 60, lp: 0, sel: 'Thuban' }],
+  ['Jupiter meets Saturn, three times in a year', 'Jerusalem · 7 BC', 'A rare triple conjunction in Pisces, and one long-discussed candidate for the Star of Bethlehem.',
+    { t: -62327433600000, lat: 31.78, lon: 35.22, place: 'Jerusalem', az: 180, alt: 40, fov: 50, lp: 0, sel: 'Jupiter' }],
+  ['Venus and Jupiter merge into one', 'Jerusalem · 17 June, 2 BC', 'The two brightest planets passed so close in the evening west that they would have looked like a single star.',
+    { t: -62184436200000, lat: 31.78, lon: 35.22, place: 'Jerusalem', az: 277, alt: 22, fov: 40, lp: 0, day: 1, sel: 'Venus' }],
+  ['The night Galileo found Jupiter’s moons', 'Padua · 7 January 1610', 'He pointed his telescope at the bright light high in Taurus and saw small “stars” beside it.',
+    { t: -11359893600000, lat: 45.41, lon: 11.88, place: 'Padua', az: 110, alt: 40, fov: 60, lp: 0, sel: 'Jupiter' }],
+  ['The Moon they were standing on', 'Houston · 20 July 1969', 'The crescent in the evening sky over Mission Control at the moment of Apollo 11’s first step.',
+    { t: -14159040000, lat: 29.76, lon: -95.37, place: 'Houston', tz: 'America/Chicago', az: 245, alt: 20, fov: 50, lp: 0.3, day: 1, sel: 'Moon' }],
+  ['The Great Conjunction', 'New York · 21 December 2020', 'Jupiter and Saturn a tenth of a degree apart, their closest visible meeting since 1226.',
+    { t: 1608589800000, lat: 40.71, lon: -74.01, place: 'New York', tz: 'America/New_York', az: 228, alt: 15, fov: 40, lp: 0.3, day: 1, sel: 'Jupiter' }],
+  ['Five planets and the Moon together', 'Quito · 8 September 2040', 'Mercury, Venus, Mars, Jupiter and Saturn gather within ten degrees in the evening twilight.',
+    { t: 2230760700000, lat: -0.18, lon: -78.47, place: 'Quito', tz: 'America/Guayaquil', az: 268, alt: 18, fov: 50, lp: 0, day: 1, sel: 'Jupiter' }],
+  ['Vega, the next north star', 'New York · around 13,700 AD', 'The same wobble carries the pole away from Polaris and round toward brilliant Vega.',
+    { t: 371029863600000, lat: 40.71, lon: -74.01, place: 'New York', az: 0, alt: 40, fov: 70, lp: 0, sel: 'Vega' }],
+];
+const aboutEl = $('#about');
+$('#skies').append(...SKIES.map(([title, when, text, q]) => {
+  const li = document.createElement('li'), a = li.appendChild(document.createElement('a'));
+  a.href = '#' + new URLSearchParams(q);
+  a.appendChild(document.createElement('b')).textContent = title;
+  a.appendChild(document.createElement('small')).textContent = when;
+  a.appendChild(document.createElement('span')).textContent = text;
+  a.addEventListener('click', e => { e.preventDefault(); history.replaceState(null, '', a.href); applyShared(); aboutEl.close(); });
+  return li;
+}));
+$('#aboutBtn').onclick = () => aboutEl.showModal();
+$('#aboutClose').onclick = () => aboutEl.close();
+aboutEl.addEventListener('click', e => { if (e.target === aboutEl) aboutEl.close(); });   // click outside to close
+addEventListener('hashchange', applyShared);
+
+/* ───────────── Loop ───────────── */
+setLocation(S.lat, S.lon, PLACES[0][0], PLACES[0][3]); setDir(1); setScale(false);
+applyShared();
+solve();
+{ // Open the map side-on to the field-of-view beam (a little above and behind it), so the solar system and the beam both read clearly.
+  const axis = azAlt(S.az, S.alt, V()).applyQuaternion(qLocalInv), side = V().crossVectors(axis, Y);
+  if (side.lengthSq() < 1e-6) side.copy(X);
+  camS.position.copy(side.normalize()).addScaledVector(Y, .45).addScaledVector(axis, -.3).normalize().multiplyScalar(28);
+}
+let last = performance.now(), first = true, zoneShown = '';
+function frame(t) {
+  const dt = Math.min(.1, (t - last) / 1000); last = t;
+  S.t += S.dir * S.rate * dt * 1000;
+  if (Math.abs(S.t - S.anchor) > DAY) S.anchor = S.t;
+  if (!scrubbing) scrubEl.value = (S.t - S.anchor) / DAY;
+  writeDate();
+  const yr = wallDate(S.t).getUTCFullYear(), zone = `${S.tz}|${zoneOffset(S.t)}|${zoned(S.t)}`;
+  if (zone !== zoneShown) { zoneShown = zone; setText('tz', zoneLabel(S.t)); }
+  $('#eraNote').hidden = yr >= -3000 && yr <= 3000;
+
+  solve(); readouts(); renderSky(); renderSpace();
+  if (first) { first = false; clearTimeout(window.__loadTimer); $('#loading').classList.add('done'); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

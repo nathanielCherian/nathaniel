@@ -183,6 +183,14 @@ def moon(request):
     }
     return render(request, "sketches/moon.html", context=meta)
 
+def sky(request):
+    meta = {
+        "title":"Empyrean — Interactive Night Sky & 3D Star Map",
+        "description":"Free interactive night sky simulator: stars, planets and constellations from any place and date, 3000 BC to 3000 AD, with a 3D map of where they really are.",
+        "image":"meta/sky.png"
+    }
+    return render(request, "sketches/sky.html", context=meta)
+
 pages = [
     ['', indexv2, 'sketch-index-v2'],
     ['v1/', index, 'sketch-index'],
@@ -209,4 +217,5 @@ pages = [
     ['rubiks-state-graph/', rubiks, 'rubiks'],
     ['rabbithole/', rabbithole, 'rabbithole'],
     ['moon/', moon, 'moon'],
+    ['sky/', sky, 'sky'],
 ]
