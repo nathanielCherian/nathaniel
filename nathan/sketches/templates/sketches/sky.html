@@ -219,31 +219,67 @@
   dd { text-align: right; font-variant-numeric: tabular-nums; }
   dl:not(.picked) .o { display: none; }
 
-  /* Phones and narrow windows: everything fits one screen. */
+  #viewTabs { display: none; }
+  /* Phones and narrow windows: one view at a time (Sky or Map), a slim readout under it, and a three-row control bar. */
   @media (max-width: 820px) {
     body { overflow: hidden; }
     #app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
-    #sky { flex: 1.2 1 0; }
-    #side { flex: 1.2 1 0; border-left: 0; border-top: 1px solid var(--line); }
-    #space { min-height: 0; }
-    .tl { top: 12px; left: 12px; right: 12px; }
-    #compass { top: 82px; right: 10px; width: 58px; }
-    #compass svg { width: 58px; height: 58px; }
-    .bl { left: 12px; bottom: 10px; }
-    h1 { margin-bottom: 8px; }
-    .hint, .verse, .glow > span:first-child { display: none; }   /* no room for the verse beside the controls */
-    .glow input[type=range] { flex-basis: 80px; }
-    input[type=number] { width: 60px; }
-    #place, #find { width: 132px; font-size: 16px; }             /* 16px stops iOS zooming the page on focus */
-    #facts { padding: 9px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-    #name { font-size: 15px; font-weight: 400; }
-    #sub { margin: 0; text-align: right; }
+    #sky { flex: 1 1 0; }
+    #side { flex: none; border-left: 0; }
+    #space { display: none; flex: 1 1 0; min-height: 0; }
+    body.map #sky { display: none; }
+    body.map #side { flex: 1 1 0; }
+    body.map #space { display: block; }
+    #viewTabs {
+      display: flex; position: fixed; z-index: 5; top: 10px; right: 12px; padding: 2px; gap: 2px;
+      border: 1px solid var(--line); border-radius: 9px; background: rgba(6, 7, 10, .6); backdrop-filter: blur(6px);
+    }
+    #viewTabs button { height: 28px; padding: 0 14px; border: 0; border-radius: 7px; font-size: 12px; color: var(--mute); }
+    #viewTabs button.on { color: var(--bg); background: var(--fg); }
+
+    button, select, input { height: 34px; font-size: 13px; }       /* one size for every control (see the iOS note in the script about focus zoom) */
+    .tl { top: 16px; left: 12px; right: 12px; }
+    h1 { font-size: 12px; margin-bottom: 18px; }
+    .hint, .verse, .glow, #lat, #lon, .credit { display: none; }  /* phones always show a wilderness sky, so no light pollution slider */
+    .tl .row { flex-wrap: nowrap; }
+    .tl .search { flex: 1 1 auto; min-width: 0; }
+    #place, #find { width: 100%; }
+    #compass { top: 100px; right: 12px; width: 54px; }
+    #compass svg { width: 54px; height: 54px; }
+    .bl { left: 12px; right: 12px; bottom: 12px; gap: 8px; }
+    .bl .search { flex: 1 1 110px; min-width: 0; }
+    .drop li { padding: 9px 10px; }
+    #space .cap { top: 16px; right: 128px; font-size: 10.5px; line-height: 1.45; }
+    #space .bl button { flex: 1 1 auto; }
+
+    #facts { padding: 10px 14px 11px; border-top: 1px solid var(--line); }
+    #name { font-size: 16px; font-weight: 400; }
+    #sub { margin: 1px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #facts dl { display: none; }
-    #bar { padding: 8px 12px; gap: 6px 8px; justify-content: center; }
-    #bar button, #bar select, #bar input { height: 30px; }
-    .grow { flex: 1 1 130px; }
-    .grow .mute { display: none; }
-    .credit { margin: 0; width: 100%; text-align: center; font-size: 10px; }
+    #facts dl.picked { display: grid; margin-top: 8px; gap: 2px 14px; font-size: 11.5px; }
+    #facts dl.picked > :not(.o) { display: none; }
+
+    #bar { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); gap: 8px; }
+    #bar .grp { gap: 6px; }
+    #bar .grp:nth-child(1), #bar .grp:nth-child(2) { flex: 1 1 100%; justify-content: center; }
+    #bar .grp:nth-child(2) button { flex: 1 1 0; padding: 0; }
+    #bar .grp:nth-child(3) select { width: 104px; }
+    .grow { flex: 1 1 60px; }
+    input[type=range] { min-width: 50px; }
+    .date { height: 34px; }
+    #bar .date input, #bar .date select, #bar .date button { height: 28px; }
+    #bar .date input, #bar .date select { font-size: 14px; }
+    #tz { font-size: 10.5px; white-space: normal; line-height: 1.2; max-width: 74px; }
+    button.ico { width: 34px; }
+  }
+  /* A phone on its side: no room for the readout or the step buttons. */
+  @media (max-width: 820px) and (max-height: 480px) {
+    #facts, #bar [data-step], #tz { display: none; }
+    #bar { padding: 6px 12px; gap: 6px; }
+    #bar .grp:nth-child(1), #bar .grp:nth-child(2) { flex: 0 1 auto; }
+    #bar .grp:nth-child(2) button { flex: none; width: 34px; }
+    .bl { bottom: 8px; gap: 6px; }
+    #compass { display: none; }
   }
   @media (max-height: 620px) { #facts dl { display: none; } #sub { margin-bottom: 0; } #space { min-height: 0; } }
 </style>
@@ -260,6 +296,10 @@
     document.getElementById('loadMsg').textContent = 'Still loading — this needs an internet connection for the 3D library.';
   }, 10000);
 </script>
+<div id="viewTabs" role="tablist" aria-label="Which view to show">
+  <button role="tab" data-view="sky" class="on" aria-selected="true">Sky</button>
+  <button role="tab" data-view="map" aria-selected="false">Map</button>
+</div>
 <main id="app">
   <section id="sky" class="pane">
     <canvas role="img" aria-label="The sky as seen from the chosen place and time"></canvas>
@@ -880,6 +920,7 @@ function rampNum(stops, h) {
   const [h0, v0] = stops[i], [h1, v1] = stops[i + 1];
   return v0 + (v1 - v0) * clamp((h - h0) / (h1 - h0), 0, 1);
 }
+const PHONE = matchMedia('(max-width: 820px)');                   // the same breakpoint as the phone layout in the stylesheet
 const now = { T: daysJ2000(S.t) / 36525, sunAlt: 0, lim: 6.5, moonDist: 60, moonAng: 1, gmst: 0, sunRA: 0, planetMag: new Float32Array(NP), planetDist: new Float32Array(NP) };
 
 function solve() {
@@ -926,9 +967,10 @@ function solve() {
   // Sky scene
   const h = S.daylight ? now.sunAlt : -30;
   // Light pollution caps the faintest star you can see (6.8 in wilderness → 2.5 downtown) and adds a murky glow at night.
-  now.lim = Math.min(rampNum(LIM_STOPS, h), 6.8 - 4.3 * S.glow);
+  const glow = PHONE.matches ? 0 : S.glow;                        // phones always get a pristine wilderness sky (no slider there)
+  now.lim = Math.min(rampNum(LIM_STOPS, h), 6.8 - 4.3 * glow);
   ramp(SKY_STOPS, h, skyCol); ramp(HOR_STOPS, h, horCol); ramp(GND_STOPS, h, gndCol);
-  const murk = S.glow * clamp((-h - 4) / 8, 0, 1);
+  const murk = glow * clamp((-h - 4) / 8, 0, 1);
   skyCol.lerp(tmpCol.set(0x2c2a31), murk * .75); horCol.lerp(tmpCol.set(0x6d5848), murk * .6);
   dome.material.uniforms.top.value.copy(skyCol); dome.material.uniforms.hor.value.copy(horCol);
   ground.material.color.copy(gndCol);
@@ -1123,6 +1165,7 @@ function turnDial() {
 }
 
 function renderSky() {
+  if (!skEl.clientWidth) return;                                  // hidden (a phone showing the map): leave the camera as it was
   const [w, h] = fit(rK, skEl, camK);
   if (S.aim) {                                                    // turn toward whatever was just picked elsewhere
     localDir(S.aim, p);                                           // if it has set, face where it is with the horizon in view
@@ -1203,6 +1246,7 @@ function updateSight(reach) {                                     // reach: how 
 }
 
 function renderSpace() {
+  if (!spEl.clientWidth) return;                                  // hidden (a phone showing the sky)
   const [w, h] = fit(rS, spEl, camS);
   if (fly) {                                                      // glide to the new centre, keeping the viewing direction
     const off = tv.copy(camS.position).sub(orbit.target), len = off.length();
@@ -1389,6 +1433,17 @@ const glowEl = $('#glow');
   const g = S.glow = +glowEl.value;
   $('#glowCap').textContent = g < .08 ? 'Wilderness' : g < .3 ? 'Countryside' : g < .55 ? 'Suburb' : g < .8 ? 'City' : 'City centre';
 })();
+
+// iOS zooms the whole page when you tap a text box whose type is smaller than 16px. Capping the zoom stops that
+// (pinch-zoom still works there), and lets the search boxes use the same type size as every other control.
+if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+  document.querySelector('meta[name=viewport]').content = 'width=device-width, initial-scale=1, maximum-scale=1';
+
+// On a phone only one view shows at a time; these tabs choose which.
+for (const b of document.querySelectorAll('#viewTabs button')) b.onclick = () => {
+  document.body.classList.toggle('map', b.dataset.view === 'map');
+  for (const o of document.querySelectorAll('#viewTabs button')) { o.classList.toggle('on', o === b); o.setAttribute('aria-selected', o === b); }
+};
 
 // Music: plays music.mp3 from the same folder as this page, looped. Nothing is fetched until the button is pressed.
 const MUSIC_SRC = "{% static 'sketches/moon/music.mp3' %}";
