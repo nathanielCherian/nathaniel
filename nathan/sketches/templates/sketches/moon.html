@@ -126,6 +126,10 @@
     content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 1px solid var(--accent);
     animation: ring 2.2s ease-out 1s 3 both;
   }
+  #lbYou.moved > span::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 1px solid var(--accent);
+    animation: ring 1.3s ease-out 1 both;
+  }
   @keyframes ring { from { transform: scale(1); opacity: .9; } to { transform: scale(4.5); opacity: 0; } }
   .hintTip {
     position: fixed; z-index: 6; pointer-events: none; transform: translateY(-100%);
@@ -138,7 +142,7 @@
   .hintTip.right::after { left: auto; right: 18px; }
   button.nudge { animation: nudge 1.8s ease-in-out infinite; }
   @keyframes nudge { 0%, 100% { box-shadow: 0 0 0 0 rgba(233, 184, 114, 0); } 50% { box-shadow: 0 0 0 4px rgba(233, 184, 114, .22); border-color: rgba(233, 184, 114, .6); } }
-  @media (prefers-reduced-motion: reduce) { button.nudge, #lbYou.pulse > span::after { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { button.nudge, #lbYou.pulse > span::after, #lbYou.moved > span::after { animation: none; } }
   #inset {
     position: absolute; pointer-events: none; border: 1px solid var(--line); border-radius: 4px;
   }
@@ -160,6 +164,17 @@
   input[type=number] { width: 78px; -moz-appearance: textfield; }
   input[type=number]::-webkit-inner-spin-button { display: none; }
   input[type=range] { padding: 0; border: 0; height: 28px; accent-color: var(--fg); flex: 1; min-width: 120px; }
+  .search { position: relative; }
+  #place { width: 170px; text-overflow: ellipsis; }
+  #placeList {
+    position: absolute; z-index: 4; top: 33px; left: 0; width: max-content; min-width: 100%; max-width: min(320px, 86vw);
+    max-height: min(300px, 42vh); overflow-y: auto; list-style: none; padding: 4px;
+    border: 1px solid var(--line); border-radius: 6px; background: rgba(10, 11, 14, .96); backdrop-filter: blur(8px);
+  }
+  #placeList li { padding: 6px 9px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #placeList li small { color: var(--mute); font-size: 11px; margin-left: 7px; }
+  #placeList li[aria-selected=true], #placeList li[role=option]:hover { background: rgba(255, 255, 255, .08); }
+  #placeList li.note { cursor: default; color: var(--mute); font-size: 10px; letter-spacing: .04em; padding-top: 7px; }
   .hud button, .hud select, .hud input { background: rgba(6, 7, 10, .55); backdrop-filter: blur(6px); }
 
   #bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 20px; }
@@ -192,7 +207,7 @@
     .hint { display: none; }
     #space .verse { display: none; }                             /* no room beside the buttons; it stays on the loading screen */
     input[type=number] { width: 60px; }
-    #place { max-width: 130px; }
+    #place { width: 132px; font-size: 16px; }                    /* 16px stops iOS zooming the page on focus */
     #facts { padding: 9px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
     #phase { font-size: 15px; font-weight: 400; }
     #sub { margin: 0; white-space: nowrap; }
@@ -244,7 +259,11 @@
         the right view shows the Moon as it appears in the sky from your location, with its current phase, illumination,
         altitude, azimuth and distance. Change the date, time and place to see any phase of the lunar month.</p>
       <div class="row">
-        <select id="place" aria-label="Location"></select>
+        <div class="search">
+          <input id="place" type="text" role="combobox" aria-label="Search for a city" aria-expanded="false" aria-controls="placeList"
+            aria-autocomplete="list" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search a city">
+          <ul id="placeList" role="listbox" aria-label="Cities" hidden></ul>
+        </div>
         <input id="lat" type="number" min="-90" max="90" step="0.01" aria-label="Latitude" title="Latitude (°N)">
         <input id="lon" type="number" min="-180" max="180" step="0.01" aria-label="Longitude" title="Longitude (°E)">
         <button id="geo" title="Use my location">Locate me</button>
@@ -793,18 +812,74 @@ addEventListener('keydown', e => {
   if (e.code === 'ArrowLeft') setTime(S.t - (e.shiftKey ? DAY : 36e5), false);
 });
 
-placeEl.innerHTML = '<option value="-1" hidden>Custom</option>' + PLACES.map((p, i) => `<option value="${i}">${p[0]}</option>`).join('');
-function setLocation(lat, lon, idx = -1) {
+const coordLabel = () => `${Math.abs(S.lat).toFixed(1)}°${S.lat >= 0 ? 'N' : 'S'} ${Math.abs(S.lon).toFixed(1)}°${S.lon >= 0 ? 'E' : 'W'}`;
+let placeName = '', started = false;
+function setLocation(lat, lon, name) {
   if (!isFinite(lat) || !isFinite(lon)) return;
   S.lat = clamp(lat, -90, 90); S.lon = norm360(lon + 180) - 180;
-  placeEl.value = idx;
+  if (started) {                                                // ripple on the dot whenever the observer moves
+    lbYou.classList.remove('pulse', 'moved'); void lbYou.offsetWidth; lbYou.classList.add('moved');
+  }
+  placeName = name || coordLabel();
+  if (document.activeElement !== placeEl) placeEl.value = placeName;
   if (document.activeElement !== latEl) latEl.value = S.lat.toFixed(2);
   if (document.activeElement !== lonEl) lonEl.value = S.lon.toFixed(2);
-  const name = idx >= 0 ? PLACES[idx][0] : `${Math.abs(S.lat).toFixed(1)}°${S.lat >= 0 ? 'N' : 'S'} ${Math.abs(S.lon).toFixed(1)}°${S.lon >= 0 ? 'E' : 'W'}`;
-  $('#skyCap').textContent = `Sky from ${name} · discs ×${SKY_MAG}`;
+  $('#skyCap').textContent = `Sky from ${placeName} · discs ×${SKY_MAG}`;
   aimMarks();
 }
-placeEl.onchange = () => { const i = +placeEl.value; if (i >= 0) setLocation(PLACES[i][1], PLACES[i][2], i); };
+
+// City search: built-in cities as suggestions, Open-Meteo's geocoder once the user types (no key needed).
+const listEl = $('#placeList');
+let opts = [], active = -1, searchTimer = 0, searchCtl = null, searchSeq = 0;
+const builtin = q => PLACES.filter(c => c[0].toLowerCase().includes(q.toLowerCase())).map(([name, lat, lon]) => ({ name, lat, lon, sub: '' }));
+function highlight() {
+  [...listEl.children].forEach((li, i) => { if (li.getAttribute('role') === 'option') li.setAttribute('aria-selected', i === active); });
+  placeEl.setAttribute('aria-activedescendant', active >= 0 ? `placeOpt${active}` : '');
+  if (active >= 0) listEl.children[active].scrollIntoView({ block: 'nearest' });
+}
+function showOptions(items, note, preselect) {
+  opts = items; active = preselect && items.length ? 0 : -1;
+  listEl.replaceChildren(...items.map((o, i) => {
+    const li = document.createElement('li'); li.setAttribute('role', 'option'); li.id = `placeOpt${i}`; li.textContent = o.name;
+    if (o.sub) li.appendChild(document.createElement('small')).textContent = o.sub;
+    li.addEventListener('mousedown', e => { e.preventDefault(); choose(i); });
+    return li;
+  }));
+  const n = listEl.appendChild(document.createElement('li')); n.className = 'note'; n.setAttribute('role', 'presentation'); n.textContent = note;
+  listEl.hidden = false; placeEl.setAttribute('aria-expanded', true); highlight();
+}
+function closeList() {
+  clearTimeout(searchTimer); searchSeq++; if (searchCtl) searchCtl.abort();
+  listEl.hidden = true; placeEl.setAttribute('aria-expanded', false); placeEl.setAttribute('aria-activedescendant', '');
+}
+function choose(i) { const o = opts[i]; if (!o) return; setLocation(o.lat, o.lon, o.name); placeEl.blur(); }
+async function searchCities(q) {
+  const seq = ++searchSeq; if (searchCtl) searchCtl.abort(); searchCtl = new AbortController();
+  try {
+    const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`,
+      { signal: searchCtl.signal });
+    if (!r.ok) throw new Error(r.status);
+    const found = ((await r.json()).results || []).map(c => ({
+      name: c.name, lat: c.latitude, lon: c.longitude, sub: [c.admin1, c.country].filter(x => x && x !== c.name).join(', ') }));
+    if (seq === searchSeq) showOptions(found, found.length ? 'City search by Open-Meteo' : 'No matches', true);
+  } catch (err) {
+    if (seq === searchSeq) showOptions(builtin(q), 'Search unavailable — built-in cities only', true);
+  }
+}
+placeEl.addEventListener('focus', () => { placeEl.select(); showOptions(builtin(''), 'Type to search any city'); });
+placeEl.addEventListener('input', () => {
+  const q = placeEl.value.trim(); clearTimeout(searchTimer);
+  if (q.length < 2) { searchSeq++; if (searchCtl) searchCtl.abort(); showOptions(builtin(q), 'Type to search any city', !!q); return; }
+  searchTimer = setTimeout(() => searchCities(q), 250);            // wait for a pause in typing
+});
+placeEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); if (!opts.length) return;
+    active = (active + (e.key === 'ArrowDown' ? 1 : -1) + opts.length + (active < 0 && e.key === 'ArrowUp' ? 1 : 0)) % opts.length; highlight();
+  } else if (e.key === 'Enter') { e.preventDefault(); choose(active >= 0 ? active : 0); }
+  else if (e.key === 'Escape') placeEl.blur();
+});
+placeEl.addEventListener('blur', () => { closeList(); placeEl.value = placeName; });
 latEl.oninput = lonEl.oninput = () => setLocation(parseFloat(latEl.value), parseFloat(lonEl.value));
 $('#geo').onclick = () => {
   const b = $('#geo'); if (!navigator.geolocation) { b.textContent = 'Unavailable'; return; }
@@ -900,7 +975,7 @@ skCanvas.addEventListener('pointerup', () => { drag = null; });
 skCanvas.addEventListener('pointercancel', () => { drag = null; });
 
 /* ───────────── Loop ───────────── */
-setLocation(S.lat, S.lon, 0); setDir(1);
+setLocation(S.lat, S.lon, PLACES[0][0]); setDir(1); started = true;
 solve();                                                         // open on the sunlit side, sun off to one side
 camS.position.copy(sunDir).applyAxisAngle(Y, 55 * RAD).multiplyScalar(16).setY(6.5);
 let last = performance.now();
