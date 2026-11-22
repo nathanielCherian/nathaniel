@@ -4,7 +4,7 @@
 <head>
     {% include 'snippets/meta.html'%}
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="author" content="Nathaniel Cherian">
 <meta name="theme-color" content="#06070a">
 <meta name="application-name" content="Lunation">
@@ -144,8 +144,46 @@
   @keyframes nudge { 0%, 100% { box-shadow: 0 0 0 0 rgba(233, 184, 114, 0); } 50% { box-shadow: 0 0 0 4px rgba(233, 184, 114, .22); border-color: rgba(233, 184, 114, .6); } }
   @media (prefers-reduced-motion: reduce) { button.nudge, #lbYou.pulse > span::after, #lbYou.moved > span::after { animation: none; } }
   #inset {
-    position: absolute; pointer-events: none; border: 1px solid var(--line); border-radius: 4px;
+    position: absolute; border: 1px solid var(--line); border-radius: 4px; cursor: zoom-in; touch-action: manipulation;
   }
+  #inset.big { cursor: zoom-out; }
+  #inset:hover, #inset:focus-visible { border-color: rgba(255, 255, 255, .3); outline: none; }
+  #compass { position: absolute; left: 10px; bottom: 34px; width: 46px; height: 54px; pointer-events: none; }
+  #compass .sight { stroke: var(--accent); stroke-dasharray: 2 2; }
+  #compass svg { width: 100%; height: 100%; overflow: visible; }
+  #compass circle, #compass path { fill: none; stroke: rgba(255, 255, 255, .6); stroke-width: 1; }
+  #compass text { fill: rgba(255, 255, 255, .85); font-size: 8.5px; letter-spacing: 0; }
+  #sub.ecl { color: var(--accent); }
+  .titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .titleRow h1 { margin: 0; }
+  #aboutBtn { width: 24px; height: 24px; padding: 0; border-radius: 50%; color: var(--accent); border-color: rgba(233, 184, 114, .55); font-weight: 500; }
+  #aboutBtn:hover { border-color: var(--accent); }
+  #space > #aboutBtn { position: absolute; z-index: 2; top: 14px; right: 16px; width: 28px; height: 28px; font-size: 14px;
+    background: rgba(6, 7, 10, .55); backdrop-filter: blur(6px); }   /* wide screens: top-right corner of the Space view */
+  button.ico { width: 28px; padding: 0; position: relative; }
+  button.ico svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  button.ico[data-tip]::after {                                 /* brief message above the icon, e.g. "Link copied" */
+    content: attr(data-tip); position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 6; pointer-events: none;
+    padding: 4px 8px; white-space: nowrap; font-size: 11px; color: var(--fg);
+    background: #0b0c10; border: 1px solid var(--line); border-radius: 6px;
+  }
+  #about {
+    margin: auto; width: min(480px, calc(100vw - 32px)); max-height: min(640px, calc(100dvh - 32px)); overflow-y: auto;
+    padding: 24px 26px 22px; color: var(--fg); background: #0b0c10; border: 1px solid var(--line); border-radius: 8px;
+    line-height: 1.6;
+  }
+  #about::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(3px); }
+  #about h2 { font-size: 13px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; margin-bottom: 12px; }
+  #about h3 { font-size: 10px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--mute); margin: 20px 0 6px; }
+  #about p { margin-bottom: 8px; white-space: normal; }
+  #about h4 { font-size: 12px; font-weight: 500; margin: 12px 0 2px; }
+  #about ul { list-style: none; padding: 0; margin: 4px 0 10px; }
+  #about li { border-top: 1px solid var(--line); }
+  #about li a { display: block; padding: 7px 2px; color: var(--fg); text-decoration: none; transition: color .15s; }
+  #about li a:hover, #about li a:focus-visible { color: var(--accent); outline: none; }
+  #about em { font-style: normal; color: var(--fg); }
+  #aboutClose { position: absolute; top: 14px; right: 14px; width: 28px; padding: 0; font-size: 16px; line-height: 1; }
+  #bar .tabs { display: none; }
   #inset span { position: absolute; left: 0; right: 0; bottom: 5px; text-align: center; font-size: 10px; letter-spacing: .06em; }
 
   /* controls */
@@ -177,12 +215,23 @@
   #placeList li.note { cursor: default; color: var(--mute); font-size: 10px; letter-spacing: .04em; padding-top: 7px; }
   .hud button, .hud select, .hud input { background: rgba(6, 7, 10, .55); backdrop-filter: blur(6px); }
 
-  #bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 20px; }
+  #bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 22px 20px 12px; }   /* extra room on top for the phase icons */
   .grp { display: flex; gap: 6px; align-items: center; }
   .grow { flex: 1 1 220px; }
   .mute { color: var(--mute); white-space: nowrap; }
   .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  /* Phase icons above the slider, each sitting at the moment that phase happens within the ±15 days. */
+  .scrubWrap { position: relative; flex: 1; min-width: 120px; display: flex; }
+  .scrubWrap input { width: 100%; }
+  #phases { position: absolute; left: 8px; right: 8px; top: -8px; height: 12px; }   /* inset by half the thumb's width */
+  #phases .ph { position: absolute; top: 0; width: 12px; height: 12px; margin-left: -6px; cursor: pointer; opacity: .8; transition: opacity .15s; }
+  #phases .ph:hover { opacity: 1; }
+  #phases svg { display: block; width: 100%; height: 100%; }
+  #phases .dk { fill: #1b1d22; stroke: rgba(255, 255, 255, .28); stroke-width: .6; }
+  #phases .lt { fill: #d9d7d2; }
+  #phases.south svg { transform: scaleX(-1); }                  /* southern hemisphere sees the Moon the other way round */
   .credit { font-size: 11px; margin-left: auto; }
+  .credit.wrapped { flex-basis: 100%; margin-left: 0; text-align: center; }   /* on a line of its own: centre it */
   .credit a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); transition: color .15s, border-color .15s; }
   .credit a:hover, .credit a:focus-visible { color: var(--fg); border-color: var(--mute); outline: none; }
 
@@ -194,29 +243,51 @@
   dt { color: var(--mute); }
   dd { text-align: right; font-variant-numeric: tabular-nums; }
 
-  /* Phones and narrow windows: everything fits one screen, nothing hidden behind a scrolling bar. */
+  /* Phones and narrow windows: one view at a time (Space or Sky), switched with the tabs above the controls. */
   @media (max-width: 820px) {
     body { overflow: hidden; }
     #app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
-    #space { flex: 1.1 1 0; }
-    #side { flex: 1.25 1 0; border-left: 0; border-top: 1px solid var(--line); }
+    #space, #side { flex: 1 1 0; }
+    #side { border-left: 0; }
+    body[data-view=sky] #space, body:not([data-view=sky]) #side { display: none; }
     #sky { min-height: 0; }
-    .tl { top: 12px; left: 12px; right: 12px; }
+    #bar .tabs { display: flex; width: 100%; gap: 0; }
+    .tabs button { flex: 1; border-radius: 0; }
+    .tabs button:first-child { border-radius: 6px 0 0 6px; }
+    .tabs button:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+    .tabs button.on { position: relative; }
+    /* The title and location controls become a bar across the top, shared by both views (moved there by script). */
+    #app > header { position: static; flex: none; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); }
+    #app > header .hint { display: none; }
     .bl { left: 12px; bottom: 10px; }
-    h1 { margin-bottom: 8px; }
-    .hint { display: none; }
-    #space .verse { display: none; }                             /* no room beside the buttons; it stays on the loading screen */
-    input[type=number] { width: 60px; }
-    #place { width: 132px; font-size: 16px; }                    /* 16px stops iOS zooming the page on focus */
-    #facts { padding: 9px 14px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-    #phase { font-size: 15px; font-weight: 400; }
-    #sub { margin: 0; white-space: nowrap; }
+    .titleRow { margin-bottom: 8px; }
+    #aboutBtn { width: 28px; height: 28px; font-size: 14px; }
+    .verse .vtext { display: none; }                             /* phones: just the reference */
+    .verse cite { margin-top: 0; }
+    #space .verse { right: 12px; bottom: 18px; }
+    /* One tidy row: the search takes the spare width, everything shares one size. (The viewport's
+       maximum-scale=1 is what stops iOS zooming in when a field is focused.) */
+    #app > header .row { flex-wrap: nowrap; }
+    #app > header .row > * , #app > header #place { height: 32px; font-size: 13px; }
+    .search { flex: 1 1 0; min-width: 0; }
+    #place { width: 100%; }
+    input[type=number] { width: 64px; flex: none; }
+    #geo { flex: none; }
+    #placeList { top: 37px; max-width: calc(100vw - 24px); }
+    #placeList li { padding: 9px 10px; font-size: 14px; }
+    #placeList li small { font-size: 12px; }
+    #facts { padding: 10px 14px 12px; }
+    #phase { font-size: 17px; }
+    #sub { margin: 2px 0 8px; }
+    dl { gap: 2px 18px; }
     #bar { padding: 8px 12px; gap: 6px 8px; justify-content: center; }
+    #phases { display: none; }                                   /* phase icons are desktop-only */
     #bar button, #bar select, #bar input { height: 30px; }
     .grow { flex: 1 1 130px; }
     .grow .mute { display: none; }
     .credit { margin: 0; width: 100%; text-align: center; font-size: 10px; }
     #sky .cap.note { bottom: 10px; left: 12px; max-width: calc(100% - 130px); white-space: normal; line-height: 1.3; }
+    #compass { bottom: 40px; }
     .br { bottom: 8px; right: 8px; }
   }
   /* Short windows (e.g. a phone on its side): drop the detail table so the sky view keeps its space. */
@@ -226,7 +297,6 @@
     #sub { margin-bottom: 0; }
     #sky { min-height: 0; }
   }
-  @media (max-width: 820px) { #facts dl { display: none; } }
 </style>
 </head>
 <body>
@@ -235,7 +305,7 @@
   <h2>Lunation</h2>
   <div class="track" aria-hidden="true"><div class="fill" id="loadFill"></div></div>
   <p id="loadMsg">Loading</p>
-  <blockquote class="verse onload">“The heavens declare the glory of God; the skies proclaim the work of his hands.”<cite>Psalm 19:1</cite></blockquote>
+  <blockquote class="verse onload"><span class="vtext">“The heavens declare the glory of God; the skies proclaim the work of his hands.”</span><cite>Psalm 19:1</cite></blockquote>
 </div>
 <script>
   // If the 3D library never arrives (offline, CDN blocked), say so instead of spinning forever.
@@ -253,8 +323,11 @@
     <div class="lb dir" data-dir="0,-1"><span>Down</span></div>
     <div class="lb dir" data-dir="-1,0"><span>Left</span></div>
     <div class="lb dir" data-dir="1,0"><span>Right</span></div>
+    <button id="aboutBtn" aria-label="About" title="About, and eclipses to revisit">?</button>
     <header class="hud tl">
-      <h1>Lunation</h1>
+      <div class="titleRow">
+        <h1>Lunation</h1>
+      </div>
       <p class="sr">Lunation is an interactive 3D Moon phase simulator. The left view shows the Sun, Earth and Moon in space;
         the right view shows the Moon as it appears in the sky from your location, with its current phase, illumination,
         altitude, azimuth and distance. Change the date, time and place to see any phase of the lunar month.</p>
@@ -270,7 +343,7 @@
       </div>
       <p class="hint">Drag to orbit · scroll to zoom · click the globe to stand there</p>
     </header>
-    <blockquote class="verse">“The heavens declare the glory of God; the skies proclaim the work of his hands.”<cite>Psalm 19:1</cite></blockquote>
+    <blockquote class="verse"><span class="vtext">“The heavens declare the glory of God; the skies proclaim the work of his hands.”</span><cite>Psalm 19:1</cite></blockquote>
     <div class="hud bl"><button id="scale" title="Toggle Earth–Moon distance scale">Distance · compact</button><button id="beamBtn" title="Show what the sky view on the right is looking at">Field of view</button></div>
   </section>
 
@@ -279,7 +352,20 @@
       <canvas role="img" aria-label="The Moon as seen in the sky from the chosen location"></canvas>
       <div class="cap" id="skyCap"></div>
       <div class="cap note">Stars are approximate — not for reference</div>
-      <div id="inset"><span id="insetCap"></span></div>
+      <div id="compass" title="How far your head is tilted to look where the sky view is pointing" aria-hidden="true">
+        <!-- side view of the observer: the head tips back to match the sky view's altitude -->
+        <svg viewBox="32 -27 46 54">
+          <path d="M34 22h40"/>
+          <path d="M46 9l-4 13M46 9l4 13M46 9V-5M46 -2l5 7"/>
+          <g id="figHead">
+            <circle cx="46" cy="-10" r="5"/>
+            <path d="M51 -10h3"/>
+            <path class="sight" d="M56 -10h17"/>
+          </g>
+          <text id="figAlt" x="62" y="14" text-anchor="middle">0°</text>
+        </svg>
+      </div>
+      <div id="inset" role="button" tabindex="0" aria-label="Enlarge the close-up of the Moon" title="Click to enlarge"><span id="insetCap"></span></div>
       <div class="hud br"><button id="track" class="on" title="Keep the Moon in view">Follow Moon</button></div>
     </section>
     <section id="facts">
@@ -298,6 +384,10 @@
   </aside>
 
   <footer id="bar">
+    <div class="grp tabs" role="tablist" aria-label="View">
+      <button id="tabSpace" role="tab" aria-selected="true" class="on">Space</button>
+      <button id="tabSky" role="tab" aria-selected="false">Sky</button>
+    </div>
     <div class="grp">
       <input id="when" type="datetime-local" aria-label="Date and time">
       <button id="now">Now</button>
@@ -323,13 +413,46 @@
       </select>
     </div>
     <div class="grp grow">
-      <input id="scrub" type="range" min="-15" max="15" step="0.01" value="0" aria-label="Scrub through the lunar month">
+      <div class="scrubWrap">
+        <div id="phases"></div>
+        <input id="scrub" type="range" min="-15" max="15" step="0.01" value="0" aria-label="Scrub through the lunar month">
+      </div>
       <span class="mute">± 15 days</span>
     </div>
-    <div class="grp"><button id="music" title="Play background music on loop" aria-pressed="false">Music</button></div>
-    <div class="credit mute">Created by Nathaniel Cherian with Fable 5.2 · <a href="https://nathanielc.com" target="_blank" rel="noopener">nathanielc.com</a></div>
+    <div class="grp">
+      <button id="share" class="ico" aria-label="Share" title="Copy a link to exactly this moment, place and view"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V1.8M5 4.6l3-3 3 3M4.6 7H3v7.2h10V7h-1.6"/></svg></button>
+    </div>
+    <div class="grp"><button id="music" class="ico" aria-label="Music" title="Play background music on loop" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 12V3.4l7-1.6v8.7"/><circle cx="4.4" cy="12" r="1.6"/><circle cx="11.4" cy="10.5" r="1.6"/></svg></button></div>
+    <div class="credit mute">Created by <a href="https://nathanielc.com" target="_blank" rel="noopener">Nathaniel Cherian</a> with Fable 5.2 · <a href="https://nathanielc.com/sketches/sky/" target="_blank" rel="noopener">See the Stars</a></div>
   </footer>
 </main>
+<dialog id="about" aria-labelledby="aboutTitle">
+  <button id="aboutClose" aria-label="Close">×</button>
+  <h2 id="aboutTitle">About</h2>
+  <p>A live model of the Sun, Earth and Moon. The left view looks at them from space; the right view is the sky from
+    wherever you stand on the globe. Move through time, pick any date, click the globe or search a city to move, and
+    use <em>Share</em> to copy a link to exactly what you are looking at.</p>
+  <h3>Eclipses to revisit</h3>
+  <p class="mute">Each link jumps to the moment and a place that saw it.</p>
+  <h4>Solar</h4>
+  <ul>
+    <li><a href="#t=2026-08-12T18:29:15Z&lat=42.34&lon=-3.70&name=Burgos">Total · 12 Aug 2026 · Burgos, Spain</a></li>
+    <li><a href="#t=2024-04-08T18:43:17Z&lat=32.78&lon=-96.80&name=Dallas">Total · 8 Apr 2024 · Dallas, Texas</a></li>
+    <li><a href="#t=2023-10-14T16:54:24Z&lat=29.42&lon=-98.49&name=San+Antonio">Annular · 14 Oct 2023 · San Antonio, Texas</a></li>
+    <li><a href="#t=2017-08-21T18:26:31Z&lat=36.87&lon=-87.49&name=Hopkinsville">Total · 21 Aug 2017 · Hopkinsville, Kentucky</a></li>
+  </ul>
+  <h4>Lunar (blood moon)</h4>
+  <ul>
+    <li><a href="#t=2026-03-03T11:34:25Z&lat=35.68&lon=139.69&name=Tokyo">Total · 3 Mar 2026 · Tokyo</a></li>
+    <li><a href="#t=2025-09-07T18:11:27Z&lat=19.08&lon=72.88&name=Mumbai">Total · 7 Sep 2025 · Mumbai</a></li>
+    <li><a href="#t=2025-03-14T06:59:21Z&lat=40.71&lon=-74.01&name=New+York">Total · 14 Mar 2025 · New York</a></li>
+    <li><a href="#t=2022-11-08T10:59:20Z&lat=21.31&lon=-157.86&name=Honolulu">Total · 8 Nov 2022 · Honolulu</a></li>
+  </ul>
+  <p class="mute">For a solar eclipse, click the dark spot on the globe to stand in the Moon's shadow.</p>
+  <h3>Accuracy</h3>
+  <p class="mute">Positions come from compact textbook formulas (Meeus). Eclipse times are good to about a minute.
+    Stars are approximate.</p>
+</dialog>
 <noscript>
   <div style="position:fixed;inset:0;z-index:30;background:#06070a;padding:24px">
     <h1>Lunation — 3D Moon Phase Simulator</h1>
@@ -355,16 +478,91 @@ const norm360 = x => ((x % 360) + 360) % 360;
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const V = () => new THREE.Vector3();
 
-/* ───────────── Astronomy (low-precision Astronomical Almanac series) ─────────────
-   Frame: ecliptic of date. x → vernal equinox, y → ecliptic north, z = −(lon 90°). */
+/* ───────────── Astronomy ─────────────
+   Sun: Meeus ch. 25 (≈0.01°). Moon: Meeus ch. 47 periodic terms (≈0.003°) — accurate enough to time eclipses to a minute or two.
+   Frame: mean ecliptic of date. x → vernal equinox, y → ecliptic north, z = −(lon 90°). */
 const daysJ2000 = ms => ms / DAY - 10957.5;
 const sin = d => Math.sin(d * RAD), cos = d => Math.cos(d * RAD);
+const AU_ER = 23454.78, SUN_R = 109.12, MOON_K = 0.2725, SUN_SD = 0.266564 * RAD;   // Earth radii; Sun semi-diameter at 1 AU
 
-function sunEcl(d) {
-  const g = 357.528 + 0.9856003 * d;
-  return { lon: (280.460 + 0.9856474 * d + 1.915 * sin(g) + 0.020 * sin(2 * g)) * RAD };
+// Terrestrial − Universal time, seconds (Espenak & Meeus fits; the Moon is computed in TT, Earth's spin in UT).
+function deltaT(ms) {
+  const y = 2000 + daysJ2000(ms) / 365.25, t = y - 2000;
+  if (y >= 2005 && y <= 2050) return 62.92 + 0.32217 * t + 0.005589 * t * t;
+  if (y >= 1986 && y < 2005) return 63.86 + 0.3345 * t - 0.060374 * t * t + 0.0017275 * t ** 3 + 0.000651814 * t ** 4 + 0.00002373599 * t ** 5;
+  const u = (y - 1820) / 100; return -20 + 32 * u * u;
 }
-function moonEcl(d) {
+function sunEcl(d) {                                             // d = days from J2000 (TT)
+  const T = d / 36525, M = 357.52911 + 35999.05029 * T - 0.0001537 * T * T;
+  const C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * sin(M) + (0.019993 - 0.000101 * T) * sin(2 * M) + 0.000289 * sin(3 * M);
+  const e = 0.016708634 - 0.000042037 * T - 0.0000001267 * T * T;
+  return { lon: (280.46646 + 36000.76983 * T + 0.0003032 * T * T + C - 0.00569) * RAD,   // −0.00569° = aberration
+           r: 1.000001018 * (1 - e * e) / (1 + e * cos(M + C)) };
+}
+// [D, M, M', F, Σl (1e-6°), Σr (m)]
+const ML = [
+  0,0,1,0,6288774,-20905355, 2,0,-1,0,1274027,-3699111, 2,0,0,0,658314,-2955968, 0,0,2,0,213618,-569925,
+  0,1,0,0,-185116,48888, 0,0,0,2,-114332,-3149, 2,0,-2,0,58793,246158, 2,-1,-1,0,57066,-152138,
+  2,0,1,0,53322,-170733, 2,-1,0,0,45758,-204586, 0,1,-1,0,-40923,-129620, 1,0,0,0,-34720,108743,
+  0,1,1,0,-30383,104755, 2,0,0,-2,15327,10321, 0,0,1,2,-12528,0, 0,0,1,-2,10980,79661,
+  4,0,-1,0,10675,-34782, 0,0,3,0,10034,-23210, 4,0,-2,0,8548,-21636, 2,1,-1,0,-7888,24208,
+  2,1,0,0,-6766,30824, 1,0,-1,0,-5163,-8379, 1,1,0,0,4987,-16675, 2,-1,1,0,4036,-12831,
+  2,0,2,0,3994,-10445, 4,0,0,0,3861,-11650, 2,0,-3,0,3665,14403, 0,1,-2,0,-2689,-7003,
+  2,0,-1,2,-2602,0, 2,-1,-2,0,2390,10056, 1,0,1,0,-2348,6322, 2,-2,0,0,2236,-9884,
+  0,1,2,0,-2120,5751, 0,2,0,0,-2069,0, 2,-2,-1,0,2048,-4950, 2,0,1,-2,-1773,4130,
+  2,0,0,2,-1595,0, 4,-1,-1,0,1215,-3958, 0,0,2,2,-1110,0, 3,0,-1,0,-892,3258,
+  2,1,1,0,-810,2616, 4,-1,-2,0,759,-1897, 0,2,-1,0,-713,-2117, 2,2,-1,0,-700,2354,
+  2,1,-2,0,691,0, 2,-1,0,-2,596,0, 4,0,1,0,549,-1423, 0,0,4,0,537,-1117,
+  4,-1,0,0,520,-1571, 1,0,-2,0,-487,-1739, 2,1,0,-2,-399,0, 0,0,2,-2,-381,-4421,
+  1,1,1,0,351,0, 3,0,-2,0,-340,0, 4,0,-3,0,330,0, 2,-1,2,0,327,0,
+  0,2,1,0,-323,1165, 1,1,-1,0,299,0, 2,0,3,0,294,0, 2,0,-1,-2,0,8752,
+];
+// [D, M, M', F, Σb (1e-6°)]
+const MB = [
+  0,0,0,1,5128122, 0,0,1,1,280602, 0,0,1,-1,277693, 2,0,0,-1,173237, 2,0,-1,1,55413, 2,0,-1,-1,46271,
+  2,0,0,1,32573, 0,0,2,1,17198, 2,0,1,-1,9266, 0,0,2,-1,8822, 2,-1,0,-1,8216, 2,0,-2,-1,4324,
+  2,0,1,1,4200, 2,1,0,-1,-3359, 2,-1,-1,1,2463, 2,-1,0,1,2211, 2,-1,-1,-1,2065, 0,1,-1,-1,-1870,
+  4,0,-1,-1,1828, 0,1,0,1,-1794, 0,0,0,3,-1749, 0,1,-1,1,-1565, 1,0,0,1,-1491, 0,1,1,1,-1475,
+  0,1,1,-1,-1410, 0,1,0,-1,-1344, 1,0,0,-1,-1335, 0,0,3,1,1107, 4,0,0,-1,1021, 4,0,-1,1,833,
+  0,0,1,-3,777, 4,0,-2,1,671, 2,0,0,-3,607, 2,0,2,-1,596, 2,-1,1,-1,491, 2,0,-2,1,-451,
+  0,0,3,-1,439, 2,0,2,1,422, 2,0,-3,-1,421, 2,1,-1,1,-366, 2,1,0,1,-351, 4,0,0,1,331,
+  2,-1,1,1,315, 2,-2,0,-1,302, 0,0,1,3,-283, 2,1,1,-1,-229, 1,1,0,-1,223, 1,1,0,1,223,
+  0,1,-2,-1,-220, 2,1,-1,-1,-220, 1,0,1,1,-185, 2,-1,-2,-1,181, 0,1,2,1,-177, 4,0,-2,-1,176,
+  4,-1,-1,-1,166, 1,0,1,-1,-164, 4,0,1,-1,132, 1,0,-1,-1,-119, 4,-1,0,-1,115, 2,-2,0,1,107,
+];
+function moonEcl(d) {                                            // d = days from J2000 (TT) → lon, lat (rad), r (Earth radii)
+  const T = d / 36525;
+  const Lp = 218.3164477 + 481267.88123421 * T - 0.0015786 * T * T, D = 297.8501921 + 445267.1114034 * T - 0.0018819 * T * T,
+    M = 357.5291092 + 35999.0502909 * T - 0.0001536 * T * T, Mp = 134.9633964 + 477198.8675055 * T + 0.0087414 * T * T,
+    F = 93.272095 + 483202.0175233 * T - 0.0036539 * T * T, E = 1 - 0.002516 * T - 0.0000074 * T * T;
+  const A1 = 119.75 + 131.849 * T, A2 = 53.09 + 479264.29 * T, A3 = 313.45 + 481266.484 * T;
+  let sl = 3958 * sin(A1) + 1962 * sin(Lp - F) + 318 * sin(A2), sr = 0,
+    sb = -2235 * sin(Lp) + 382 * sin(A3) + 175 * sin(A1 - F) + 175 * sin(A1 + F) + 127 * sin(Lp - Mp) - 115 * sin(Lp + Mp);
+  for (let i = 0; i < ML.length; i += 6) {
+    const a = (ML[i] * D + ML[i + 1] * M + ML[i + 2] * Mp + ML[i + 3] * F) * RAD, e = ML[i + 1] ? (ML[i + 1] * ML[i + 1] === 4 ? E * E : E) : 1;
+    sl += ML[i + 4] * e * Math.sin(a); sr += ML[i + 5] * e * Math.cos(a);
+  }
+  for (let i = 0; i < MB.length; i += 5) {
+    const a = (MB[i] * D + MB[i + 1] * M + MB[i + 2] * Mp + MB[i + 3] * F) * RAD, e = MB[i + 1] ? (MB[i + 1] * MB[i + 1] === 4 ? E * E : E) : 1;
+    sb += MB[i + 4] * e * Math.sin(a);
+  }
+  return { lon: (Lp + sl / 1e6) * RAD, lat: sb / 1e6 * RAD, r: (385000.56 + sr / 1000) / 6378.14 };
+}
+// Sun direction and Moon position (Earth radii) as plain [x, y, z] at a UT instant.
+function sunMoon(ms) {
+  const d = daysJ2000(ms) + deltaT(ms) / 86400, s = sunEcl(d), m = moonEcl(d), c = Math.cos(m.lat) * m.r;
+  return { s, m, sun: [Math.cos(s.lon), 0, -Math.sin(s.lon)], moon: [c * Math.cos(m.lon), Math.sin(m.lat) * m.r, -c * Math.sin(m.lon)] };
+}
+// Solar eclipse geometry: distance of the Moon's shadow axis from Earth's centre, and the penumbra's radius there.
+function solarShadow(ms) {
+  const { s, sun, moon } = sunMoon(ms), D = s.r * AU_ER;
+  const u = [moon[0] - sun[0] * D, moon[1], moon[2] - sun[2] * D], ul = Math.hypot(...u); u[0] /= ul; u[1] /= ul; u[2] /= ul;
+  const k = moon[0] * u[0] + moon[1] * u[1] + moon[2] * u[2];    // < 0 when the Moon is sunward of Earth
+  const gamma = Math.hypot(moon[0] - k * u[0], moon[1] - k * u[1], moon[2] - k * u[2]);
+  return { k, gamma, pen: MOON_K + -k * (SUN_R + MOON_K) / (ul) };
+}
+// Cheap lunar series, used only to sketch the orbit path (160 points every frame).
+function moonEclLow(d) {
   const T = d / 36525;
   const lon = 218.32 + 481267.881 * T
     + 6.29 * sin(135.0 + 477198.87 * T) - 1.27 * sin(259.3 - 413335.36 * T)
@@ -406,6 +604,44 @@ manager.onLoad = () => {                                         // also fires i
   loadEl.classList.add('done');
 };
 const loader = new THREE.TextureLoader(manager).setCrossOrigin('anonymous');
+
+// Eclipse shading. Both are worked out per pixel from the true geometry (in Earth radii), in the body's own
+// frame, so they look the same whatever scale or scene the body is drawn in.
+const EU = { eMoon: { value: V() }, eAxis: { value: V() }, eCone: { value: new THREE.Vector2() },
+             sMoon: { value: V() }, sSun: { value: V() }, sSunR: { value: SUN_SD } };
+function inject(mat, names, glsl, apply) {
+  mat.onBeforeCompile = sh => {
+    for (const n of names) sh.uniforms[n] = EU[n];
+    sh.vertexShader = 'varying vec3 vObj;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vObj = position;');
+    sh.fragmentShader = 'varying vec3 vObj;\n' + glsl + '\n' +
+      sh.fragmentShader.replace('#include <envmap_fragment>', apply + '\n  #include <envmap_fragment>');
+  };
+  mat.customProgramCacheKey = () => names.join();
+  return mat;
+}
+// Lunar eclipse: Earth's shadow on the Moon — grey penumbra, copper-red umbra.
+const lunarEclipse = mat => inject(mat, ['eMoon', 'eAxis', 'eCone'], `
+  uniform vec3 eMoon; uniform vec3 eAxis; uniform vec2 eCone;
+  vec3 eclipseTint() {
+    vec3 P = eMoon + ${MOON_K} * normalize(vObj);
+    float x = dot(P, eAxis);
+    if (x <= 0.0) return vec3(1.0);
+    float d = length(P - x * eAxis);
+    float ru = 1.02 * (1.0 - x * eCone.x), rp = 1.02 * (1.0 + x * eCone.y);
+    vec3 lit = vec3(mix(0.22, 1.0, sqrt(smoothstep(ru, rp, d))));
+    vec3 deep = vec3(0.30, 0.075, 0.03) * (0.45 + 0.75 * clamp(d / ru, 0.0, 1.0));
+    return mix(deep, lit, smoothstep(ru - 0.03, ru + 0.03, d));
+  }`, 'outgoingLight *= eclipseTint();');
+// Solar eclipse: the Moon's shadow on Earth — how much of the Sun the Moon hides from each point of the ground.
+const solarEclipse = mat => inject(mat, ['sMoon', 'sSun', 'sSunR'], `
+  uniform vec3 sMoon; uniform vec3 sSun; uniform float sSunR;
+  float solarShade() {
+    vec3 m = sMoon - normalize(vObj); float dm = length(m); m /= dm;
+    if (dot(m, sSun) <= 0.0) return 1.0;
+    float sep = length(cross(m, sSun)), sM = ${MOON_K} / dm;
+    float t = clamp((sSunR + sM - sep) / (2.0 * min(sSunR, sM)), 0.0, 1.0);
+    return 1.0 - 0.93 * t * t * (3.0 - 2.0 * t);
+  }`, 'outgoingLight *= solarShade();');
 const sphere = new THREE.SphereGeometry(1, 96, 64);
 function skin(file, ...mats) {
   loader.load(TEX + file, tex => {
@@ -439,9 +675,9 @@ const camS = new THREE.PerspectiveCamera(40, 1, 0.05, 20000); camS.position.set(
 const orbit = new OrbitControls(camS, spCanvas);
 orbit.enableDamping = true; orbit.enablePan = false; orbit.minDistance = 1.4; orbit.maxDistance = 3000;
 
-const earthMat = new THREE.MeshLambertMaterial({ color: 0x3d6187 });
+const earthMat = solarEclipse(new THREE.MeshLambertMaterial({ color: 0x3d6187 }));
 const earth = new THREE.Mesh(sphere, earthMat);
-const moonMatS = new THREE.MeshLambertMaterial({ color: 0x9a9a9a });
+const moonMatS = lunarEclipse(new THREE.MeshLambertMaterial({ color: 0x9a9a9a }));
 const moonS = new THREE.Mesh(sphere, moonMatS); moonS.scale.setScalar(MOON_R);
 const lightS = new THREE.DirectionalLight(0xffffff, 3.2);
 const sunS = sunSprite();
@@ -462,9 +698,11 @@ const sceneK = new THREE.Scene();
 const camK = new THREE.PerspectiveCamera(80, 1, 0.1, 9000);
 const camI = new THREE.PerspectiveCamera(1, 1, 1, 2000);     // close-up inset
 const SKY_MAG = 8;                                            // discs are enlarged in the wide view
-const moonMatK = new THREE.MeshLambertMaterial(
-  { color: 0x9a9a9a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
+const moonMatK = lunarEclipse(new THREE.MeshLambertMaterial(
+  { color: 0x9a9a9a, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
 const moonK = new THREE.Mesh(sphere, moonMatK);
+// Invisible depth-only copy of the Moon's disc: hides the Sun and stars behind it (solar eclipses, occultations).
+moonK.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ colorWrite: false })));
 const lightK = new THREE.DirectionalLight(0xffffff, 3.2);
 const sunK = sunSprite();
 // Sky dome: gradient from zenith colour to a paler band at the horizon.
@@ -515,7 +753,7 @@ const stars = (() => {
   x.fillStyle = r; x.fillRect(0, 0, 32, 32);
   const pts = new THREE.Points(g, new THREE.PointsMaterial({
     size: 5, sizeAttenuation: false, map: new THREE.CanvasTexture(c), vertexColors: true,
-    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   pts.frustumCulled = false; return pts;
 })();
 
@@ -547,7 +785,8 @@ skin('moon_1024.jpg', moonMatS, moonMatK);
 /* ───────────── Per-frame solution ───────────── */
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 const sunDir = V(), moonDir = V(), up = V(), pole = V(), north = V(), east = V(), south = V(),
-  topo = V(), moonLocal = V(), sunLocal = V(), tmp = V();
+  topo = V(), moonLocal = V(), sunLocal = V(), tmp = V(), obs = V(), moonShow = V();
+const qInv = new THREE.Quaternion();
 const qTilt = new THREE.Quaternion(), qSpin = new THREE.Quaternion(), qMoon = new THREE.Quaternion(),
   qSpin2 = new THREE.Quaternion(), qSpin3 = new THREE.Quaternion(),
   qLocal = new THREE.Quaternion(), mLocal = new THREE.Matrix4();
@@ -561,10 +800,11 @@ function ramp(stops, h, out) {
   const [h0, c0] = stops[i], [h1, c1] = stops[i + 1];
   return out.set(c0).lerp(tmpCol.set(c1), clamp((h - h0) / (h1 - h0), 0, 1));
 }
-const now = { moonAlt: 0, moonAz: 0, sunAlt: 0, moonAng: 0 };
+const now = { moonAlt: 0, moonAz: 0, sunAlt: 0, moonAng: 0, sunScale: 1 };
+const subEl = $('#sub');
 
 function solve() {
-  const d = daysJ2000(S.t), s = sunEcl(d), m = moonEcl(d);
+  const d = daysJ2000(S.t), dT = d + deltaT(S.t) / 86400, s = sunEcl(dT), m = moonEcl(dT);   // d: UT (Earth's spin), dT: TT (orbits)
   const eps = (23.439 - 4e-7 * d) * RAD;
   const gmst = norm360(280.46061837 + 360.98564736629 * d) * RAD;
   eclVec(s.lon, 0, sunDir); eclVec(m.lon, m.lat, moonDir);
@@ -588,7 +828,7 @@ function solve() {
   sl.setXYZ(1, sunDir.x * sunDist * .93, sunDir.y * sunDist * .93, sunDir.z * sunDist * .93); sl.needsUpdate = true;
   const ol = orbitLine.geometry.attributes.position;
   for (let i = 0; i <= ORB_N; i++) {
-    const mi = moonEcl(d + (i / ORB_N - .5) * 27.32);
+    const mi = moonEclLow(d + (i / ORB_N - .5) * 27.32);
     eclVec(mi.lon, mi.lat, tmp).multiplyScalar(mi.r * S.scale); ol.setXYZ(i, tmp.x, tmp.y, tmp.z);
   }
   ol.needsUpdate = true;
@@ -601,7 +841,10 @@ function solve() {
   east.crossVectors(north, up); south.copy(north).negate();
   mLocal.makeBasis(east, up, south).transpose(); qLocal.setFromRotationMatrix(mLocal);
 
-  topo.copy(moonDir).multiplyScalar(m.r).sub(up);              // topocentric (parallax included)
+  // Where the observer actually is: Earth is flattened, so the position vector isn't quite along "up".
+  const gu = Math.atan(0.99664719 * Math.tan(la)), gs = 0.99664719 * Math.sin(gu), gc = Math.cos(gu);
+  obs.set(gc * Math.cos(lo), gs, -gc * Math.sin(lo)).applyQuaternion(earth.quaternion);
+  topo.copy(moonDir).multiplyScalar(m.r).sub(obs);             // topocentric (parallax included)
   const topoDist = topo.length();
   moonLocal.copy(topo).applyQuaternion(qLocal).normalize();
   sunLocal.copy(sunDir).applyQuaternion(qLocal);
@@ -614,10 +857,53 @@ function solve() {
   moonK.quaternion.copy(qLocal).multiply(qMoon);
   lightK.position.copy(sunLocal).multiplyScalar(10);
   sunK.position.copy(sunLocal).multiplyScalar(300);
-  sunK.scale.setScalar(300 * Math.tan(0.267 * RAD) * SKY_MAG / .16 * 2);
+  now.sunScale = 300 * Math.tan(SUN_SD / s.r) / .16 * 2;        // sprite size whose bright core matches the Sun's true disc
 
-  // Sky colour from the Sun's altitude
-  const h = now.sunAlt;
+  // ── Eclipses ──
+  const sunD = s.r * AU_ER;
+  qInv.copy(qMoon).invert();                                    // lunar: Earth's shadow, in the Moon's frame
+  EU.eMoon.value.copy(moonDir).multiplyScalar(m.r).applyQuaternion(qInv);
+  EU.eAxis.value.copy(sunDir).negate().applyQuaternion(qInv);
+  EU.eCone.value.set((SUN_R - 1) / sunD, (SUN_R + 1) / sunD);
+  qInv.copy(earth.quaternion).invert();                         // solar: Moon's shadow, in Earth's frame
+  EU.sMoon.value.copy(moonDir).multiplyScalar(m.r).applyQuaternion(qInv);
+  EU.sSun.value.copy(sunDir).applyQuaternion(qInv);
+  EU.sSunR.value = SUN_SD / s.r;
+
+  let ecl = '';
+  const ax = -m.r * moonDir.dot(sunDir);                        // Moon's distance down Earth's shadow axis
+  if (ax > 0) {
+    const off = tmp.copy(moonDir).multiplyScalar(m.r).addScaledVector(sunDir, ax).length();
+    const ru = 1.02 * (1 - ax * (SUN_R - 1) / sunD), rp = 1.02 * (1 + ax * (SUN_R + 1) / sunD);
+    if (off + MOON_K < ru) ecl = 'Total lunar eclipse';
+    else if (off - MOON_K < ru) ecl = `Partial lunar eclipse · ${Math.round((ru + MOON_K - off) / (2 * MOON_K) * 100)}%`;
+    else if (off - MOON_K < rp) ecl = 'Penumbral lunar eclipse';
+  }
+  // Solar, as seen from here: how much of the Sun's disc the Moon covers.
+  const sep = Math.acos(clamp(moonLocal.dot(sunLocal), -1, 1)), sM = Math.asin(MOON_K / topoDist), sS = SUN_SD / s.r;
+  let cover = 0;
+  if (sep < sM + sS) {
+    if (sep <= Math.abs(sM - sS)) cover = Math.min(1, (sM * sM) / (sS * sS));
+    else cover = (sS * sS * Math.acos((sep * sep + sS * sS - sM * sM) / (2 * sep * sS)) + sM * sM * Math.acos((sep * sep + sM * sM - sS * sS) / (2 * sep * sM))
+      - .5 * Math.sqrt((-sep + sS + sM) * (sep + sS - sM) * (sep - sS + sM) * (sep + sS + sM))) / (Math.PI * sS * sS);
+  }
+  if (cover > 0 && now.sunAlt > -1)
+    ecl = sep < sM - sS ? 'Total solar eclipse' : sep < sS - sM ? 'Annular solar eclipse' : `Partial solar eclipse · ${Math.round(cover * 100)}%`;
+  else if (ax < 0 && sep < 3 * RAD) {                           // not here — but is the Moon's shadow on Earth somewhere?
+    const G = solarShadow(S.t); if (G.k < 0 && G.gamma < 0.9972 + G.pen) ecl = 'Solar eclipse elsewhere on Earth';
+  }
+
+  // Wide sky view draws discs ×SKY_MAG, so near the Sun the Moon's offset from it is stretched by the same
+  // factor (easing back to the true position by 14° away) — otherwise the enlarged discs would overlap falsely.
+  const sd = sep / RAD;
+  if (sd > 1e-7 && sd < 14) {
+    const g = (sd <= .6 ? SKY_MAG * sd : sd + (SKY_MAG - 1) * .6 * (1 - (sd - .6) / 13.4) ** 2) * RAD;
+    tmp.copy(moonLocal).addScaledVector(sunLocal, -Math.cos(sep)).normalize();
+    moonShow.copy(sunLocal).multiplyScalar(Math.cos(g)).addScaledVector(tmp, Math.sin(g));
+  } else moonShow.copy(moonLocal);
+
+  // Sky colour from the Sun's altitude — a deep solar eclipse drops the sky to twilight.
+  const h = now.sunAlt > -7 ? now.sunAlt - (now.sunAlt + 7) * cover ** 10 : now.sunAlt;
   ramp(SKY_STOPS, h, skyCol); ramp(HOR_STOPS, h, horCol); ramp(GND_STOPS, h, gndCol);
   dome.material.uniforms.top.value.copy(skyCol); dome.material.uniforms.hor.value.copy(horCol);
   ground.material.color.copy(gndCol);
@@ -628,12 +914,13 @@ function solve() {
   const elong = Math.acos(clamp(moonDir.dot(sunDir), -1, 1));
   const D = norm360((m.lon - s.lon) / RAD);
   setText('phase', phaseName(D));
-  setText('sub', `Day ${(D / 360 * 29.53).toFixed(1)} of the lunar month`);
+  setText('sub', ecl || `Day ${(D / 360 * 29.53).toFixed(1)} of the lunar month`);
+  if (subEl.classList.contains('ecl') !== !!ecl) subEl.classList.toggle('ecl', !!ecl);
   setText('fIll', `${((1 - Math.cos(elong)) / 2 * 100).toFixed(1)} %`);
   setText('fAlt', `${now.moonAlt.toFixed(1)}°${now.moonAlt < -0.8 ? ' · below horizon' : ''}`);
   setText('fAz', `${now.moonAz.toFixed(1)}° ${compass(now.moonAz)}`);
   setText('fDist', `${(Math.round(m.r * EARTH_KM / 100) * 100).toLocaleString()} km`);
-  setText('fSun', `${h.toFixed(1)}° · ${h > -0.8 ? 'day' : h > -18 ? 'twilight' : 'night'}`);
+  setText('fSun', `${now.sunAlt.toFixed(1)}° · ${now.sunAlt > -0.8 ? 'day' : now.sunAlt > -18 ? 'twilight' : 'night'}`);
   // Apparent solar time: the Sun's hour angle here, so 12:00 is when the Sun actually crosses the meridian.
   const sunRA = Math.atan2(Math.cos(eps) * Math.sin(s.lon), Math.cos(s.lon));
   const utc = new Date(S.t), hrs = norm360((gmst - sunRA) / RAD + S.lon + 180) / 15;
@@ -653,19 +940,21 @@ function setText(id, s) { if (textCache[id] !== s) { textCache[id] = s; document
 /* ───────────── Rendering ───────────── */
 function fit(renderer, el, cam) {
   const w = el.clientWidth, h = el.clientHeight;
+  if (!w || !h) return null;                                    // pane hidden (phone layout shows one at a time)
   if (el._w !== w || el._h !== h) {
     el._w = w; el._h = h; renderer.setSize(w, h, false);
     cam.aspect = w / Math.max(1, h); cam.updateProjectionMatrix();
   }
   return [w, h];
 }
+let placedY = 0;
 function place(el, v, cam, w, h, show = true) {
   tmp.copy(v).project(cam);
   const vis = show && tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05;
   el.style.display = vis ? '' : 'none';
   if (!vis) return null;
-  const x = (tmp.x + 1) / 2 * w;
-  el.style.transform = `translate(${x.toFixed(1)}px,${((1 - tmp.y) / 2 * h).toFixed(1)}px)`;
+  const x = (tmp.x + 1) / 2 * w; placedY = (1 - tmp.y) / 2 * h;
+  el.style.transform = `translate(${x.toFixed(1)}px,${placedY.toFixed(1)}px)`;
   return x;
 }
 const lbMoon = $('#lbMoon'), lbSun = $('#lbSun'), lbYou = $('#lbYou'), insetEl = $('#inset');
@@ -739,7 +1028,8 @@ function updateBeam() {
 }
 
 function renderSpace() {
-  const [w, h] = fit(rS, spEl, camS);
+  const size = fit(rS, spEl, camS); if (!size) return;
+  const [w, h] = size;
   orbit.update();
   rS.render(sceneS, camS);
   place(lbMoon, moonS.position, camS, w, h);
@@ -750,17 +1040,31 @@ function renderSpace() {
     place(el, beam.localToWorld(p.set(d[0] * beamHalf[0] * 1.08, d[1] * beamHalf[1] * 1.08, -1)), camS, w, h, beam.visible);
 }
 
+const figHead = $('#figHead'), figAlt = $('#figAlt');
+const capEl = $('#skyCap'), compassEl = $('#compass'); let insetSize = 0;
 function renderSky() {
-  const [w, h] = fit(rK, skEl, camK);
+  const size = fit(rK, skEl, camK); if (!size) return;
+  const [w, h] = size;
 
   // wide view — discs enlarged so the phase is legible
   rK.setScissorTest(false); rK.setViewport(0, 0, w, h); rK.setClearColor(skyCol);
   ground.visible = grid.visible = horizon.visible = sunK.visible = stars.visible = dome.visible = true;
-  moonK.scale.setScalar(now.moonAng * SKY_MAG);
+  moonK.position.copy(moonShow).multiplyScalar(100); moonK.scale.setScalar(now.moonAng * SKY_MAG);
+  sunK.scale.setScalar(now.sunScale * SKY_MAG);
   rK.render(sceneK, camK);
-  for (const c of cardinals) place(c.el, azAlt(c.az, 0, p, 100), camK, w, h);
+  figHead.setAttribute('transform', `rotate(${(-S.alt).toFixed(1)} 46 -5)`);            // head pivots at the neck
+  if (figAlt.textContent !== `${Math.round(S.alt)}°`) figAlt.textContent = `${Math.round(S.alt)}°`;
+  const m = 12, small = clamp(Math.min(w, h) * .36, 96, 180), big = Math.max(small, Math.min(w - 2 * m, h - 2 * m - 44, 560));
+  const target = S.insetBig ? big : small;                      // ease between the two sizes
+  insetSize = !insetSize || Math.abs(target - insetSize) < .5 ? target : insetSize + (target - insetSize) * .25;
+  const s = Math.round(insetSize);
+  // The close-up is a solid panel: anything that would sit under it is hidden rather than showing through.
+  const under = (el, x) => { if (x !== null && x > w - s - m - 24 && placedY < s + m + 26) { el.style.display = 'none'; return true; } return false; };
+  capEl.style.visibility = w - s - m < capEl.offsetWidth + 24 ? 'hidden' : '';
+  compassEl.style.visibility = w - s - m < 66 && s + m > h - 96 ? 'hidden' : '';
+  for (const c of cardinals) under(c.el, place(c.el, azAlt(c.az, 0, p, 100), camK, w, h));
   const seen = [];
-  for (const k of MARKS) { const x = place(k.el, azAlt(k.az, 0, p, 100), camK, w, h, k.show); if (x !== null) seen.push([x, k]); }
+  for (const k of MARKS) { const x = place(k.el, azAlt(k.az, 0, p, 100), camK, w, h, k.show); if (x !== null && !under(k.el, x)) seen.push([x, k]); }
   const rows = [-1e9, -1e9, -1e9, -1e9];                         // stagger labels that would collide
   for (const [x, k] of seen.sort((a, b) => a[0] - b[0])) {
     let r = rows.findIndex(end => x - k.el.firstChild.offsetWidth / 2 > end + 10); if (r < 0) r = rows.length - 1;
@@ -768,13 +1072,13 @@ function renderSky() {
   }
 
   // close-up inset — true proportions, zenith up
-  const s = Math.round(clamp(Math.min(w, h) * .36, 96, 180)), m = 12;
   insetEl.style.cssText = `width:${s}px;height:${s}px;right:${m}px;top:${m}px`;
   rK.setScissorTest(true); rK.setViewport(w - s - m, h - s - m, s, s); rK.setScissor(w - s - m, h - s - m, s, s);
   rK.setClearColor(now.moonAlt < -0.8 ? gndCol : skyCol);
-  ground.visible = grid.visible = horizon.visible = sunK.visible = stars.visible = false;
+  ground.visible = grid.visible = horizon.visible = stars.visible = false;
   dome.visible = now.moonAlt >= -0.8;
-  moonK.scale.setScalar(now.moonAng);
+  moonK.position.copy(moonLocal).multiplyScalar(100); moonK.scale.setScalar(now.moonAng);   // true place and size
+  sunK.scale.setScalar(now.sunScale);
   camI.fov = 2 * Math.atan(now.moonAng / 100) / RAD / .68; camI.updateProjectionMatrix();
   camI.lookAt(moonK.position);
   rK.render(sceneK, camI);
@@ -898,6 +1202,7 @@ $('#beamBtn').onclick = e => {
 };
 
 // Music: plays music.mp3 from the same folder as this page, looped. Nothing is fetched until the button is pressed.
+const tip = (b, msg) => { b.dataset.tip = msg; clearTimeout(b._tip); b._tip = setTimeout(() => delete b.dataset.tip, 2200); };
 const MUSIC_SRC = "{% static 'sketches/moon/music.mp3' %}";
 let music = null;
 $('#music').onclick = e => {
@@ -905,10 +1210,9 @@ $('#music').onclick = e => {
   if (music && !music.paused) { music.pause(); b.classList.remove('on'); b.setAttribute('aria-pressed', false); return; }
   if (!music) {
     music = new Audio(); music.loop = true; music.preload = 'none';
-    music.addEventListener('error', () => { b.classList.remove('on'); b.textContent = 'No music.mp3 found'; music = null; });
+    music.addEventListener('error', () => { b.classList.remove('on'); tip(b, 'No music.mp3 found'); music = null; });
     music.src = MUSIC_SRC;
   }
-  b.textContent = 'Music';
   music.play().then(() => { b.classList.add('on'); b.setAttribute('aria-pressed', true); }).catch(() => {});
 };
 
@@ -923,7 +1227,7 @@ const hints = (() => {
     clearTimeout(timer); target.classList.remove('nudge'); tip.classList.remove('show'); setTimeout(() => tip.remove(), 600);
   }
   function show(id, target, text) {
-    if (active || seen.includes(id)) return;
+    if (active || seen.includes(id) || !target.offsetParent) return;   // skip if the button isn't on screen
     mark(id);
     const r = target.getBoundingClientRect(), right = r.left > innerWidth / 2;
     const tip = document.createElement('div'); tip.className = 'hintTip' + (right ? ' right' : ''); tip.textContent = text;
@@ -943,6 +1247,107 @@ $('#scale').addEventListener('click', () => hints.mark('scale'));
 orbit.addEventListener('change', () => {                         // zoomed well out → mention true scale
   if (S.scaleTarget !== 1 && camS.position.length() > 30) hints.show('scale', $('#scale'), 'The Moon is really 10× farther away');
 });
+
+// Share: the whole state (moment, place, both views) lives in the URL fragment, so a link reopens it exactly.
+function stateHash() {
+  const q = new URLSearchParams({ t: new Date(Math.round(S.t / 1000) * 1000).toISOString().replace('.000', ''),
+    lat: S.lat.toFixed(4), lon: S.lon.toFixed(4) });
+  if (placeName !== coordLabel()) q.set('name', placeName);
+  if (!S.track) { q.set('az', S.az.toFixed(1)); q.set('alt', S.alt.toFixed(1)); }
+  if (S.scaleTarget === 1) q.set('scale', 'true');
+  if (beam.visible) q.set('fov', '1');
+  if (S.insetBig) q.set('zoom', '1');
+  if (document.body.dataset.view === 'sky') q.set('view', 'sky');
+  q.set('cam', camS.position.toArray().map(v => +v.toFixed(2)).join(','));
+  return '#' + q;
+}
+function applyHash() {
+  const q = new URLSearchParams(location.hash.slice(1)), num = k => q.has(k) ? parseFloat(q.get(k)) : NaN;
+  if (![...q.keys()].length) return;
+  const t = Date.parse(q.get('t') || ''); if (isFinite(t)) { setTime(t); setDir(0); }
+  if (isFinite(num('lat')) && isFinite(num('lon'))) setLocation(num('lat'), num('lon'), (q.get('name') || '').slice(0, 60));
+  if (isFinite(num('az')) && isFinite(num('alt'))) { setTrack(false); S.az = norm360(num('az')); S.alt = clamp(num('alt'), -30, 89); }
+  else if (q.has('t')) setTrack(true);
+  const cam = (q.get('cam') || '').split(',').map(Number), hasCam = cam.length === 3 && cam.every(isFinite) && Math.hypot(...cam) > 1.2;
+  if (q.has('scale') !== (S.scaleTarget === 1)) { $('#scale').click(); if (hasCam) S.scale = S.scaleTarget; }
+  if (q.has('fov') !== beam.visible) $('#beamBtn').click();
+  if (q.has('zoom') !== !!S.insetBig) toggleInset();
+  if (q.get('view') === 'sky') $('#tabSky').click();
+  if (hasCam) camS.position.set(...cam);
+  else if (isFinite(t)) {                                       // no camera given: swing round to the sunlit side for that moment
+    solve(); const dist = camS.position.length();
+    camS.position.copy(sunDir).applyAxisAngle(Y, 55 * RAD).setY(.42).normalize().multiplyScalar(dist);
+  }
+  if ($('#about').open) $('#about').close();
+}
+addEventListener('hashchange', applyHash);
+$('#share').onclick = async e => {
+  const b = e.currentTarget, hash = stateHash(), url = location.href.split('#')[0] + hash;
+  history.replaceState(null, '', hash);                         // the address bar always carries the link too
+  let msg = 'Link in address bar';
+  try {
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) { await navigator.share({ title: document.title, url }); msg = 'Share'; }
+    else { await navigator.clipboard.writeText(url); msg = 'Link copied'; }
+  } catch (err) {}
+  if (msg !== 'Share') tip(b, msg);
+};
+$('#aboutBtn').onclick = () => $('#about').showModal();
+$('#aboutClose').onclick = () => $('#about').close();
+$('#about').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.close(); });   // click outside
+
+// Close-up: click (or Enter) to enlarge, again to shrink.
+const toggleInset = () => {
+  S.insetBig = !S.insetBig; insetEl.classList.toggle('big', S.insetBig);
+  insetEl.title = S.insetBig ? 'Click to shrink' : 'Click to enlarge';
+};
+insetEl.addEventListener('click', toggleInset);
+addEventListener('pointerdown', e => { if (S.insetBig && !insetEl.contains(e.target)) toggleInset(); }, true);   // click away to shrink
+insetEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggleInset(); } });
+
+// Phone layout: the title and location controls sit in a top bar outside the Space pane, so they stay put
+// when switching views; on wide screens they go back to floating over the Space view.
+const phone = matchMedia('(max-width: 820px)'), headEl = $('header.tl');
+const dockHeader = () => {
+  if (phone.matches) { $('#app').prepend(headEl); $('.titleRow').append($('#aboutBtn')); }   // "?" rides in the top bar
+  else { spEl.insertBefore(headEl, spEl.querySelector('.verse')); spEl.insertBefore($('#aboutBtn'), headEl); }
+};
+phone.addEventListener('change', dockHeader); dockHeader();
+
+// Phase icons over the slider: one for each eighth of the cycle, placed at the time it occurs in the slider's window.
+const phasesEl = $('#phases'); let phasesFor = NaN;
+const elongAt = ms => { const { s, m } = sunMoon(ms); return norm360((m.lon - s.lon) / RAD); };
+function phaseIcon(D) {                                         // D = elongation; lit side on the right while waxing
+  const waning = D > 180, a = (waning ? 360 - D : D) * RAD, rx = Math.abs(5 * Math.cos(a)).toFixed(2);
+  const lit = a < .02 ? '' : a > Math.PI - .02 ? '<circle r="5" class="lt"/>' :
+    `<path class="lt" ${waning ? 'transform="scale(-1,1)"' : ''} d="M0-5A5 5 0 0 1 0 5A${rx} 5 0 0 ${a < Math.PI / 2 ? 0 : 1} 0-5"/>`;
+  return `<svg viewBox="-6 -6 12 12" aria-hidden="true"><circle r="5" class="dk"/>${lit}</svg>`;
+}
+function drawPhases() {
+  phasesEl.classList.toggle('south', S.lat < 0);
+  if (phasesFor === S.anchor) return; phasesFor = S.anchor;
+  const t0 = S.anchor - 15 * DAY, t1 = S.anchor + 15 * DAY; let html = '', t = t0, target = Math.ceil(elongAt(t0) / 45) * 45;
+  for (let i = 0; i < 12; i++, target += 45) {
+    for (let j = 0; j < 3; j++) t += (norm360(target - elongAt(t) + 180) - 180) / 12.1907 * DAY;   // Newton on elongation
+    if (t > t1) break;
+    if (t >= t0) html += `<span class="ph" data-t="${Math.round(t)}" title="${phaseName(target % 360)}" style="left:${((t - t0) / (t1 - t0) * 100).toFixed(2)}%">${phaseIcon(target % 360)}</span>`;
+  }
+  phasesEl.innerHTML = html;
+}
+phasesEl.addEventListener('click', e => { const ph = e.target.closest('.ph'); if (ph) { setTime(+ph.dataset.t, false); setDir(0); } });
+
+// Footer credit: right-aligned while it shares the controls' line, centred once it wraps onto its own.
+const creditEl = $('.credit');
+const centreCredit = () => {
+  creditEl.classList.remove('wrapped');
+  creditEl.classList.toggle('wrapped', creditEl.offsetTop > creditEl.previousElementSibling.offsetTop + 4);
+};
+new ResizeObserver(centreCredit).observe($('#bar'));
+
+// Phone layout: show one view at a time.
+for (const [id, view] of [['tabSpace', 'space'], ['tabSky', 'sky']]) $('#' + id).onclick = () => {
+  document.body.dataset.view = view;
+  for (const [i, v] of [['tabSpace', 'space'], ['tabSky', 'sky']]) { $('#' + i).classList.toggle('on', v === view); $('#' + i).setAttribute('aria-selected', v === view); }
+};
 
 // Click the globe to stand there (ignore drags).
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
@@ -978,6 +1383,7 @@ skCanvas.addEventListener('pointercancel', () => { drag = null; });
 setLocation(S.lat, S.lon, PLACES[0][0]); setDir(1); started = true;
 solve();                                                         // open on the sunlit side, sun off to one side
 camS.position.copy(sunDir).applyAxisAngle(Y, 55 * RAD).multiplyScalar(16).setY(6.5);
+applyHash();                                                     // a shared link overrides the defaults
 let last = performance.now();
 function frame(t) {
   const dt = Math.min(.1, (t - last) / 1000); last = t;
@@ -994,7 +1400,7 @@ function frame(t) {
   if (!scrubbing) scrubEl.value = (S.t - S.anchor) / DAY;
   if (document.activeElement !== whenEl) { const v = fmtLocal(S.t); if (whenEl.value !== v) whenEl.value = v; }
 
-  solve(); aimSky(); updateBeam(); renderSpace(); renderSky();
+  solve(); aimSky(); updateBeam(); renderSpace(); renderSky(); drawPhases();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
